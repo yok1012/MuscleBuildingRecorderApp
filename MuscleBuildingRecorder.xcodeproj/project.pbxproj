@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		BE2D1B872E91F5B200E741F8 /* MuscleBuildingRecorderWatchTrue Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = BE2D1B672E91F5B100E741F8 /* MuscleBuildingRecorderWatchTrue Watch App.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		BE2D195B2E8D3F2400E741F8 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -21,13 +25,61 @@
 			remoteGlobalIDString = BE2D194C2E8D3F2300E741F8;
 			remoteInfo = MuscleBuildingRecorder;
 		};
+		BE2D1B742E91F5B200E741F8 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = BE2D19452E8D3F2300E741F8 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = BE2D1B662E91F5B100E741F8;
+			remoteInfo = "MuscleBuildingRecorderWatchTrue Watch App";
+		};
+		BE2D1B7E2E91F5B200E741F8 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = BE2D19452E8D3F2300E741F8 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = BE2D1B662E91F5B100E741F8;
+			remoteInfo = "MuscleBuildingRecorderWatchTrue Watch App";
+		};
+		BE2D1B852E91F5B200E741F8 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = BE2D19452E8D3F2300E741F8 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = BE2D1B662E91F5B100E741F8;
+			remoteInfo = "MuscleBuildingRecorderWatchTrue Watch App";
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		BE2D1B8B2E91F5B200E741F8 /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolderSpec = 16;
+			files = (
+				BE2D1B872E91F5B200E741F8 /* MuscleBuildingRecorderWatchTrue Watch App.app in Embed Watch Content */,
+			);
+			name = "Embed Watch Content";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		BE2D194D2E8D3F2300E741F8 /* MuscleBuildingRecorder.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MuscleBuildingRecorder.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		BE2D195A2E8D3F2400E741F8 /* MuscleBuildingRecorderTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MuscleBuildingRecorderTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		BE2D19642E8D3F2400E741F8 /* MuscleBuildingRecorderUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MuscleBuildingRecorderUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		BE2D1B672E91F5B100E741F8 /* MuscleBuildingRecorderWatchTrue Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "MuscleBuildingRecorderWatchTrue Watch App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		BE2D1B732E91F5B200E741F8 /* MuscleBuildingRecorderWatchTrue Watch AppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "MuscleBuildingRecorderWatchTrue Watch AppTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		BE2D1B7D2E91F5B200E741F8 /* MuscleBuildingRecorderWatchTrue Watch AppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "MuscleBuildingRecorderWatchTrue Watch AppUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		BE2D1B9C2E91F5B300E741F9 /* Exceptions for "MuscleBuildingRecorderWatchTrue Watch App" folder in "MuscleBuildingRecorderWatchTrue Watch App" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = BE2D1B662E91F5B100E741F8 /* MuscleBuildingRecorderWatchTrue Watch App */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		BE2D194F2E8D3F2300E741F8 /* MuscleBuildingRecorder */ = {
@@ -43,6 +95,29 @@
 		BE2D19672E8D3F2400E741F8 /* MuscleBuildingRecorderUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = MuscleBuildingRecorderUITests;
+			sourceTree = "<group>";
+		};
+		BE2D1B592E91E05700E741F8 /* MuscleBuildingRecorderWatch */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = MuscleBuildingRecorderWatch;
+			sourceTree = "<group>";
+		};
+		BE2D1B682E91F5B100E741F8 /* MuscleBuildingRecorderWatchTrue Watch App */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				BE2D1B9C2E91F5B300E741F9 /* Exceptions for "MuscleBuildingRecorderWatchTrue Watch App" folder in "MuscleBuildingRecorderWatchTrue Watch App" target */,
+			);
+			path = "MuscleBuildingRecorderWatchTrue Watch App";
+			sourceTree = "<group>";
+		};
+		BE2D1B762E91F5B200E741F8 /* MuscleBuildingRecorderWatchTrue Watch AppTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "MuscleBuildingRecorderWatchTrue Watch AppTests";
+			sourceTree = "<group>";
+		};
+		BE2D1B802E91F5B200E741F8 /* MuscleBuildingRecorderWatchTrue Watch AppUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "MuscleBuildingRecorderWatchTrue Watch AppUITests";
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -69,6 +144,27 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		BE2D1B642E91F5B100E741F8 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BE2D1B702E91F5B200E741F8 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BE2D1B7A2E91F5B200E741F8 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -78,6 +174,10 @@
 				BE2D194F2E8D3F2300E741F8 /* MuscleBuildingRecorder */,
 				BE2D195D2E8D3F2400E741F8 /* MuscleBuildingRecorderTests */,
 				BE2D19672E8D3F2400E741F8 /* MuscleBuildingRecorderUITests */,
+				BE2D1B592E91E05700E741F8 /* MuscleBuildingRecorderWatch */,
+				BE2D1B682E91F5B100E741F8 /* MuscleBuildingRecorderWatchTrue Watch App */,
+				BE2D1B762E91F5B200E741F8 /* MuscleBuildingRecorderWatchTrue Watch AppTests */,
+				BE2D1B802E91F5B200E741F8 /* MuscleBuildingRecorderWatchTrue Watch AppUITests */,
 				BE2D194E2E8D3F2300E741F8 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -88,6 +188,9 @@
 				BE2D194D2E8D3F2300E741F8 /* MuscleBuildingRecorder.app */,
 				BE2D195A2E8D3F2400E741F8 /* MuscleBuildingRecorderTests.xctest */,
 				BE2D19642E8D3F2400E741F8 /* MuscleBuildingRecorderUITests.xctest */,
+				BE2D1B672E91F5B100E741F8 /* MuscleBuildingRecorderWatchTrue Watch App.app */,
+				BE2D1B732E91F5B200E741F8 /* MuscleBuildingRecorderWatchTrue Watch AppTests.xctest */,
+				BE2D1B7D2E91F5B200E741F8 /* MuscleBuildingRecorderWatchTrue Watch AppUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -102,10 +205,12 @@
 				BE2D19492E8D3F2300E741F8 /* Sources */,
 				BE2D194A2E8D3F2300E741F8 /* Frameworks */,
 				BE2D194B2E8D3F2300E741F8 /* Resources */,
+				BE2D1B8B2E91F5B200E741F8 /* Embed Watch Content */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				BE2D1B862E91F5B200E741F8 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				BE2D194F2E8D3F2300E741F8 /* MuscleBuildingRecorder */,
@@ -163,6 +268,74 @@
 			productReference = BE2D19642E8D3F2400E741F8 /* MuscleBuildingRecorderUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		BE2D1B662E91F5B100E741F8 /* MuscleBuildingRecorderWatchTrue Watch App */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BE2D1B882E91F5B200E741F8 /* Build configuration list for PBXNativeTarget "MuscleBuildingRecorderWatchTrue Watch App" */;
+			buildPhases = (
+				BE2D1B632E91F5B100E741F8 /* Sources */,
+				BE2D1B642E91F5B100E741F8 /* Frameworks */,
+				BE2D1B652E91F5B100E741F8 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				BE2D1B682E91F5B100E741F8 /* MuscleBuildingRecorderWatchTrue Watch App */,
+			);
+			name = "MuscleBuildingRecorderWatchTrue Watch App";
+			packageProductDependencies = (
+			);
+			productName = "MuscleBuildingRecorderWatchTrue Watch App";
+			productReference = BE2D1B672E91F5B100E741F8 /* MuscleBuildingRecorderWatchTrue Watch App.app */;
+			productType = "com.apple.product-type.application";
+		};
+		BE2D1B722E91F5B200E741F8 /* MuscleBuildingRecorderWatchTrue Watch AppTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BE2D1B8C2E91F5B200E741F8 /* Build configuration list for PBXNativeTarget "MuscleBuildingRecorderWatchTrue Watch AppTests" */;
+			buildPhases = (
+				BE2D1B6F2E91F5B200E741F8 /* Sources */,
+				BE2D1B702E91F5B200E741F8 /* Frameworks */,
+				BE2D1B712E91F5B200E741F8 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				BE2D1B752E91F5B200E741F8 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				BE2D1B762E91F5B200E741F8 /* MuscleBuildingRecorderWatchTrue Watch AppTests */,
+			);
+			name = "MuscleBuildingRecorderWatchTrue Watch AppTests";
+			packageProductDependencies = (
+			);
+			productName = "MuscleBuildingRecorderWatchTrue Watch AppTests";
+			productReference = BE2D1B732E91F5B200E741F8 /* MuscleBuildingRecorderWatchTrue Watch AppTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		BE2D1B7C2E91F5B200E741F8 /* MuscleBuildingRecorderWatchTrue Watch AppUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BE2D1B8F2E91F5B200E741F8 /* Build configuration list for PBXNativeTarget "MuscleBuildingRecorderWatchTrue Watch AppUITests" */;
+			buildPhases = (
+				BE2D1B792E91F5B200E741F8 /* Sources */,
+				BE2D1B7A2E91F5B200E741F8 /* Frameworks */,
+				BE2D1B7B2E91F5B200E741F8 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				BE2D1B7F2E91F5B200E741F8 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				BE2D1B802E91F5B200E741F8 /* MuscleBuildingRecorderWatchTrue Watch AppUITests */,
+			);
+			name = "MuscleBuildingRecorderWatchTrue Watch AppUITests";
+			packageProductDependencies = (
+			);
+			productName = "MuscleBuildingRecorderWatchTrue Watch AppUITests";
+			productReference = BE2D1B7D2E91F5B200E741F8 /* MuscleBuildingRecorderWatchTrue Watch AppUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -184,6 +357,17 @@
 						CreatedOnToolsVersion = 26.0.1;
 						TestTargetID = BE2D194C2E8D3F2300E741F8;
 					};
+					BE2D1B662E91F5B100E741F8 = {
+						CreatedOnToolsVersion = 26.0.1;
+					};
+					BE2D1B722E91F5B200E741F8 = {
+						CreatedOnToolsVersion = 26.0.1;
+						TestTargetID = BE2D1B662E91F5B100E741F8;
+					};
+					BE2D1B7C2E91F5B200E741F8 = {
+						CreatedOnToolsVersion = 26.0.1;
+						TestTargetID = BE2D1B662E91F5B100E741F8;
+					};
 				};
 			};
 			buildConfigurationList = BE2D19482E8D3F2300E741F8 /* Build configuration list for PBXProject "MuscleBuildingRecorder" */;
@@ -203,6 +387,9 @@
 				BE2D194C2E8D3F2300E741F8 /* MuscleBuildingRecorder */,
 				BE2D19592E8D3F2400E741F8 /* MuscleBuildingRecorderTests */,
 				BE2D19632E8D3F2400E741F8 /* MuscleBuildingRecorderUITests */,
+				BE2D1B662E91F5B100E741F8 /* MuscleBuildingRecorderWatchTrue Watch App */,
+				BE2D1B722E91F5B200E741F8 /* MuscleBuildingRecorderWatchTrue Watch AppTests */,
+				BE2D1B7C2E91F5B200E741F8 /* MuscleBuildingRecorderWatchTrue Watch AppUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -223,6 +410,27 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		BE2D19622E8D3F2400E741F8 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BE2D1B652E91F5B100E741F8 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BE2D1B712E91F5B200E741F8 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BE2D1B7B2E91F5B200E741F8 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -253,6 +461,27 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		BE2D1B632E91F5B100E741F8 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BE2D1B6F2E91F5B200E741F8 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BE2D1B792E91F5B200E741F8 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -265,6 +494,21 @@
 			isa = PBXTargetDependency;
 			target = BE2D194C2E8D3F2300E741F8 /* MuscleBuildingRecorder */;
 			targetProxy = BE2D19652E8D3F2400E741F8 /* PBXContainerItemProxy */;
+		};
+		BE2D1B752E91F5B200E741F8 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = BE2D1B662E91F5B100E741F8 /* MuscleBuildingRecorderWatchTrue Watch App */;
+			targetProxy = BE2D1B742E91F5B200E741F8 /* PBXContainerItemProxy */;
+		};
+		BE2D1B7F2E91F5B200E741F8 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = BE2D1B662E91F5B100E741F8 /* MuscleBuildingRecorderWatchTrue Watch App */;
+			targetProxy = BE2D1B7E2E91F5B200E741F8 /* PBXContainerItemProxy */;
+		};
+		BE2D1B862E91F5B200E741F8 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = BE2D1B662E91F5B100E741F8 /* MuscleBuildingRecorderWatchTrue Watch App */;
+			targetProxy = BE2D1B852E91F5B200E741F8 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -322,7 +566,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
@@ -380,7 +624,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
@@ -395,11 +639,18 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = MuscleBuildingRecorder/MuscleBuildingRecorder.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = MFQB3583D6;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "このアプリはBluetooth心拍計およびAirPods Proと接続して、リアルタイムで心拍数を測定するために使用します。";
+				INFOPLIST_KEY_NSBluetoothPeripheralUsageDescription = "このアプリはBluetooth Low Energy心拍計およびAirPods Proからデータを取得するために使用します。";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "このアプリはワークアウト中の心拍数データを読み取り、トレーニングの効果を可視化するためにHealthKitを使用します。";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "このアプリはワークアウトセッションをHealthKitに保存し、フィットネス記録を管理するために使用します。";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
+				INFOPLIST_KEY_NSSupportsLiveActivitiesFrequentUpdates = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -427,11 +678,18 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = MuscleBuildingRecorder/MuscleBuildingRecorder.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = MFQB3583D6;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "このアプリはBluetooth心拍計およびAirPods Proと接続して、リアルタイムで心拍数を測定するために使用します。";
+				INFOPLIST_KEY_NSBluetoothPeripheralUsageDescription = "このアプリはBluetooth Low Energy心拍計およびAirPods Proからデータを取得するために使用します。";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "このアプリはワークアウト中の心拍数データを読み取り、トレーニングの効果を可視化するためにHealthKitを使用します。";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "このアプリはワークアウトセッションをHealthKitに保存し、フィットネス記録を管理するために使用します。";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
+				INFOPLIST_KEY_NSSupportsLiveActivitiesFrequentUpdates = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -462,7 +720,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = MFQB3583D6;
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = yokAppDev.MuscleBuildingRecorderTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -484,7 +742,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = MFQB3583D6;
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = yokAppDev.MuscleBuildingRecorderTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -538,6 +796,172 @@
 			};
 			name = Release;
 		};
+		BE2D1B892E91F5B200E741F8 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "MuscleBuildingRecorderWatchTrue Watch App/MuscleBuildingRecorderWatchTrue Watch App.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = MFQB3583D6;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "MuscleBuildingRecorderWatchTrue Watch App/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = MuscleBuildingRecorderWatchTrue;
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "ワークアウト中の心拍数データを読み取るために使用します";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "ワークアウトセッションを保存するために使用します";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_WKApplication = YES;
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = yokAppDev.MuscleBuildingRecorder;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = yokAppDev.MuscleBuildingRecorder.watchkitapp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = Debug;
+		};
+		BE2D1B8A2E91F5B200E741F8 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "MuscleBuildingRecorderWatchTrue Watch App/MuscleBuildingRecorderWatchTrue Watch App.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = MFQB3583D6;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "MuscleBuildingRecorderWatchTrue Watch App/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = MuscleBuildingRecorderWatchTrue;
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "ワークアウト中の心拍数データを読み取るために使用します";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "ワークアウトセッションを保存するために使用します";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_WKApplication = YES;
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = yokAppDev.MuscleBuildingRecorder;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = yokAppDev.MuscleBuildingRecorder.watchkitapp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = Release;
+		};
+		BE2D1B8D2E91F5B200E741F8 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = MFQB3583D6;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "yokAppDev.MuscleBuildingRecorderWatchTrue-Watch-AppTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MuscleBuildingRecorderWatchTrue Watch App.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/MuscleBuildingRecorderWatchTrue Watch App";
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = Debug;
+		};
+		BE2D1B8E2E91F5B200E741F8 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = MFQB3583D6;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "yokAppDev.MuscleBuildingRecorderWatchTrue-Watch-AppTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MuscleBuildingRecorderWatchTrue Watch App.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/MuscleBuildingRecorderWatchTrue Watch App";
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = Release;
+		};
+		BE2D1B902E91F5B200E741F8 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = MFQB3583D6;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "yokAppDev.MuscleBuildingRecorderWatchTrue-Watch-AppUITests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				TEST_TARGET_NAME = "MuscleBuildingRecorderWatchTrue Watch App";
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = Debug;
+		};
+		BE2D1B912E91F5B200E741F8 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = MFQB3583D6;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "yokAppDev.MuscleBuildingRecorderWatchTrue-Watch-AppUITests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				TEST_TARGET_NAME = "MuscleBuildingRecorderWatchTrue Watch App";
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -573,6 +997,33 @@
 			buildConfigurations = (
 				BE2D19752E8D3F2400E741F8 /* Debug */,
 				BE2D19762E8D3F2400E741F8 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		BE2D1B882E91F5B200E741F8 /* Build configuration list for PBXNativeTarget "MuscleBuildingRecorderWatchTrue Watch App" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BE2D1B892E91F5B200E741F8 /* Debug */,
+				BE2D1B8A2E91F5B200E741F8 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		BE2D1B8C2E91F5B200E741F8 /* Build configuration list for PBXNativeTarget "MuscleBuildingRecorderWatchTrue Watch AppTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BE2D1B8D2E91F5B200E741F8 /* Debug */,
+				BE2D1B8E2E91F5B200E741F8 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		BE2D1B8F2E91F5B200E741F8 /* Build configuration list for PBXNativeTarget "MuscleBuildingRecorderWatchTrue Watch AppUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BE2D1B902E91F5B200E741F8 /* Debug */,
+				BE2D1B912E91F5B200E741F8 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

@@ -24,14 +24,6 @@ struct ContentView: View {
                     Label("設定", systemImage: "gear")
                 }
                 .tag(2)
-
-            #if DEBUG
-            WatchDebugView()
-                .tabItem {
-                    Label("Debug", systemImage: "applewatch")
-                }
-                .tag(3)
-            #endif
         }
         .onAppear {
             setupHeartRateConnection()

@@ -1,22 +1,15 @@
-//
-//  MuscleBuildingRecorderApp.swift
-//  MuscleBuildingRecorder
-//
-//  Created by kiichi yokokawa on 2025/10/01.
-//
-
 import SwiftUI
-import CoreData
 
 @main
-struct MuscleBuildingRecorderApp: App {
-    let dataController = DataController.shared
+struct WorkoutTimerApp: App {
+    @StateObject private var dataController = DataController.shared
     @StateObject private var heartRateManager = HeartRateManager.shared
     @StateObject private var sessionManager = SessionManager.shared
 
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environmentObject(dataController)
                 .environmentObject(heartRateManager)
                 .environmentObject(sessionManager)
                 .environment(\.managedObjectContext, dataController.container.viewContext)
