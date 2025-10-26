@@ -4,7 +4,8 @@ import HealthKit
 import WatchConnectivity
 
 struct ContentView: View {
-    @StateObject private var workoutManager = WorkoutManager()
+    @EnvironmentObject var workoutManager: WorkoutManager
+    @EnvironmentObject var motionStreamer: WatchMotionStreamer
     @State private var currentPhase: WorkoutPhase = .idle
     @State private var currentExercise: (category: String, name: String) = ("胸", "ベンチプレス")
     @State private var cycleIndex: Int = 0
@@ -279,6 +280,27 @@ struct ContentView: View {
                 Text("Sync: \(Int(Date().timeIntervalSince(syncTime)))s ago")
                     .font(.system(size: 9))
                     .foregroundColor(.cyan)
+            }
+
+            // Motion Streamer info
+            HStack(spacing: 4) {
+                Circle()
+                    .fill(motionStreamer.isRunning ? Color.green : Color.red)
+                    .frame(width: 6, height: 6)
+                Text("Motion: \(motionStreamer.isRunning ? "\(motionStreamer.currentRateHz)Hz" : "Off")")
+                    .font(.system(size: 9))
+                    .foregroundColor(motionStreamer.isRunning ? .green : .red)
+            }
+
+            if motionStreamer.isRunning {
+                Text("Samples: \(motionStreamer.totalSamples)")
+                    .font(.system(size: 9))
+                    .foregroundColor(.gray)
+                if motionStreamer.pendingFileCount > 0 {
+                    Text("Pending: \(motionStreamer.pendingFileCount) files")
+                        .font(.system(size: 9))
+                        .foregroundColor(.orange)
+                }
             }
 
             Button("Manual HR Trigger") {

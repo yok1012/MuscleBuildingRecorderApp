@@ -15,6 +15,13 @@ struct SettingsView: View {
     @State private var showingSuccessAlert = false
     @State private var exportMessage = ""
 
+    // センサーログ関連の状態
+    @StateObject private var sensorLogManager = SensorLogManager.shared
+    @State private var isAccelLogging = false
+    @State private var selectedAccelRate = 50
+    @State private var showingSensorExportAlert = false
+    @State private var sensorExportData: ExportData?
+
     @FetchRequest(
         sortDescriptors: [NSSortDescriptor(keyPath: \Session.startedAt, ascending: false)]
     ) private var sessions: FetchedResults<Session>
@@ -60,6 +67,7 @@ struct SettingsView: View {
             Form {
                 heartRateSection
                 dataExportSection
+                sensorLogSection
                 exerciseMasterSection
                 privacySection
                 appInfoSection
@@ -96,6 +104,25 @@ struct SettingsView: View {
                 Button("OK") { }
             } message: {
                 Text("AirPods（第3世代）は心拍数測定に対応していません。Apple WatchまたはBluetooth心拍計をご利用ください。")
+            }
+            .sheet(item: $sensorExportData) { data in
+                ShareSheet(
+                    items: [ExportDocument(data: data.content, filename: data.filename, type: data.type)],
+                    onComplete: { success in
+                        if success {
+                            showingSensorExportAlert = true
+                            exportMessage = "センサーログをエクスポートしました"
+                        }
+                    }
+                )
+            }
+            .alert("センサーログ", isPresented: $showingSensorExportAlert) {
+                Button("OK") { }
+            } message: {
+                Text(exportMessage)
+            }
+            .onAppear {
+                isAccelLogging = sensorLogManager.isLogging
             }
         }
     }
@@ -239,6 +266,136 @@ struct SettingsView: View {
         return Text("• 期間: \(dateFormatter.string(from: start)) 〜 \(dateFormatter.string(from: end))")
             .font(.caption)
             .foregroundColor(.secondary)
+    }
+
+    private var sensorLogSection: some View {
+        Section(header: Text("センサーログ")) {
+            // Watch接続状態
+            HStack {
+                Image(systemName: WatchLink.shared.isWatchReachable ? "applewatch.watchface" : "applewatch.slash")
+                    .foregroundColor(WatchLink.shared.isWatchReachable ? .green : .gray)
+                Text("Apple Watch")
+                Spacer()
+                Text(WatchLink.shared.isWatchReachable ? "接続中" : "未接続")
+                    .font(.caption)
+                    .foregroundColor(WatchLink.shared.isWatchReachable ? .green : .gray)
+            }
+
+            // ロギング開始/停止
+            HStack {
+                if isAccelLogging {
+                    Button(action: stopAccelLogging) {
+                        HStack {
+                            Image(systemName: "stop.circle.fill")
+                                .foregroundColor(.red)
+                            Text("加速度ログ停止")
+                        }
+                    }
+                } else {
+                    Button(action: startAccelLogging) {
+                        HStack {
+                            Image(systemName: "play.circle.fill")
+                                .foregroundColor(.green)
+                            Text("加速度ログ開始")
+                        }
+                    }
+                }
+                Spacer()
+                if isAccelLogging {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                }
+            }
+
+            // サンプリングレート選択
+            Picker("サンプリングレート", selection: $selectedAccelRate) {
+                Text("25 Hz").tag(25)
+                Text("50 Hz").tag(50)
+                Text("100 Hz").tag(100)
+            }
+            .pickerStyle(SegmentedPickerStyle())
+            .disabled(isAccelLogging)
+
+            // ログ情報
+            if sensorLogManager.sampleCount > 0 {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("記録サンプル数: \(sensorLogManager.sampleCount)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+
+                    if let lastTime = sensorLogManager.lastSampleTime {
+                        Text("最終記録: \(lastTime, style: .relative)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+
+                    if sensorLogManager.currentLogSize > 0 {
+                        Text("ファイルサイズ: \(formatBytes(sensorLogManager.currentLogSize))")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .padding(.vertical, 4)
+            }
+
+            // エクスポートボタン
+            Button(action: exportSensorLog) {
+                HStack {
+                    Image(systemName: "square.and.arrow.up")
+                        .foregroundColor(.blue)
+                    Text("センサーログをエクスポート")
+                    Spacer()
+                    if sensorLogManager.exportURLsForToday().count > 0 {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(.green)
+                            .font(.caption)
+                    }
+                }
+            }
+            .disabled(sensorLogManager.exportURLsForToday().isEmpty)
+
+            // 注意事項
+            Text("⚠️ 長時間の高レート記録はバッテリーを消費します。通常使用では25-50 Hzを推奨します。")
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .padding(.top, 4)
+        }
+    }
+
+    private func startAccelLogging() {
+        WatchLink.shared.sendStartLogging(rateHz: selectedAccelRate)
+        isAccelLogging = true
+    }
+
+    private func stopAccelLogging() {
+        WatchLink.shared.sendStopLogging()
+        isAccelLogging = false
+    }
+
+    private func exportSensorLog() {
+        guard let csvData = sensorLogManager.exportDataForToday() else {
+            exportMessage = "エクスポート可能なデータがありません"
+            showingSensorExportAlert = true
+            return
+        }
+
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyyMMdd"
+        let dateString = formatter.string(from: Date())
+        let filename = "accelerometer_\(dateString).csv"
+
+        sensorExportData = ExportData(
+            content: csvData,
+            filename: filename,
+            type: .commaSeparatedText
+        )
+    }
+
+    private func formatBytes(_ bytes: Int64) -> String {
+        let formatter = ByteCountFormatter()
+        formatter.allowedUnits = [.useKB, .useMB]
+        formatter.countStyle = .file
+        return formatter.string(fromByteCount: bytes)
     }
 
     private var exerciseMasterSection: some View {

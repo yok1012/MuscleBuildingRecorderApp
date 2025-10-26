@@ -10,9 +10,14 @@ import SwiftUI
 
 @main
 struct MuscleBuildingRecorderWatchTrue_Watch_AppApp: App {
+    @StateObject private var motionStreamer = WatchMotionStreamer.shared
+    @StateObject private var workoutManager = WorkoutManager()
+
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environmentObject(workoutManager)
+                .environmentObject(motionStreamer)
         }
     }
 }
