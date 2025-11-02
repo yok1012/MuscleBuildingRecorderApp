@@ -26,6 +26,9 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
     @Published var heartRate: Double = 0
     @Published var activeCalories: Double = 0
     @Published var elapsedTime: TimeInterval = 0
+    @Published var currentPhaseTime: TimeInterval = 0  // 現在のフェーズの時間
+    @Published var totalWorkTime: TimeInterval = 0     // 合計筋トレ時間
+    @Published var totalRestTime: TimeInterval = 0     // 合計休憩時間
     @Published var debugMessage: String = "Init"
     @Published var sessionState: String = "NotStarted"
     @Published var queryStatus: String = "None"
@@ -33,6 +36,8 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
 
     private var timer: Timer?
     private var realtimeHeartRateTimer: Timer?
+    private var phaseStartTime: Date?  // 現在のフェーズの開始時刻
+    private var currentPhase: String = "idle"  // "work", "rest", "idle"
     #if os(watchOS)
     private var wcSession: WCSession?
     #endif
@@ -43,6 +48,37 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
         let minutes = (time % 3600) / 60
         let seconds = time % 60
 
+        if hours > 0 {
+            return String(format: "%02d:%02d:%02d", hours, minutes, seconds)
+        } else {
+            return String(format: "%02d:%02d", minutes, seconds)
+        }
+    }
+
+    var currentPhaseTimeString: String {
+        let time = Int(currentPhaseTime)
+        let minutes = time / 60
+        let seconds = time % 60
+        return String(format: "%02d:%02d", minutes, seconds)
+    }
+
+    var totalWorkTimeString: String {
+        let time = Int(totalWorkTime)
+        let hours = time / 3600
+        let minutes = (time % 3600) / 60
+        let seconds = time % 60
+        if hours > 0 {
+            return String(format: "%02d:%02d:%02d", hours, minutes, seconds)
+        } else {
+            return String(format: "%02d:%02d", minutes, seconds)
+        }
+    }
+
+    var totalRestTimeString: String {
+        let time = Int(totalRestTime)
+        let hours = time / 3600
+        let minutes = (time % 3600) / 60
+        let seconds = time % 60
         if hours > 0 {
             return String(format: "%02d:%02d:%02d", hours, minutes, seconds)
         } else {
@@ -79,27 +115,50 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
     func session(_ session: WCSession, didReceiveMessage message: [String : Any]) {
         print("Watch: Received message from iPhone: \(message)")
 
+        // コマンドタイプの処理
         if let command = message["command"] as? String {
             DispatchQueue.main.async {
+                print("Watch: Processing command: \(command)")
                 switch command {
                 case "start":
+                    print("Watch: Starting workout from iPhone command")
                     if !self.isWorkoutActive {
                         self.startWorkout()
+                        self.debugMessage = "Started from iPhone"
+                    } else {
+                        print("Watch: Workout already active, ignoring start command")
                     }
                 case "stop":
+                    print("Watch: Stopping workout from iPhone command")
                     if self.isWorkoutActive {
                         self.endWorkout()
+                        self.debugMessage = "Stopped from iPhone"
                     }
                 case "pause":
+                    print("Watch: Pausing workout from iPhone command")
                     if self.isWorkoutActive && !self.isPaused {
                         self.togglePause()
+                        self.debugMessage = "Paused from iPhone"
                     }
                 case "resume":
+                    print("Watch: Resuming workout from iPhone command")
                     if self.isWorkoutActive && self.isPaused {
                         self.togglePause()
+                        self.debugMessage = "Resumed from iPhone"
                     }
                 default:
-                    break
+                    print("Watch: Unknown command: \(command)")
+                }
+            }
+        }
+
+        // フェーズ変更タイプの処理
+        if let type = message["type"] as? String, type == "phaseChange" {
+            if let phase = message["phase"] as? String {
+                DispatchQueue.main.async {
+                    print("Watch: Phase change received: \(phase)")
+                    self.setPhase(phase)
+                    self.debugMessage = "Phase: \(phase)"
                 }
             }
         }
@@ -107,6 +166,52 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
 
     private func sendHeartRateToPhone(_ heartRate: Double) {
         notifyPhoneOfWorkout(heartRate: heartRate, elapsed: elapsedTime, force: true)
+    }
+
+    // iPhoneにワークアウトコマンドを送信
+    private func sendWorkoutCommandToPhone(_ command: String) {
+        guard let session = wcSession else { return }
+
+        let message: [String: Any] = [
+            "type": "command",
+            "command": command,
+            "timestamp": Date().timeIntervalSince1970
+        ]
+
+        print("Watch WorkoutManager: 📤 Sending command to iPhone: '\(command)'")
+
+        if session.isReachable {
+            // リアルタイム送信
+            session.sendMessage(message, replyHandler: { response in
+                print("Watch WorkoutManager: ✅ Command '\(command)' acknowledged by iPhone")
+            }) { error in
+                print("Watch WorkoutManager: ⚠️ Failed to send command '\(command)': \(error)")
+                // フォールバック: applicationContextを使用
+                self.updateApplicationContextWithCommand(command)
+            }
+        } else {
+            // iPhoneが到達不可能な場合
+            print("Watch WorkoutManager: 📦 iPhone not reachable, saving command to applicationContext")
+            self.updateApplicationContextWithCommand(command)
+        }
+    }
+
+    private func updateApplicationContextWithCommand(_ command: String) {
+        guard let session = wcSession else { return }
+
+        do {
+            let context: [String: Any] = [
+                "type": "command",
+                "lastCommand": command,
+                "commandTimestamp": Date().timeIntervalSince1970,
+                "commandId": UUID().uuidString,
+                "source": "WorkoutManager"
+            ]
+            try session.updateApplicationContext(context)
+            print("Watch WorkoutManager: 💾 Command saved to applicationContext: '\(command)'")
+        } catch {
+            print("Watch WorkoutManager: ❌ Failed to update applicationContext: \(error)")
+        }
     }
 #endif
 
@@ -254,6 +359,13 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
         stopHeartRateMonitoring()
 
         sessionState = "Ending"
+
+        // iPhoneにワークアウト終了を通知（重要！）
+        #if os(watchOS)
+        sendWorkoutCommandToPhone("endSession")
+        print("Watch WorkoutManager: 🛑 Sent endSession command to iPhone")
+        #endif
+
         workoutSession?.end()
 
         #if os(watchOS)
@@ -310,6 +422,35 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
         }
     }
 
+    func setPhase(_ phase: String) {
+        // 前のフェーズの時間を合計に加算
+        if let startTime = phaseStartTime {
+            let phaseTime = Date().timeIntervalSince(startTime)
+            if currentPhase == "work" {
+                totalWorkTime += phaseTime
+            } else if currentPhase == "rest" {
+                totalRestTime += phaseTime
+            }
+        }
+
+        // 新しいフェーズを設定
+        let previousPhase = currentPhase
+        currentPhase = phase
+        phaseStartTime = Date()
+        currentPhaseTime = 0
+
+        // ワークアウト開始時（idle→workの遷移時）にiPhoneに通知
+        #if os(watchOS)
+        if phase == "work" && previousPhase == "idle" {
+            sendWorkoutCommandToPhone("startSession")
+            print("Watch WorkoutManager: 🚀 Auto-sending startSession to iPhone (idle→work transition)")
+        }
+        #endif
+
+        // iPhoneに通知
+        notifyPhoneOfWorkout(state: phase, force: true)
+    }
+
     private func markWorkoutActive(startDate: Date, message: String) {
         stopTimer()
         isWorkoutActive = true
@@ -326,6 +467,12 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
             guard let self, let startTime = self.startTime else { return }
             let elapsed = self.pausedTime + Date().timeIntervalSince(startTime)
             self.elapsedTime = elapsed
+
+            // 現在のフェーズ時間を更新
+            if let phaseStart = self.phaseStartTime {
+                self.currentPhaseTime = Date().timeIntervalSince(phaseStart)
+            }
+
             self.notifyPhoneOfWorkout(elapsed: elapsed)
         }
     }
@@ -339,6 +486,11 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
         heartRate = 0
         activeCalories = 0
         elapsedTime = 0
+        currentPhaseTime = 0
+        totalWorkTime = 0
+        totalRestTime = 0
+        currentPhase = "idle"
+        phaseStartTime = nil
         startTime = nil
         pausedTime = 0
         debugMessage = "Reset"

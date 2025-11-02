@@ -39,6 +39,8 @@
 	<string>このアプリはワークアウト中の心拍数データを読み取り、トレーニングの効果を可視化するためにHealthKitを使用します。</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>このアプリはワークアウトセッションをHealthKitに保存し、フィットネス記録を管理するために使用します。</string>
+	<key>NSMotionUsageDescription</key>
+	<string>このアプリはワークアウト中の動作データを記録し、トレーニングフォームを分析するためにモーションセンサーを使用します。</string>
 	<key>WKBackgroundModes</key>
 	<array>
 		<string>workout-processing</string>

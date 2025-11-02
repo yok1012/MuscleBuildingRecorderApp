@@ -10,13 +10,37 @@ final class SensorLogManager: NSObject, ObservableObject, WCSessionDelegate {
     @Published var currentLogSize: Int64 = 0
     @Published var lastSampleTime: Date?
     @Published var sampleCount: Int = 0
+    @Published var enabledSensors: Set<String> = ["accel"]
+    @Published var currentFileType: FileType = .accelerometer
+    @Published var recentSamples: [(timestamp: Date, ax: Double, ay: Double, az: Double, gx: Double?, gy: Double?, gz: Double?)] = []
+    private let maxRecentSamples = 100  // メモリ管理：最新100サンプルのみ保持
 
     private let session: WCSession = WCSession.default
     private let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-    private var logDirectory: URL { documentsURL.appendingPathComponent("SensorLogs") }
+    var logDirectory: URL { documentsURL.appendingPathComponent("SensorLogs") }
     private let csvDateFormatter: DateFormatter
-    private var fileHandle: FileHandle?
+    private var fileHandles: [FileType: FileHandle] = [:]
     private var currentDate: String = ""
+
+    enum FileType: String, CaseIterable {
+        case accelerometer = "accelerometer"
+        case gyroscope = "gyroscope"
+        case motion = "motion"
+        case combined = "combined"
+
+        var csvHeader: String {
+            switch self {
+            case .accelerometer:
+                return "timestamp_ms,ax,ay,az"
+            case .gyroscope:
+                return "timestamp_ms,gx,gy,gz"
+            case .motion:
+                return "timestamp_ms,pitch,roll,yaw,qx,qy,qz,qw"
+            case .combined:
+                return "timestamp_ms,ax,ay,az,gx,gy,gz,pitch,roll,yaw,qx,qy,qz,qw"
+            }
+        }
+    }
 
     private override init() {
         self.csvDateFormatter = DateFormatter()
@@ -36,17 +60,22 @@ final class SensorLogManager: NSObject, ObservableObject, WCSessionDelegate {
         }
     }
 
-    func currentCSVURLForToday() -> URL {
+    func currentCSVURLForToday(type: FileType = .accelerometer) -> URL {
         let dateString = csvDateFormatter.string(from: Date())
-        return logDirectory.appendingPathComponent("accelerometer_\(dateString).csv")
+        return logDirectory.appendingPathComponent("\(type.rawValue)_\(dateString).csv")
     }
 
     func exportURLsForToday() -> [URL] {
-        let url = currentCSVURLForToday()
-        if FileManager.default.fileExists(atPath: url.path) {
-            return [url]
+        var urls: [URL] = []
+        let dateString = csvDateFormatter.string(from: Date())
+
+        for type in FileType.allCases {
+            let url = logDirectory.appendingPathComponent("\(type.rawValue)_\(dateString).csv")
+            if FileManager.default.fileExists(atPath: url.path) {
+                urls.append(url)
+            }
         }
-        return []
+        return urls
     }
 
     func exportDataForToday() -> String? {
@@ -100,68 +129,135 @@ final class SensorLogManager: NSObject, ObservableObject, WCSessionDelegate {
         }
     }
 
-    private func handleIncomingSamples(_ samples: [[Any]]) {
-        let url = currentCSVURLForToday()
+    private func handleIncomingSamples(_ samples: [[String: Any]], sensors: [String]) {
         let dateString = csvDateFormatter.string(from: Date())
 
         // 日付が変わったらファイルハンドルを更新
         if currentDate != dateString {
-            fileHandle?.closeFile()
-            fileHandle = nil
+            for handle in fileHandles.values {
+                try? handle.close()  // 新しいAPI: close()を使用
+            }
+            fileHandles.removeAll()
             currentDate = dateString
         }
 
-        // ファイルが存在しない場合はヘッダーを書き込み
-        let needsHeader = !FileManager.default.fileExists(atPath: url.path)
+        // センサータイプに応じて適切なファイルに書き込み
 
-        if needsHeader {
-            let header = "timestamp_ms,ax,ay,az\n"
+        for sample in samples {
+            guard let timestamp = sample["t"] as? Int64 else { continue }
+
+            // リアルタイム表示用にサンプルを追加
+            let date = Date(timeIntervalSince1970: TimeInterval(timestamp) / 1000.0)
+            let graphSample = (
+                timestamp: date,
+                ax: sample["ax"] as? Double ?? 0,
+                ay: sample["ay"] as? Double ?? 0,
+                az: sample["az"] as? Double ?? 0,
+                gx: sample["gx"] as? Double,
+                gy: sample["gy"] as? Double,
+                gz: sample["gz"] as? Double
+            )
+            recentSamples.append(graphSample)
+            if recentSamples.count > maxRecentSamples {  // メモリリーク防止
+                recentSamples.removeFirst()
+            }
+
+            // 加速度データ
+            if let ax = sample["ax"] as? Double,
+               let ay = sample["ay"] as? Double,
+               let az = sample["az"] as? Double {
+                writeToCSV(type: .accelerometer, line: "\(timestamp),\(ax),\(ay),\(az)\n")
+            }
+
+            // ジャイロデータ
+            if let gx = sample["gx"] as? Double,
+               let gy = sample["gy"] as? Double,
+               let gz = sample["gz"] as? Double {
+                writeToCSV(type: .gyroscope, line: "\(timestamp),\(gx),\(gy),\(gz)\n")
+            }
+
+            // モーションデータ
+            if let pitch = sample["pitch"] as? Double,
+               let roll = sample["roll"] as? Double,
+               let yaw = sample["yaw"] as? Double,
+               let qx = sample["qx"] as? Double,
+               let qy = sample["qy"] as? Double,
+               let qz = sample["qz"] as? Double,
+               let qw = sample["qw"] as? Double {
+                writeToCSV(type: .motion, line: "\(timestamp),\(pitch),\(roll),\(yaw),\(qx),\(qy),\(qz),\(qw)\n")
+            }
+
+            // 統合データ
+            if sensors.contains("motion") {
+                var line = "\(timestamp)"
+                line += ",\(sample["ax"] as? Double ?? 0)"
+                line += ",\(sample["ay"] as? Double ?? 0)"
+                line += ",\(sample["az"] as? Double ?? 0)"
+                line += ",\(sample["gx"] as? Double ?? 0)"
+                line += ",\(sample["gy"] as? Double ?? 0)"
+                line += ",\(sample["gz"] as? Double ?? 0)"
+                line += ",\(sample["pitch"] as? Double ?? 0)"
+                line += ",\(sample["roll"] as? Double ?? 0)"
+                line += ",\(sample["yaw"] as? Double ?? 0)"
+                line += ",\(sample["qx"] as? Double ?? 0)"
+                line += ",\(sample["qy"] as? Double ?? 0)"
+                line += ",\(sample["qz"] as? Double ?? 0)"
+                line += ",\(sample["qw"] as? Double ?? 0)\n"
+                writeToCSV(type: .combined, line: line)
+            }
+
+            sampleCount += 1
+        }
+
+        lastSampleTime = Date()
+        updateFileSize()
+    }
+
+    private func writeToCSV(type: FileType, line: String) {
+        let url = currentCSVURLForToday(type: type)
+
+        // ファイルが存在しない場合はヘッダーを書き込み
+        if !FileManager.default.fileExists(atPath: url.path) {
+            let header = type.csvHeader + "\n"
             do {
                 try header.write(to: url, atomically: true, encoding: .utf8)
             } catch {
-                print("Failed to write CSV header: \(error)")
+                print("Failed to write CSV header for \(type): \(error)")
                 return
             }
         }
 
         // ファイルハンドルを取得または作成
-        if fileHandle == nil {
+        if fileHandles[type] == nil {
             do {
-                fileHandle = try FileHandle(forWritingTo: url)
-                fileHandle?.seekToEndOfFile()
+                fileHandles[type] = try FileHandle(forWritingTo: url)
+                try? fileHandles[type]?.seekToEnd()  // 新しいAPI: seekToEnd()を使用
             } catch {
-                print("Failed to open file handle: \(error)")
+                print("Failed to open file handle for \(type): \(error)")
                 return
             }
         }
 
-        // サンプルをCSV形式に変換して追記
-        var csvLines = ""
-        for sample in samples {
-            guard sample.count >= 4,
-                  let timestamp = sample[0] as? Int64,
-                  let ax = sample[1] as? Double,
-                  let ay = sample[2] as? Double,
-                  let az = sample[3] as? Double else { continue }
-
-            csvLines += "\(timestamp),\(ax),\(ay),\(az)\n"
-            sampleCount += 1
-        }
-
-        if !csvLines.isEmpty {
-            if let data = csvLines.data(using: .utf8) {
-                fileHandle?.write(data)
-                lastSampleTime = Date()
-
-                // ファイルサイズを更新
-                do {
-                    let attributes = try FileManager.default.attributesOfItem(atPath: url.path)
-                    currentLogSize = attributes[.size] as? Int64 ?? 0
-                } catch {
-                    print("Failed to get file size: \(error)")
-                }
+        // データを追記
+        if let data = line.data(using: .utf8) {
+            do {
+                try fileHandles[type]?.write(contentsOf: data)  // 新しいAPI: write(contentsOf:)を使用
+            } catch {
+                print("Failed to write data for \(type): \(error)")
             }
         }
+    }
+
+    private func updateFileSize() {
+        var totalSize: Int64 = 0
+        for type in FileType.allCases {
+            let url = currentCSVURLForToday(type: type)
+            if let attributes = try? FileManager.default.attributesOfItem(atPath: url.path),
+               let size = attributes[.size] as? Int64 {
+                totalSize += size
+            }
+        }
+        currentLogSize = totalSize
     }
 
     private func handleIncomingJSONLFile(at url: URL) {
@@ -184,7 +280,16 @@ final class SensorLogManager: NSObject, ObservableObject, WCSessionDelegate {
             }
 
             if !samples.isEmpty {
-                handleIncomingSamples(samples)
+                // 旧形式のサンプルを新形式に変換
+                let convertedSamples = samples.compactMap { sample -> [String: Any]? in
+                    guard sample.count >= 4,
+                          let t = sample[0] as? Int64,
+                          let ax = sample[1] as? Double,
+                          let ay = sample[2] as? Double,
+                          let az = sample[3] as? Double else { return nil }
+                    return ["t": t, "ax": ax, "ay": ay, "az": az]
+                }
+                handleIncomingSamples(convertedSamples, sensors: ["accel"])
             }
 
             // 処理完了後、一時ファイルを削除
@@ -218,11 +323,31 @@ final class SensorLogManager: NSObject, ObservableObject, WCSessionDelegate {
     func session(_ session: WCSession, didReceiveMessage message: [String : Any]) {
         print("Received message from Watch: \(message)")
 
-        // 加速度データの処理
+        // センサーデータの処理
+        if let type = message["type"] as? String,
+           (type == "accel" || type == "sensor_data"),
+           let samples = message["samples"] as? [[String: Any]] {
+            let sensors = message["sensors"] as? [String] ?? ["accel"]
+            DispatchQueue.main.async {
+                self.handleIncomingSamples(samples, sensors: sensors)
+                self.isLogging = true
+                self.enabledSensors = Set(sensors)
+            }
+        }
+
+        // 旧形式の加速度データ（互換性のため）
         if let type = message["type"] as? String, type == "accel",
            let samples = message["samples"] as? [[Any]] {
+            let convertedSamples = samples.compactMap { sample -> [String: Any]? in
+                guard sample.count >= 4,
+                      let t = sample[0] as? Int64,
+                      let ax = sample[1] as? Double,
+                      let ay = sample[2] as? Double,
+                      let az = sample[3] as? Double else { return nil }
+                return ["t": t, "ax": ax, "ay": ay, "az": az]
+            }
             DispatchQueue.main.async {
-                self.handleIncomingSamples(samples)
+                self.handleIncomingSamples(convertedSamples, sensors: ["accel"])
                 self.isLogging = true
             }
         }
@@ -248,6 +373,8 @@ final class SensorLogManager: NSObject, ObservableObject, WCSessionDelegate {
     // MARK: - Cleanup
 
     deinit {
-        fileHandle?.closeFile()
+        for handle in fileHandles.values {
+            try? handle.close()  // 新しいAPI: close()を使用
+        }
     }
 }

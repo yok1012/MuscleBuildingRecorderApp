@@ -12,8 +12,32 @@ class WatchMotionStreamer: NSObject, ObservableObject, WCSessionDelegate {
     private var session: WCSession = WCSession.default
 
     // バッファ
-    private var buffer: [(t: Int64, ax: Double, ay: Double, az: Double)] = []
+    private var buffer: [(
+        t: Int64,
+        ax: Double, ay: Double, az: Double,
+        gx: Double?, gy: Double?, gz: Double?,
+        pitch: Double?, roll: Double?, yaw: Double?,
+        qx: Double?, qy: Double?, qz: Double?, qw: Double?
+    )] = []
     private let bufferLock = NSLock()
+    private let maxBufferSize = 1000 // メモリ保護: ~80KB max
+
+    // データタイプ
+    enum SensorType: String, CaseIterable {
+        case accelerometer = "accel"
+        case gyroscope = "gyro"
+        case deviceMotion = "motion"
+
+        var description: String {
+            switch self {
+            case .accelerometer: return "加速度"
+            case .gyroscope: return "ジャイロ"
+            case .deviceMotion: return "デバイスモーション"
+            }
+        }
+    }
+
+    private var enabledSensors: Set<SensorType> = [.accelerometer]
     private var timer: Timer?
 
     // 一時ファイル管理
@@ -45,47 +69,134 @@ class WatchMotionStreamer: NSObject, ObservableObject, WCSessionDelegate {
 
     // MARK: - Public Methods
 
-    func start(rateHz: Int) {
+    func start(rateHz: Int, sensors: Set<SensorType>? = nil) {
         guard !isRunning else { return }
-        guard motionManager.isAccelerometerAvailable else {
-            lastError = "Accelerometer not available"
-            print("Accelerometer not available")
-            return
+
+        if let sensors = sensors {
+            enabledSensors = sensors
         }
 
         currentRateHz = rateHz
         isRunning = true
         buffer.removeAll()
         totalSamples = 0
+        lastError = nil
 
-        // 加速度センサーの更新間隔を設定
-        motionManager.accelerometerUpdateInterval = 1.0 / Double(rateHz)
+        let updateInterval = 1.0 / Double(rateHz)
 
-        // 加速度データの取得開始
-        motionManager.startAccelerometerUpdates(to: .main) { [weak self] data, error in
-            guard let self = self else { return }
+        // 加速度センサー
+        if enabledSensors.contains(.accelerometer) && motionManager.isAccelerometerAvailable {
+            motionManager.accelerometerUpdateInterval = updateInterval
+            motionManager.startAccelerometerUpdates()
+        }
 
-            if let error = error {
-                self.lastError = error.localizedDescription
-                print("Accelerometer error: \(error)")
-                return
+        // ジャイロスコープ
+        if enabledSensors.contains(.gyroscope) && motionManager.isGyroAvailable {
+            motionManager.gyroUpdateInterval = updateInterval
+            motionManager.startGyroUpdates()
+        }
+
+        // デバイスモーション（姿勢推定）
+        if enabledSensors.contains(.deviceMotion) && motionManager.isDeviceMotionAvailable {
+            motionManager.deviceMotionUpdateInterval = updateInterval
+            motionManager.startDeviceMotionUpdates(to: .main) { [weak self] motion, error in
+                guard let self = self else { return }
+
+                if let error = error {
+                    self.lastError = error.localizedDescription
+                    print("DeviceMotion error: \(error)")
+                    self.sendErrorToPhone("DeviceMotion error: \(error.localizedDescription)")
+                    return
+                }
+
+                guard let motion = motion else { return }
+
+                let timestamp = Int64(Date().timeIntervalSince1970 * 1000)
+
+                // 全センサーデータを統合
+                let accelData = self.motionManager.accelerometerData
+                let gyroData = self.motionManager.gyroData
+
+                let sample = (
+                    t: timestamp,
+                    ax: accelData?.acceleration.x ?? motion.userAcceleration.x,
+                    ay: accelData?.acceleration.y ?? motion.userAcceleration.y,
+                    az: accelData?.acceleration.z ?? motion.userAcceleration.z,
+                    gx: gyroData?.rotationRate.x ?? motion.rotationRate.x,
+                    gy: gyroData?.rotationRate.y ?? motion.rotationRate.y,
+                    gz: gyroData?.rotationRate.z ?? motion.rotationRate.z,
+                    pitch: motion.attitude.pitch,
+                    roll: motion.attitude.roll,
+                    yaw: motion.attitude.yaw,
+                    qx: motion.attitude.quaternion.x,
+                    qy: motion.attitude.quaternion.y,
+                    qz: motion.attitude.quaternion.z,
+                    qw: motion.attitude.quaternion.w
+                )
+
+                self.bufferLock.lock()
+                // バッファオーバーフロー保護
+                if self.buffer.count >= self.maxBufferSize {
+                    // 緊急フラッシュ
+                    let samplesToSave = self.buffer
+                    self.buffer.removeAll()
+                    self.bufferLock.unlock()
+                    DispatchQueue.global().async {
+                        self.saveToTempFile(samplesToSave)
+                    }
+                } else {
+                    self.buffer.append(sample)
+                    self.totalSamples += 1
+                    self.bufferLock.unlock()
+                }
             }
+        } else if enabledSensors.contains(.accelerometer) {
+            // 加速度のみの場合（従来の動作）
+            motionManager.startAccelerometerUpdates(to: .main) { [weak self] data, error in
+                guard let self = self else { return }
 
-            guard let data = data else { return }
+                if let error = error {
+                    self.lastError = error.localizedDescription
+                    print("Accelerometer error: \(error)")
+                    self.sendErrorToPhone("Accelerometer error: \(error.localizedDescription)")
+                    return
+                }
 
-            // タイムスタンプ（ミリ秒）と加速度データを記録
-            let timestamp = Int64(Date().timeIntervalSince1970 * 1000)
-            let sample = (
-                t: timestamp,
-                ax: data.acceleration.x,
-                ay: data.acceleration.y,
-                az: data.acceleration.z
-            )
+                guard let data = data else { return }
 
-            self.bufferLock.lock()
-            self.buffer.append(sample)
-            self.totalSamples += 1
-            self.bufferLock.unlock()
+                let timestamp = Int64(Date().timeIntervalSince1970 * 1000)
+                let sample: (
+                    t: Int64,
+                    ax: Double, ay: Double, az: Double,
+                    gx: Double?, gy: Double?, gz: Double?,
+                    pitch: Double?, roll: Double?, yaw: Double?,
+                    qx: Double?, qy: Double?, qz: Double?, qw: Double?
+                ) = (
+                    t: timestamp,
+                    ax: data.acceleration.x,
+                    ay: data.acceleration.y,
+                    az: data.acceleration.z,
+                    gx: nil, gy: nil, gz: nil,
+                    pitch: nil, roll: nil, yaw: nil,
+                    qx: nil, qy: nil, qz: nil, qw: nil
+                )
+
+                self.bufferLock.lock()
+                // バッファオーバーフロー保護
+                if self.buffer.count >= self.maxBufferSize {
+                    // 緊急フラッシュ
+                    let samplesToSave = self.buffer
+                    self.buffer.removeAll()
+                    self.bufferLock.unlock()
+                    DispatchQueue.global().async {
+                        self.saveToTempFile(samplesToSave)
+                    }
+                } else {
+                    self.buffer.append(sample)
+                    self.totalSamples += 1
+                    self.bufferLock.unlock()
+                }
+            }
         }
 
         // 0.5秒ごとにバッファを送信
@@ -102,6 +213,8 @@ class WatchMotionStreamer: NSObject, ObservableObject, WCSessionDelegate {
 
         isRunning = false
         motionManager.stopAccelerometerUpdates()
+        motionManager.stopGyroUpdates()
+        motionManager.stopDeviceMotionUpdates()
         timer?.invalidate()
         timer = nil
 
@@ -162,12 +275,40 @@ class WatchMotionStreamer: NSObject, ObservableObject, WCSessionDelegate {
         }
     }
 
-    private func sendSamplesToPhone(_ samples: [(t: Int64, ax: Double, ay: Double, az: Double)]) {
-        // サンプルを配列形式に変換
-        let samplesArray = samples.map { [$0.t, $0.ax, $0.ay, $0.az] }
+    private func sendSamplesToPhone(_ samples: [(
+        t: Int64,
+        ax: Double, ay: Double, az: Double,
+        gx: Double?, gy: Double?, gz: Double?,
+        pitch: Double?, roll: Double?, yaw: Double?,
+        qx: Double?, qy: Double?, qz: Double?, qw: Double?
+    )]) {
+        // サンプルを辞書形式に変換
+        let samplesArray = samples.map { sample in
+            var dict: [String: Any] = [
+                "t": sample.t,
+                "ax": sample.ax,
+                "ay": sample.ay,
+                "az": sample.az
+            ]
+
+            // オプショナルなデータを追加
+            if let gx = sample.gx { dict["gx"] = gx }
+            if let gy = sample.gy { dict["gy"] = gy }
+            if let gz = sample.gz { dict["gz"] = gz }
+            if let pitch = sample.pitch { dict["pitch"] = pitch }
+            if let roll = sample.roll { dict["roll"] = roll }
+            if let yaw = sample.yaw { dict["yaw"] = yaw }
+            if let qx = sample.qx { dict["qx"] = qx }
+            if let qy = sample.qy { dict["qy"] = qy }
+            if let qz = sample.qz { dict["qz"] = qz }
+            if let qw = sample.qw { dict["qw"] = qw }
+
+            return dict
+        }
 
         let message: [String: Any] = [
-            "type": "accel",
+            "type": "sensor_data",
+            "sensors": Array(enabledSensors.map { $0.rawValue }),
             "samples": samplesArray
         ]
 
@@ -178,19 +319,37 @@ class WatchMotionStreamer: NSObject, ObservableObject, WCSessionDelegate {
         }
     }
 
-    private func saveToTempFile(_ samples: [(t: Int64, ax: Double, ay: Double, az: Double)]) {
+    private func saveToTempFile(_ samples: [(
+        t: Int64,
+        ax: Double, ay: Double, az: Double,
+        gx: Double?, gy: Double?, gz: Double?,
+        pitch: Double?, roll: Double?, yaw: Double?,
+        qx: Double?, qy: Double?, qz: Double?, qw: Double?
+    )]) {
         let timestamp = dateFormatter.string(from: Date())
         let filename = "tmp_accel_\(timestamp).jsonl"
         let fileURL = tempDirectory.appendingPathComponent(filename)
 
         var jsonLines = ""
         for sample in samples {
-            let json: [String: Any] = [
+            var json: [String: Any] = [
                 "t": sample.t,
                 "ax": sample.ax,
                 "ay": sample.ay,
                 "az": sample.az
             ]
+
+            // オプショナルなデータを追加
+            if let gx = sample.gx { json["gx"] = gx }
+            if let gy = sample.gy { json["gy"] = gy }
+            if let gz = sample.gz { json["gz"] = gz }
+            if let pitch = sample.pitch { json["pitch"] = pitch }
+            if let roll = sample.roll { json["roll"] = roll }
+            if let yaw = sample.yaw { json["yaw"] = yaw }
+            if let qx = sample.qx { json["qx"] = qx }
+            if let qy = sample.qy { json["qy"] = qy }
+            if let qz = sample.qz { json["qz"] = qz }
+            if let qw = sample.qw { json["qw"] = qw }
 
             if let data = try? JSONSerialization.data(withJSONObject: json),
                let line = String(data: data, encoding: .utf8) {
@@ -202,11 +361,12 @@ class WatchMotionStreamer: NSObject, ObservableObject, WCSessionDelegate {
             if fileManager.fileExists(atPath: fileURL.path) {
                 // ファイルが存在する場合は追記
                 let fileHandle = try FileHandle(forWritingTo: fileURL)
-                fileHandle.seekToEndOfFile()
+                defer { try? fileHandle.close() } // 新しいAPI: close()を使用
+
+                try fileHandle.seekToEnd()
                 if let data = jsonLines.data(using: .utf8) {
-                    fileHandle.write(data)
+                    try fileHandle.write(contentsOf: data)
                 }
-                fileHandle.closeFile()
             } else {
                 // 新規ファイル作成
                 try jsonLines.write(to: fileURL, atomically: true, encoding: .utf8)
@@ -232,6 +392,19 @@ class WatchMotionStreamer: NSObject, ObservableObject, WCSessionDelegate {
                 continue
             }
 
+            // ファイルサイズチェック（watchOS制限: 最大50MB）
+            if let attributes = try? fileManager.attributesOfItem(atPath: fileURL.path),
+               let fileSize = attributes[.size] as? Int64 {
+                if fileSize > 50_000_000 { // 50MB制限
+                    print("File too large for transfer: \(fileSize) bytes")
+                    lastError = "File \(fileURL.lastPathComponent) too large (\(fileSize / 1_000_000)MB)"
+                    // 大きすぎるファイルは削除またはスキップ
+                    pendingFiles.removeAll { $0 == fileURL }
+                    try? fileManager.removeItem(at: fileURL) // オプション: 削除
+                    continue
+                }
+            }
+
             session.transferFile(fileURL, metadata: ["type": "accel_log"])
         }
     }
@@ -242,6 +415,18 @@ class WatchMotionStreamer: NSObject, ObservableObject, WCSessionDelegate {
             "rateHz": currentRateHz,
             "pendingFiles": pendingFileCount,
             "totalSamples": totalSamples
+        ]
+
+        if session.isReachable {
+            session.sendMessage(message, replyHandler: nil, errorHandler: nil)
+        }
+    }
+
+    private func sendErrorToPhone(_ errorMessage: String) {
+        let message: [String: Any] = [
+            "type": "sensor_error",
+            "error": errorMessage,
+            "timestamp": Date().timeIntervalSince1970
         ]
 
         if session.isReachable {
@@ -279,7 +464,11 @@ class WatchMotionStreamer: NSObject, ObservableObject, WCSessionDelegate {
             switch cmd {
             case "start":
                 let rateHz = message["rateHz"] as? Int ?? 50
-                self.start(rateHz: rateHz)
+                var sensors: Set<SensorType> = [.accelerometer]
+                if let sensorNames = message["sensors"] as? [String] {
+                    sensors = Set(sensorNames.compactMap { SensorType(rawValue: $0) })
+                }
+                self.start(rateHz: rateHz, sensors: sensors)
 
             case "stop":
                 self.stop()
@@ -301,7 +490,7 @@ class WatchMotionStreamer: NSObject, ObservableObject, WCSessionDelegate {
 
     func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String : Any]) {
         // アプリケーションコンテキストからもコマンドを受信
-        if let cmd = applicationContext["cmd"] as? String {
+        if applicationContext["cmd"] != nil {
             self.session(session, didReceiveMessage: applicationContext)
         }
     }

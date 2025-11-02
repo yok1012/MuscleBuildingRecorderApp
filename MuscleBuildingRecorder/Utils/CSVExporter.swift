@@ -9,8 +9,8 @@ class CSVExporter {
         dateFormatter.locale = Locale(identifier: "ja_JP")
         dateFormatter.timeZone = TimeZone.current
 
-        // ヘッダー行を追加
-        csv += "セッションID,セッション開始日時,セッション終了日時,合計ワーク時間(秒),合計レスト時間(秒),合計ボリューム,サイクル,フェーズ,開始時刻,終了時刻,カテゴリー,種目,負荷,回数,メモ,平均心拍数,最大心拍数,最小心拍数,心拍勾配\n"
+        // ヘッダー行を追加（センサーデータ列を追加）
+        csv += "セッションID,セッション開始日時,セッション終了日時,合計ワーク時間(秒),合計レスト時間(秒),合計ボリューム,サイクル,フェーズ,開始時刻,終了時刻,カテゴリー,種目,負荷,回数,メモ,平均心拍数,最大心拍数,最小心拍数,心拍勾配,センサーデータ\n"
 
         for session in sessions {
             let sessionId = session.id?.uuidString ?? ""
@@ -20,20 +20,24 @@ class CSVExporter {
             let totalRestSec = session.totalRestSec
             let totalVolume = session.totalVolume
 
+            // センサーデータを取得（SessionManagerから）
+            let sensorDataJson = SessionManager.shared.getSensorDataForCurrentSession()
+            let escapedSensorData = escapeCSV(sensorDataJson)
+
             // SetRecordsを取得してソート
             guard let setRecords = session.setRecords?.allObjects as? [SetRecord] else {
-                // レコードが無い場合でもセッション情報は出力
-                csv += "\"\(sessionId)\",\"\(sessionStart)\",\"\(sessionEnd)\",\(totalWorkSec),\(totalRestSec),\(totalVolume),,,,,,,,,,,,,\n"
+                // レコードが無い場合でもセッション情報は出力（センサーデータ含む）
+                csv += "\"\(sessionId)\",\"\(sessionStart)\",\"\(sessionEnd)\",\(totalWorkSec),\(totalRestSec),\(totalVolume),,,,,,,,,,,,,\"\(escapedSensorData)\"\n"
                 continue
             }
 
             let sortedRecords = setRecords.sorted { ($0.startAt ?? Date()) < ($1.startAt ?? Date()) }
 
             if sortedRecords.isEmpty {
-                // レコードが空の場合もセッション情報は出力
-                csv += "\"\(sessionId)\",\"\(sessionStart)\",\"\(sessionEnd)\",\(totalWorkSec),\(totalRestSec),\(totalVolume),,,,,,,,,,,,,\n"
+                // レコードが空の場合もセッション情報は出力（センサーデータ含む）
+                csv += "\"\(sessionId)\",\"\(sessionStart)\",\"\(sessionEnd)\",\(totalWorkSec),\(totalRestSec),\(totalVolume),,,,,,,,,,,,,\"\(escapedSensorData)\"\n"
             } else {
-                for record in sortedRecords {
+                for (index, record) in sortedRecords.enumerated() {
                     let cycleIndex = record.cycleIndex
                     let phase = escapeCSV(record.phase ?? "")
                     let startTime = record.startAt != nil ? dateFormatter.string(from: record.startAt!) : ""
@@ -48,7 +52,10 @@ class CSVExporter {
                     let hrMin = formatDouble(record.hrMin)
                     let hrSlope = formatDouble(record.hrSlopeAvg)
 
-                    csv += "\"\(sessionId)\",\"\(sessionStart)\",\"\(sessionEnd)\",\(totalWorkSec),\(totalRestSec),\(formatDouble(totalVolume)),\(cycleIndex),\"\(phase)\",\"\(startTime)\",\"\(endTime)\",\"\(category)\",\"\(name)\",\(load),\(reps),\"\(note)\",\(hrAvg),\(hrMax),\(hrMin),\(hrSlope)\n"
+                    // センサーデータは最初のレコードにのみ追加
+                    let sensorColumn = index == 0 ? "\"\(escapedSensorData)\"" : "\"\""
+
+                    csv += "\"\(sessionId)\",\"\(sessionStart)\",\"\(sessionEnd)\",\(totalWorkSec),\(totalRestSec),\(formatDouble(totalVolume)),\(cycleIndex),\"\(phase)\",\"\(startTime)\",\"\(endTime)\",\"\(category)\",\"\(name)\",\(load),\(reps),\"\(note)\",\(hrAvg),\(hrMax),\(hrMin),\(hrSlope),\(sensorColumn)\n"
                 }
             }
         }

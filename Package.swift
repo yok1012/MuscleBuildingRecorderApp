@@ -18,15 +18,7 @@ let package = Package(
         .target(
             name: "WorkoutTimerCore",
             dependencies: [],
-            path: "Shared/Sources",
-            resources: [
-                .process("Resources")
-            ]
-        ),
-        .testTarget(
-            name: "WorkoutTimerCoreTests",
-            dependencies: ["WorkoutTimerCore"],
-            path: "Shared/Tests"
-        ),
+            path: "Shared/Sources"
+        )
     ]
 )

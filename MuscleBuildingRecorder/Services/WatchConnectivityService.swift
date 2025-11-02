@@ -51,6 +51,11 @@ class WatchConnectivityService: NSObject, ObservableObject, WCSessionDelegate {
             session?.delegate = self
             session?.activate()
             print("iPhone: WCSession activated")
+
+            // アプリ起動時にWatchを自動起動（バックグラウンドで）
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+                self?.wakeUpWatch()
+            }
         }
     }
 
@@ -232,6 +237,47 @@ class WatchConnectivityService: NSObject, ObservableObject, WCSessionDelegate {
             }
         } else {
             print("iPhone: WCSession activated with state: \(activationState.rawValue)")
+
+            // 既存のapplicationContextをチェック（Watch側のワークアウト状態を復元）
+            if !session.applicationContext.isEmpty {
+                print("iPhone: 📋 Checking existing applicationContext on activation...")
+                print("iPhone: Context content: \(session.applicationContext)")
+
+                // コマンドタイプのメッセージをチェック
+                if let type = session.applicationContext["type"] as? String,
+                   type == "command",
+                   let command = session.applicationContext["lastCommand"] as? String {
+                    print("iPhone: 🔄 Found pending command in applicationContext: '\(command)'")
+
+                    // コマンドのタイムスタンプをチェック（古すぎるコマンドは実行しない）
+                    if let timestamp = session.applicationContext["commandTimestamp"] as? TimeInterval {
+                        let commandAge = Date().timeIntervalSince(Date(timeIntervalSince1970: timestamp))
+                        if commandAge < 300 { // 5分以内のコマンドのみ実行
+                            print("iPhone: ⏰ Command is recent (\(Int(commandAge))s old), executing...")
+                            DispatchQueue.main.async { [weak self] in
+                                self?.handleWatchCommand(command)
+                            }
+                        } else {
+                            print("iPhone: ⚠️ Command is too old (\(Int(commandAge))s), skipping")
+                        }
+                    }
+                }
+
+                // ワークアウト状態もチェック
+                if let workoutState = session.applicationContext["workoutState"] as? String {
+                    print("iPhone: 🏃 Watch workout state: \(workoutState)")
+                    if workoutState == "running" || workoutState == "work" || workoutState == "rest" {
+                        // Watchでワークアウトが実行中の場合、iPhoneでも開始
+                        print("iPhone: 🚀 Auto-starting session based on Watch state")
+                        DispatchQueue.main.async {
+                            if SessionManager.shared.currentPhase == .idle {
+                                SessionManager.shared.startSession()
+                            }
+                        }
+                    }
+                }
+            }
+
             DispatchQueue.main.async {
                 self.isWatchConnected = session.isReachable
                 self.watchStatus = session.isReachable ? "Watch接続済み" : "Watch待機中"
@@ -265,6 +311,17 @@ class WatchConnectivityService: NSObject, ObservableObject, WCSessionDelegate {
     func session(_ session: WCSession, didReceiveMessage message: [String : Any]) {
         print("iPhone: Received message from Watch: \(message)")
         handleIncomingPayload(message)
+
+        // Watch側に確認応答を送信（可能な場合）
+        if session.isReachable {
+            let reply: [String: Any] = [
+                "status": "received",
+                "timestamp": Date().timeIntervalSince1970
+            ]
+            session.sendMessage(reply, replyHandler: nil) { error in
+                print("iPhone: Failed to send acknowledgment to Watch: \(error)")
+            }
+        }
     }
 
     func session(_ session: WCSession, didReceiveMessage message: [String : Any], replyHandler: @escaping ([String : Any]) -> Void) {
@@ -281,14 +338,64 @@ class WatchConnectivityService: NSObject, ObservableObject, WCSessionDelegate {
     }
 
     func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String : Any]) {
-        print("iPhone: Received application context: \(applicationContext)")
-        handleIncomingPayload(applicationContext)
+        print("iPhone: ⚡️ Received application context update")
+        print("iPhone: Context keys: \(applicationContext.keys.sorted())")
+        print("iPhone: Full context: \(applicationContext)")
+
+        // コマンドタイプのメッセージを特別に処理
+        if let type = applicationContext["type"] as? String {
+            print("iPhone: Message type: \(type)")
+
+            if type == "command", let command = applicationContext["lastCommand"] as? String {
+                print("iPhone: ✅ Processing command from applicationContext: '\(command)'")
+
+                // タイムスタンプとコマンドIDの確認（デバッグ用）
+                if let timestamp = applicationContext["commandTimestamp"] as? TimeInterval {
+                    let commandDate = Date(timeIntervalSince1970: timestamp)
+                    print("iPhone: Command sent at: \(commandDate)")
+                }
+                if let commandId = applicationContext["commandId"] as? String {
+                    print("iPhone: Command ID: \(commandId)")
+                }
+
+                DispatchQueue.main.async { [weak self] in
+                    guard let self = self else { return }
+                    print("iPhone: 🎯 Executing handleWatchCommand for: '\(command)'")
+                    self.handleWatchCommand(command)
+                    self.lastMessageTime = Date()
+                    self.watchStatus = "Command: \(command)"
+                }
+            } else {
+                print("iPhone: ⚠️ Type is '\(type)' but missing command")
+            }
+        } else {
+            print("iPhone: ⚠️ No type field in applicationContext, trying handleIncomingPayload")
+            handleIncomingPayload(applicationContext)
+        }
     }
 
     // MARK: - Helpers
 
     private func handleIncomingPayload(_ payload: [String: Any]) {
-        DispatchQueue.main.async {
+        // センサーデータなど大きなペイロードは別スレッドで処理
+        if let type = payload["type"] as? String, type == "sensor_data" {
+            DispatchQueue.global(qos: .background).async { [weak self] in
+                // センサーデータを処理（メモリリークを防ぐため weak self を使用）
+                guard let self = self else { return }
+                // SensorLogManagerに処理を委譲
+                if let samples = payload["samples"] as? [[String: Any]] {
+                    print("iPhone: Processing \(samples.count) sensor samples in background")
+                }
+
+                DispatchQueue.main.async { [weak self] in
+                    self?.lastMessageTime = Date()
+                }
+            }
+            return
+        }
+
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
             self.isWatchConnected = true
 
             if let timestamp = payload["timestamp"] as? TimeInterval {
@@ -328,8 +435,14 @@ class WatchConnectivityService: NSObject, ObservableObject, WCSessionDelegate {
 
                 case WatchMessageType.command.rawValue:
                     // Watchからのコマンド処理
+                    print("iPhone: 📨 Received command message via direct sendMessage")
                     if let command = payload["command"] as? String {
+                        print("iPhone: 🎯 Command string found: '\(command)'")
                         self.handleWatchCommand(command)
+                        self.watchStatus = "Command: \(command)"
+                    } else {
+                        print("iPhone: ⚠️ Received command message but no command string found")
+                        print("iPhone: Payload keys: \(payload.keys)")
                     }
 
                 default:
@@ -379,20 +492,49 @@ class WatchConnectivityService: NSObject, ObservableObject, WCSessionDelegate {
     }
 
     private func handleWatchCommand(_ command: String) {
-        switch command {
-        case "togglePhase":
-            SessionManager.shared.togglePhase()
-        case "startSession":
-            SessionManager.shared.startSession()
-        case "endSession":
-            SessionManager.shared.endSession()
-        case "showExerciseSelection":
-            NotificationCenter.default.post(
-                name: Notification.Name("ShowExerciseSelection"),
-                object: nil
-            )
-        default:
-            print("iPhone: Unknown command from Watch: \(command)")
+        print("iPhone: 🔧 handleWatchCommand called with: '\(command)'")
+
+        // すでにメインキューにいる場合とそうでない場合を処理
+        let executeCommand = {
+            print("iPhone: 🚀 Executing command: '\(command)' on main thread")
+
+            switch command {
+            case "togglePhase":
+                print("iPhone: 📱 Calling SessionManager.shared.togglePhase()")
+                SessionManager.shared.togglePhase()
+                print("iPhone: ✅ togglePhase() completed")
+
+            case "startSession":
+                print("iPhone: 📱 Calling SessionManager.shared.startSession()")
+                SessionManager.shared.startSession()
+                print("iPhone: ✅ startSession() completed")
+
+            case "endSession":
+                print("iPhone: 📱 Calling SessionManager.shared.endSession()")
+                SessionManager.shared.endSession()
+                print("iPhone: ✅ endSession() completed")
+
+            case "showExerciseSelection":
+                print("iPhone: 📮 Posting ShowExerciseSelection notification")
+                NotificationCenter.default.post(
+                    name: Notification.Name("ShowExerciseSelection"),
+                    object: nil
+                )
+                print("iPhone: ✅ ShowExerciseSelection notification posted")
+
+            default:
+                print("iPhone: ❌ Unknown command from Watch: '\(command)'")
+            }
+
+            print("iPhone: 🏁 Command execution finished: '\(command)'")
+        }
+
+        if Thread.isMainThread {
+            executeCommand()
+        } else {
+            DispatchQueue.main.async {
+                executeCommand()
+            }
         }
     }
 

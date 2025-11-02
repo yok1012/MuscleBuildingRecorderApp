@@ -20,7 +20,7 @@ final class WatchLink {
 
     // MARK: - Public Methods
 
-    func sendStartLogging(rateHz: Int) {
+    func sendStartLogging(rateHz: Int, sensors: Set<String> = ["accel"]) {
         guard WCSession.isSupported() else {
             print("WatchConnectivity not supported")
             return
@@ -28,7 +28,8 @@ final class WatchLink {
 
         let message: [String: Any] = [
             "cmd": "start",
-            "rateHz": rateHz
+            "rateHz": rateHz,
+            "sensors": Array(sensors)
         ]
 
         if session.isReachable {

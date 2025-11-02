@@ -9,8 +9,12 @@ class SessionManager: ObservableObject {
     @Published var currentPhase: WorkoutPhase = .idle
     @Published var phaseStartTime: Date?
     @Published var elapsedTimeString: String = "00:00"
+    @Published var elapsedTime: TimeInterval = 0
+    @Published var totalWorkTime: TimeInterval = 0
+    @Published var totalRestTime: TimeInterval = 0
     @Published var currentSession: Session?
     @Published var currentSetRecord: SetRecord?
+    @Published var lastCompletedSession: Session?
     @Published var cycleIndex: Int = 0
 
     @Published var selectedCategory: String = "胸"
@@ -24,12 +28,15 @@ class SessionManager: ObservableObject {
     private var timer: Timer?
     private var workTimeAccumulated: TimeInterval = 0
     private var restTimeAccumulated: TimeInterval = 0
+    private var sessionStartTime: Date?
 
     private let dataController = DataController.shared
     private let heartRateManager = HeartRateManager.shared
     private let watchConnectivity = WatchConnectivityService.shared
     private let heartRateLogManager = HeartRateLogManager.shared
+    private let sensorLogManager = SensorLogManager.shared
     private var heartRateCancellable: AnyCancellable?
+    private var sessionSensorData: [[String: Any]] = []  // セッション中のセンサーデータ
 
     private init() {
         loadDefaultExerciseValues()
@@ -54,16 +61,35 @@ class SessionManager: ObservableObject {
     }
 
     func startSession() {
-        guard currentPhase == .idle else { return }
+        print("SessionManager: 🎬 startSession() called")
+        print("SessionManager: Current phase: \(currentPhase.rawValue)")
+        print("SessionManager: Current thread: \(Thread.current)")
+
+        guard currentPhase == .idle else {
+            print("SessionManager: ⚠️ startSession() ignored - already in \(currentPhase.rawValue) phase")
+            return
+        }
+
+        print("SessionManager: ✅ Starting new session...")
+
+        // Clear previous session result when starting new session
+        lastCompletedSession = nil
 
         currentSession = dataController.createSession()
         currentPhase = .work
         phaseStartTime = Date()
+        sessionStartTime = Date()
         cycleIndex = 0
+        totalWorkTime = 0
+        totalRestTime = 0
+        elapsedTime = 0
         startTimer()
 
         // 心拍数ログの記録を開始
         heartRateLogManager.startNewSession()
+
+        // センサーデータをクリア
+        sessionSensorData.removeAll()
 
         // Watchにワークアウト開始を通知
         watchConnectivity.startWatchWorkout()
@@ -85,28 +111,32 @@ class SessionManager: ObservableObject {
     }
 
     func togglePhase() {
+        print("SessionManager: 🔄 togglePhase() called")
+        print("SessionManager: Current phase: \(currentPhase.rawValue)")
+        print("SessionManager: Current thread: \(Thread.current)")
+
         guard currentPhase != .idle else {
+            print("SessionManager: 🚀 togglePhase() starting new session from idle")
             startSession()
             return
         }
+
+        print("SessionManager: ✅ Toggling phase from \(currentPhase.rawValue)...")
 
         completeCurrentSetRecord()
 
         let newPhase: WorkoutPhase = currentPhase == .work ? .rest : .work
 
-        // Watchにフェーズ変更を通知
-        if newPhase == .rest {
-            watchConnectivity.pauseWatchWorkout()
-        } else {
-            watchConnectivity.resumeWatchWorkout()
-        }
-
+        // サイクルインデックスの更新（rest→workの遷移時）
         if currentPhase == .rest && newPhase == .work {
             cycleIndex += 1
         }
 
         currentPhase = newPhase
         phaseStartTime = Date()
+
+        // Watchにフェーズ変更を通知（改善版：フェーズとサイクルを通知）
+        watchConnectivity.sendPhaseChange(phase: newPhase.rawValue, cycleIndex: cycleIndex)
 
         let record = dataController.createSetRecord(
             sessionId: currentSession!.id!,
@@ -135,8 +165,13 @@ class SessionManager: ObservableObject {
     }
 
     func endSession() {
+        print("SessionManager: 🛑 endSession() called")
+        print("SessionManager: Current phase: \(currentPhase.rawValue)")
+        print("SessionManager: Current thread: \(Thread.current)")
+
         timer?.invalidate()
         timer = nil
+        print("SessionManager: Timer invalidated")
 
         if let record = currentSetRecord {
             completeCurrentSetRecord()
@@ -144,16 +179,31 @@ class SessionManager: ObservableObject {
 
         if let session = currentSession {
             session.endedAt = Date()
-            session.totalWorkSec = Int32(workTimeAccumulated)
-            session.totalRestSec = Int32(restTimeAccumulated)
+            session.totalWorkSec = Int32(totalWorkTime)
+            session.totalRestSec = Int32(totalRestTime)
             session.totalVolume = calculateTotalVolume()
+
+            // 心拍数ログを保存
+            let heartRateLogs = heartRateLogManager.currentSessionLogs
+
             dataController.save()
+
+            // セッションデータを保持（リザルト画面で表示するため）
+            lastCompletedSession = session
         }
 
         // Watchにワークアウト終了を通知
         watchConnectivity.stopWatchWorkout()
 
+        // リセット前に合計時間を記録
+        let finalWorkTime = totalWorkTime
+        let finalRestTime = totalRestTime
+
         resetSession()
+
+        // リザルト表示用に時間を復元
+        totalWorkTime = finalWorkTime
+        totalRestTime = finalRestTime
     }
 
     private func completeCurrentSetRecord() {
@@ -172,8 +222,10 @@ class SessionManager: ObservableObject {
             let elapsed = Date().timeIntervalSince(startTime)
             if currentPhase == .work {
                 workTimeAccumulated += elapsed
+                totalWorkTime = workTimeAccumulated
             } else {
                 restTimeAccumulated += elapsed
+                totalRestTime = restTimeAccumulated
             }
         }
 
@@ -192,21 +244,41 @@ class SessionManager: ObservableObject {
             return
         }
 
-        let elapsed = Date().timeIntervalSince(startTime)
-        let minutes = Int(elapsed) / 60
-        let seconds = Int(elapsed) % 60
+        let phaseElapsed = Date().timeIntervalSince(startTime)
+        let minutes = Int(phaseElapsed) / 60
+        let seconds = Int(phaseElapsed) % 60
         elapsedTimeString = String(format: "%02d:%02d", minutes, seconds)
+
+        // 総経過時間を更新
+        if let sessionStart = sessionStartTime {
+            elapsedTime = Date().timeIntervalSince(sessionStart)
+        }
+
+        // フェーズ別の合計時間を更新
+        if currentPhase == .work {
+            totalWorkTime = workTimeAccumulated + phaseElapsed
+        } else if currentPhase == .rest {
+            totalRestTime = restTimeAccumulated + phaseElapsed
+        }
     }
 
     private func resetSession() {
         currentPhase = .idle
         phaseStartTime = nil
+        sessionStartTime = nil
         elapsedTimeString = "00:00"
+        elapsedTime = 0
+        totalWorkTime = 0
+        totalRestTime = 0
         currentSession = nil
         currentSetRecord = nil
         cycleIndex = 0
         workTimeAccumulated = 0
         restTimeAccumulated = 0
+
+        // メモリクリーンアップ
+        sessionSensorData.removeAll()
+        heartRateLogManager.clearLogs()
     }
 
     private func calculateTotalVolume() -> Double {
@@ -263,6 +335,96 @@ class SessionManager: ObservableObject {
         } catch {
             print("Failed to fetch exercises: \(error)")
             return []
+        }
+    }
+
+    // センサーデータを取得（セッション期間中のデータ）
+    func getSensorDataForCurrentSession() -> String {
+        guard let startTime = sessionStartTime else { return "[]" }
+
+        // SensorLogManagerから現在の日付のデータを取得
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyyMMdd"
+        let dateString = dateFormatter.string(from: Date())
+
+        // 加速度データファイルのパスを取得
+        let accelUrl = sensorLogManager.logDirectory.appendingPathComponent("accelerometer_\(dateString).csv")
+        let gyroUrl = sensorLogManager.logDirectory.appendingPathComponent("gyroscope_\(dateString).csv")
+
+        var sensorData: [[String: Any]] = []
+
+        // 加速度データを読み込み
+        if FileManager.default.fileExists(atPath: accelUrl.path) {
+            do {
+                let csvContent = try String(contentsOf: accelUrl, encoding: .utf8)
+                let lines = csvContent.components(separatedBy: .newlines)
+
+                for (index, line) in lines.enumerated() {
+                    if index == 0 || line.isEmpty { continue } // ヘッダーをスキップ
+
+                    let components = line.components(separatedBy: ",")
+                    if components.count >= 4 {
+                        if let timestamp = Int64(components[0]),
+                           let ax = Double(components[1]),
+                           let ay = Double(components[2]),
+                           let az = Double(components[3]) {
+
+                            let sampleTime = Date(timeIntervalSince1970: TimeInterval(timestamp) / 1000.0)
+
+                            // セッション期間中のデータのみ
+                            if sampleTime >= startTime {
+                                sensorData.append([
+                                    "timestamp": timestamp,
+                                    "accelX": ax,
+                                    "accelY": ay,
+                                    "accelZ": az
+                                ])
+                            }
+                        }
+                    }
+                }
+            } catch {
+                print("Failed to read accelerometer data: \(error)")
+            }
+        }
+
+        // ジャイロデータを追加（同じtimestampのデータに追加）
+        if FileManager.default.fileExists(atPath: gyroUrl.path) {
+            do {
+                let csvContent = try String(contentsOf: gyroUrl, encoding: .utf8)
+                let lines = csvContent.components(separatedBy: .newlines)
+
+                for (index, line) in lines.enumerated() {
+                    if index == 0 || line.isEmpty { continue }
+
+                    let components = line.components(separatedBy: ",")
+                    if components.count >= 4 {
+                        if let timestamp = Int64(components[0]),
+                           let gx = Double(components[1]),
+                           let gy = Double(components[2]),
+                           let gz = Double(components[3]) {
+
+                            // 既存のデータに追加
+                            if let index = sensorData.firstIndex(where: { $0["timestamp"] as? Int64 == timestamp }) {
+                                sensorData[index]["gyroX"] = gx
+                                sensorData[index]["gyroY"] = gy
+                                sensorData[index]["gyroZ"] = gz
+                            }
+                        }
+                    }
+                }
+            } catch {
+                print("Failed to read gyroscope data: \(error)")
+            }
+        }
+
+        // JSON文字列に変換
+        do {
+            let jsonData = try JSONSerialization.data(withJSONObject: sensorData, options: [])
+            return String(data: jsonData, encoding: .utf8) ?? "[]"
+        } catch {
+            print("Failed to serialize sensor data: \(error)")
+            return "[]"
         }
     }
 }

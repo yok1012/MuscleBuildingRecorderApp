@@ -143,6 +143,38 @@ struct MainTimerView: View {
                 .foregroundColor(.white)
                 .shadow(radius: 10)
 
+            // 合計時間表示
+            if sessionManager.currentPhase != .idle {
+                HStack(spacing: 24) {
+                    VStack(spacing: 4) {
+                        Text("合計筋トレ")
+                            .font(.caption)
+                            .foregroundColor(.white.opacity(0.7))
+                        Text(formatTime(sessionManager.totalWorkTime))
+                            .font(.system(size: 18, weight: .medium, design: .monospaced))
+                            .foregroundColor(.red)
+                    }
+
+                    VStack(spacing: 4) {
+                        Text("合計休憩")
+                            .font(.caption)
+                            .foregroundColor(.white.opacity(0.7))
+                        Text(formatTime(sessionManager.totalRestTime))
+                            .font(.system(size: 18, weight: .medium, design: .monospaced))
+                            .foregroundColor(.blue)
+                    }
+
+                    VStack(spacing: 4) {
+                        Text("総時間")
+                            .font(.caption)
+                            .foregroundColor(.white.opacity(0.7))
+                        Text(formatTime(sessionManager.elapsedTime))
+                            .font(.system(size: 18, weight: .medium, design: .monospaced))
+                            .foregroundColor(.white)
+                    }
+                }
+            }
+
             // 心拍数表示
             HStack(spacing: 30) {
                 // 心拍数
@@ -401,6 +433,19 @@ struct MainTimerView: View {
                 category: sessionManager.selectedCategory,
                 exercise: sessionManager.selectedExercise
             )
+        }
+    }
+
+    private func formatTime(_ seconds: TimeInterval) -> String {
+        let time = Int(seconds)
+        let hours = time / 3600
+        let minutes = (time % 3600) / 60
+        let secs = time % 60
+
+        if hours > 0 {
+            return String(format: "%02d:%02d:%02d", hours, minutes, secs)
+        } else {
+            return String(format: "%02d:%02d", minutes, secs)
         }
     }
 }

@@ -7,6 +7,7 @@ struct SessionSummaryView: View {
     @State private var sessionRecords: [SetRecord] = []
     @State private var showingShareSheet = false
     @State private var exportURL: URL?
+    @State private var displaySession: Session?
 
     var body: some View {
         NavigationView {
@@ -191,15 +192,15 @@ struct SessionSummaryView: View {
     }
 
     private var workSeconds: Int {
-        Int(sessionManager.currentSession?.totalWorkSec ?? 0)
+        Int(displaySession?.totalWorkSec ?? Int32(sessionManager.totalWorkTime))
     }
 
     private var restSeconds: Int {
-        Int(sessionManager.currentSession?.totalRestSec ?? 0)
+        Int(displaySession?.totalRestSec ?? Int32(sessionManager.totalRestTime))
     }
 
     private var totalVolume: Double {
-        sessionManager.currentSession?.totalVolume ?? 0
+        displaySession?.totalVolume ?? sessionManager.currentSession?.totalVolume ?? 0
     }
 
     private var cycleCount: Int {
@@ -230,7 +231,11 @@ struct SessionSummaryView: View {
     }
 
     private func loadSessionData() {
-        guard let session = sessionManager.currentSession,
+        // Use lastCompletedSession if available (after workout ends), otherwise use currentSession
+        let session = sessionManager.lastCompletedSession ?? sessionManager.currentSession
+        displaySession = session
+
+        guard let session = session,
               let records = session.setRecords?.allObjects as? [SetRecord] else { return }
         sessionRecords = records.sorted { ($0.startAt ?? Date()) < ($1.startAt ?? Date()) }
     }
@@ -242,7 +247,7 @@ struct SessionSummaryView: View {
     }
 
     private func exportCSV() {
-        guard let session = sessionManager.currentSession else { return }
+        guard let session = displaySession ?? sessionManager.currentSession else { return }
         let csv = CSVExporter.export(sessions: [session])
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyyMMdd_HHmmss"
@@ -251,7 +256,7 @@ struct SessionSummaryView: View {
     }
 
     private func exportJSON() {
-        guard let session = sessionManager.currentSession else { return }
+        guard let session = displaySession ?? sessionManager.currentSession else { return }
         let json = JSONExporter.export(sessions: [session])
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyyMMdd_HHmmss"

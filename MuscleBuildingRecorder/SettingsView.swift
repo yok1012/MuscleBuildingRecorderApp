@@ -21,6 +21,9 @@ struct SettingsView: View {
     @State private var selectedAccelRate = 50
     @State private var showingSensorExportAlert = false
     @State private var sensorExportData: ExportData?
+    @State private var enabledSensors: Set<String> = ["accel"]
+    @State private var showingMultiDayExport = false
+    @State private var exportDateRange: ClosedRange<Date> = Date()...Date()
 
     @FetchRequest(
         sortDescriptors: [NSSortDescriptor(keyPath: \Session.startedAt, ascending: false)]
@@ -123,6 +126,9 @@ struct SettingsView: View {
             }
             .onAppear {
                 isAccelLogging = sensorLogManager.isLogging
+            }
+            .sheet(isPresented: $showingMultiDayExport) {
+                MultiDayExportView()
             }
         }
     }
@@ -316,6 +322,31 @@ struct SettingsView: View {
             .pickerStyle(SegmentedPickerStyle())
             .disabled(isAccelLogging)
 
+            // センサー選択
+            VStack(alignment: .leading, spacing: 8) {
+                Text("記録するセンサー")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+
+                HStack {
+                    ForEach(["accel", "gyro", "motion"], id: \.self) { sensor in
+                        Button(action: { toggleSensor(sensor) }) {
+                            HStack(spacing: 4) {
+                                Image(systemName: enabledSensors.contains(sensor) ? "checkmark.circle.fill" : "circle")
+                                    .font(.caption)
+                                Text(sensorName(sensor))
+                                    .font(.caption)
+                            }
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(enabledSensors.contains(sensor) ? Color.blue.opacity(0.2) : Color.gray.opacity(0.1))
+                            .cornerRadius(6)
+                        }
+                        .disabled(isAccelLogging)
+                    }
+                }
+            }
+
             // ログ情報
             if sensorLogManager.sampleCount > 0 {
                 VStack(alignment: .leading, spacing: 4) {
@@ -343,7 +374,7 @@ struct SettingsView: View {
                 HStack {
                     Image(systemName: "square.and.arrow.up")
                         .foregroundColor(.blue)
-                    Text("センサーログをエクスポート")
+                    Text("本日のログをエクスポート")
                     Spacer()
                     if sensorLogManager.exportURLsForToday().count > 0 {
                         Image(systemName: "checkmark.circle.fill")
@@ -354,6 +385,30 @@ struct SettingsView: View {
             }
             .disabled(sensorLogManager.exportURLsForToday().isEmpty)
 
+            // 複数日エクスポート
+            Button(action: { showingMultiDayExport = true }) {
+                HStack {
+                    Image(systemName: "calendar")
+                        .foregroundColor(.blue)
+                    Text("複数日のデータをエクスポート")
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                }
+            }
+
+            // リアルタイムグラフ
+            NavigationLink(destination: SensorGraphView()) {
+                HStack {
+                    Image(systemName: "waveform.path.ecg")
+                        .foregroundColor(.green)
+                    Text("リアルタイムグラフを表示")
+                    Spacer()
+                }
+            }
+            .disabled(!isAccelLogging)
+
             // 注意事項
             Text("⚠️ 長時間の高レート記録はバッテリーを消費します。通常使用では25-50 Hzを推奨します。")
                 .font(.caption)
@@ -363,8 +418,30 @@ struct SettingsView: View {
     }
 
     private func startAccelLogging() {
-        WatchLink.shared.sendStartLogging(rateHz: selectedAccelRate)
+        WatchLink.shared.sendStartLogging(rateHz: selectedAccelRate, sensors: enabledSensors)
         isAccelLogging = true
+    }
+
+    private func toggleSensor(_ sensor: String) {
+        if enabledSensors.contains(sensor) {
+            enabledSensors.remove(sensor)
+        } else {
+            enabledSensors.insert(sensor)
+        }
+        // motionを選択したら他も自動的に選択
+        if sensor == "motion" && enabledSensors.contains("motion") {
+            enabledSensors.insert("accel")
+            enabledSensors.insert("gyro")
+        }
+    }
+
+    private func sensorName(_ sensor: String) -> String {
+        switch sensor {
+        case "accel": return "加速度"
+        case "gyro": return "ジャイロ"
+        case "motion": return "姿勢"
+        default: return sensor
+        }
     }
 
     private func stopAccelLogging() {
