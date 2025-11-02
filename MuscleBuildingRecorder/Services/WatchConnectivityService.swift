@@ -52,6 +52,12 @@ class WatchConnectivityService: NSObject, ObservableObject, WCSessionDelegate {
             session?.activate()
             print("iPhone: WCSession activated")
 
+            // 起動直後に既存のapplicationContextをチェック
+            if let currentSession = session, !currentSession.applicationContext.isEmpty {
+                print("iPhone: 🚀 Found existing applicationContext during setup")
+                processApplicationContext(currentSession.applicationContext)
+            }
+
             // アプリ起動時にWatchを自動起動（バックグラウンドで）
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
                 self?.wakeUpWatch()
@@ -241,41 +247,7 @@ class WatchConnectivityService: NSObject, ObservableObject, WCSessionDelegate {
             // 既存のapplicationContextをチェック（Watch側のワークアウト状態を復元）
             if !session.applicationContext.isEmpty {
                 print("iPhone: 📋 Checking existing applicationContext on activation...")
-                print("iPhone: Context content: \(session.applicationContext)")
-
-                // コマンドタイプのメッセージをチェック
-                if let type = session.applicationContext["type"] as? String,
-                   type == "command",
-                   let command = session.applicationContext["lastCommand"] as? String {
-                    print("iPhone: 🔄 Found pending command in applicationContext: '\(command)'")
-
-                    // コマンドのタイムスタンプをチェック（古すぎるコマンドは実行しない）
-                    if let timestamp = session.applicationContext["commandTimestamp"] as? TimeInterval {
-                        let commandAge = Date().timeIntervalSince(Date(timeIntervalSince1970: timestamp))
-                        if commandAge < 300 { // 5分以内のコマンドのみ実行
-                            print("iPhone: ⏰ Command is recent (\(Int(commandAge))s old), executing...")
-                            DispatchQueue.main.async { [weak self] in
-                                self?.handleWatchCommand(command)
-                            }
-                        } else {
-                            print("iPhone: ⚠️ Command is too old (\(Int(commandAge))s), skipping")
-                        }
-                    }
-                }
-
-                // ワークアウト状態もチェック
-                if let workoutState = session.applicationContext["workoutState"] as? String {
-                    print("iPhone: 🏃 Watch workout state: \(workoutState)")
-                    if workoutState == "running" || workoutState == "work" || workoutState == "rest" {
-                        // Watchでワークアウトが実行中の場合、iPhoneでも開始
-                        print("iPhone: 🚀 Auto-starting session based on Watch state")
-                        DispatchQueue.main.async {
-                            if SessionManager.shared.currentPhase == .idle {
-                                SessionManager.shared.startSession()
-                            }
-                        }
-                    }
-                }
+                processApplicationContext(session.applicationContext)
             }
 
             DispatchQueue.main.async {
@@ -299,10 +271,17 @@ class WatchConnectivityService: NSObject, ObservableObject, WCSessionDelegate {
     }
 
     func sessionReachabilityDidChange(_ session: WCSession) {
+        print("iPhone: 🔄 Watch reachability changed: \(session.isReachable)")
+
+        // Watchが接続可能になった時に、保留中のコマンドをチェック
+        if session.isReachable && !session.applicationContext.isEmpty {
+            print("iPhone: 📥 Checking applicationContext on reachability change...")
+            processApplicationContext(session.applicationContext)
+        }
+
         DispatchQueue.main.async {
             self.isWatchConnected = session.isReachable
             self.watchStatus = session.isReachable ? "Watch接続済み" : "Watch切断"
-            print("iPhone: Watch reachability changed: \(session.isReachable)")
         }
     }
 
@@ -342,39 +321,55 @@ class WatchConnectivityService: NSObject, ObservableObject, WCSessionDelegate {
         print("iPhone: Context keys: \(applicationContext.keys.sorted())")
         print("iPhone: Full context: \(applicationContext)")
 
-        // コマンドタイプのメッセージを特別に処理
-        if let type = applicationContext["type"] as? String {
-            print("iPhone: Message type: \(type)")
-
-            if type == "command", let command = applicationContext["lastCommand"] as? String {
-                print("iPhone: ✅ Processing command from applicationContext: '\(command)'")
-
-                // タイムスタンプとコマンドIDの確認（デバッグ用）
-                if let timestamp = applicationContext["commandTimestamp"] as? TimeInterval {
-                    let commandDate = Date(timeIntervalSince1970: timestamp)
-                    print("iPhone: Command sent at: \(commandDate)")
-                }
-                if let commandId = applicationContext["commandId"] as? String {
-                    print("iPhone: Command ID: \(commandId)")
-                }
-
-                DispatchQueue.main.async { [weak self] in
-                    guard let self = self else { return }
-                    print("iPhone: 🎯 Executing handleWatchCommand for: '\(command)'")
-                    self.handleWatchCommand(command)
-                    self.lastMessageTime = Date()
-                    self.watchStatus = "Command: \(command)"
-                }
-            } else {
-                print("iPhone: ⚠️ Type is '\(type)' but missing command")
-            }
-        } else {
-            print("iPhone: ⚠️ No type field in applicationContext, trying handleIncomingPayload")
-            handleIncomingPayload(applicationContext)
-        }
+        // 統一された処理関数を使用
+        processApplicationContext(applicationContext)
     }
 
     // MARK: - Helpers
+
+    private func processApplicationContext(_ context: [String: Any]) {
+        print("iPhone: 🔍 Processing applicationContext: \(context.keys.sorted())")
+
+        // コマンドタイプのメッセージをチェック
+        if let type = context["type"] as? String, type == "command",
+           let command = context["lastCommand"] as? String {
+            print("iPhone: 🎯 Found command in applicationContext: '\(command)'")
+
+            // タイムスタンプをチェック（古すぎるコマンドは実行しない）
+            var shouldExecute = true
+            if let timestamp = context["commandTimestamp"] as? TimeInterval {
+                let commandAge = Date().timeIntervalSince(Date(timeIntervalSince1970: timestamp))
+                if commandAge < 300 { // 5分以内のコマンドのみ実行
+                    print("iPhone: ⏰ Command is recent (\(Int(commandAge))s old), executing...")
+                    shouldExecute = true
+                } else {
+                    print("iPhone: ⚠️ Command is too old (\(Int(commandAge))s), skipping")
+                    shouldExecute = false
+                }
+            }
+
+            if shouldExecute {
+                DispatchQueue.main.async { [weak self] in
+                    self?.handleWatchCommand(command)
+                    self?.lastMessageTime = Date()
+                }
+            }
+        }
+
+        // ワークアウト状態もチェック
+        if let workoutState = context["workoutState"] as? String {
+            print("iPhone: 🏃 Watch workout state: \(workoutState)")
+            if workoutState == "running" || workoutState == "work" || workoutState == "rest" {
+                // Watchでワークアウトが実行中の場合、iPhoneでも開始
+                print("iPhone: 🚀 Auto-starting session based on Watch state")
+                DispatchQueue.main.async {
+                    if SessionManager.shared.currentPhase == .idle {
+                        SessionManager.shared.startSession()
+                    }
+                }
+            }
+        }
+    }
 
     private func handleIncomingPayload(_ payload: [String: Any]) {
         // センサーデータなど大きなペイロードは別スレッドで処理

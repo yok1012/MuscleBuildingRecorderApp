@@ -170,29 +170,31 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
 
     // iPhoneにワークアウトコマンドを送信
     private func sendWorkoutCommandToPhone(_ command: String) {
-        guard let session = wcSession else { return }
-
-        let message: [String: Any] = [
-            "type": "command",
-            "command": command,
-            "timestamp": Date().timeIntervalSince1970
-        ]
+        guard let session = wcSession else {
+            print("Watch WorkoutManager: ❌ WCSession not initialized")
+            return
+        }
 
         print("Watch WorkoutManager: 📤 Sending command to iPhone: '\(command)'")
 
+        // 常にapplicationContextを更新（シミュレータ対応＆確実性向上）
+        updateApplicationContextWithCommand(command)
+
+        // リアルタイム送信も試みる（実機で有効）
         if session.isReachable {
-            // リアルタイム送信
+            let message: [String: Any] = [
+                "type": "command",
+                "command": command,
+                "timestamp": Date().timeIntervalSince1970
+            ]
+
             session.sendMessage(message, replyHandler: { response in
                 print("Watch WorkoutManager: ✅ Command '\(command)' acknowledged by iPhone")
             }) { error in
                 print("Watch WorkoutManager: ⚠️ Failed to send command '\(command)': \(error)")
-                // フォールバック: applicationContextを使用
-                self.updateApplicationContextWithCommand(command)
             }
         } else {
-            // iPhoneが到達不可能な場合
-            print("Watch WorkoutManager: 📦 iPhone not reachable, saving command to applicationContext")
-            self.updateApplicationContextWithCommand(command)
+            print("Watch WorkoutManager: 📦 iPhone not reachable (normal in simulator)")
         }
     }
 
@@ -459,6 +461,13 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
         startTime = startDate
         startTimer()
         debugMessage = message
+
+        // iPhoneにワークアウト開始を通知（重要！）
+        #if os(watchOS)
+        sendWorkoutCommandToPhone("startSession")
+        print("Watch WorkoutManager: 🚀 Sent startSession command to iPhone from markWorkoutActive")
+        #endif
+
         notifyPhoneOfWorkout(elapsed: 0, state: "running", force: true)
     }
 

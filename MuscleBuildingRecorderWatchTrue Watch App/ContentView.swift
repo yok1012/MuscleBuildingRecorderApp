@@ -484,20 +484,19 @@ struct ContentView: View {
             "timestamp": Date().timeIntervalSince1970
         ]
 
+        // 常にapplicationContextを更新（シミュレータ対応）
+        updateApplicationContextWithCommand(command)
+
+        // リアルタイム送信も試みる（実機で有効）
         if WCSession.default.isReachable {
-            // リアルタイム送信（低遅延）
             print("Watch: Sending command via sendMessage: \(command)")
             WCSession.default.sendMessage(message, replyHandler: { response in
                 print("Watch: Command \(command) acknowledged: \(response)")
             }) { error in
                 print("Watch: Failed to send command \(command): \(error)")
-                // 失敗時はapplicationContextにも保存
-                self.updateApplicationContextWithCommand(command)
             }
         } else {
-            // iPhoneが到達不可能な場合はapplicationContext経由で送信
-            print("Watch: iPhone not reachable, using applicationContext for: \(command)")
-            updateApplicationContextWithCommand(command)
+            print("Watch: iPhone not reachable (normal in simulator)")
         }
 
         lastIPhoneSync = Date()
