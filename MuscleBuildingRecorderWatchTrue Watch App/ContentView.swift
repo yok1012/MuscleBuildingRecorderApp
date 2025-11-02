@@ -487,6 +487,11 @@ struct ContentView: View {
         // 常にapplicationContextを更新（シミュレータ対応）
         updateApplicationContextWithCommand(command)
 
+        // startSessionの場合はiPhoneアプリの起動も試みる
+        if command == "startSession" {
+            wakeUpIPhone()
+        }
+
         // リアルタイム送信も試みる（実機で有効）
         if WCSession.default.isReachable {
             print("Watch: Sending command via sendMessage: \(command)")
@@ -500,6 +505,28 @@ struct ContentView: View {
         }
 
         lastIPhoneSync = Date()
+    }
+
+    private func wakeUpIPhone() {
+        print("Watch: 📱 Attempting to wake up iPhone app...")
+
+        // HKHealthStoreを使ったバックグラウンド起動
+        #if os(watchOS)
+        if WCSession.default.isCompanionAppInstalled {
+            // 高優先度メッセージを送信してiPhoneを起動
+            let wakeMessage: [String: Any] = [
+                "type": "wakeUp",
+                "timestamp": Date().timeIntervalSince1970,
+                "urgent": true
+            ]
+
+            WCSession.default.sendMessage(wakeMessage, replyHandler: { response in
+                print("Watch: ✅ iPhone app woke up successfully")
+            }) { error in
+                print("Watch: ⚠️ Could not wake iPhone app: \(error)")
+            }
+        }
+        #endif
     }
 
     private func updateApplicationContextWithCommand(_ command: String) {

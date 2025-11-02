@@ -91,8 +91,48 @@ class SessionManager: ObservableObject {
         // センサーデータをクリア
         sessionSensorData.removeAll()
 
-        // Watchにワークアウト開始を通知
+        // Watchアプリを起動してワークアウト開始を通知
+        watchConnectivity.wakeUpWatch()
         watchConnectivity.startWatchWorkout()
+    }
+
+    // Watchからの時間同期付きセッション開始
+    func startSessionWithTimeSync(totalWorkTime: TimeInterval, totalRestTime: TimeInterval) {
+        print("SessionManager: 🎬 startSessionWithTimeSync() called")
+        print("SessionManager: Synced times - Work: \(totalWorkTime)s, Rest: \(totalRestTime)s")
+
+        guard currentPhase == .idle else {
+            print("SessionManager: ⚠️ Session already active, syncing times instead")
+            syncTimeFromWatch(totalWorkTime: totalWorkTime, totalRestTime: totalRestTime)
+            return
+        }
+
+        // 通常のセッション開始処理
+        startSession()
+
+        // Watchからの時間データで上書き
+        self.totalWorkTime = totalWorkTime
+        self.totalRestTime = totalRestTime
+        self.elapsedTime = totalWorkTime + totalRestTime
+
+        print("SessionManager: ✅ Session started with Watch time sync")
+    }
+
+    // Watchからの時間データ同期
+    func syncTimeFromWatch(totalWorkTime: TimeInterval, totalRestTime: TimeInterval) {
+        print("SessionManager: 🔄 syncTimeFromWatch() called")
+        print("SessionManager: Current - Work: \(self.totalWorkTime)s, Rest: \(self.totalRestTime)s")
+        print("SessionManager: Watch - Work: \(totalWorkTime)s, Rest: \(totalRestTime)s")
+
+        // Watchの時間データで更新
+        self.totalWorkTime = totalWorkTime
+        self.totalRestTime = totalRestTime
+        self.elapsedTime = totalWorkTime + totalRestTime
+
+        // 表示用文字列も更新
+        updateElapsedTimeString()
+
+        print("SessionManager: ✅ Times synced from Watch")
 
         let record = dataController.createSetRecord(
             sessionId: currentSession!.id!,
@@ -260,6 +300,14 @@ class SessionManager: ObservableObject {
         } else if currentPhase == .rest {
             totalRestTime = restTimeAccumulated + phaseElapsed
         }
+    }
+
+    // 経過時間の表示文字列を更新
+    private func updateElapsedTimeString() {
+        let totalSeconds = Int(elapsedTime)
+        let minutes = totalSeconds / 60
+        let seconds = totalSeconds % 60
+        elapsedTimeString = String(format: "%02d:%02d", minutes, seconds)
     }
 
     private func resetSession() {

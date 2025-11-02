@@ -168,7 +168,7 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
         notifyPhoneOfWorkout(heartRate: heartRate, elapsed: elapsedTime, force: true)
     }
 
-    // iPhoneにワークアウトコマンドを送信
+    // iPhoneにワークアウトコマンドを送信（時間データを含む）
     private func sendWorkoutCommandToPhone(_ command: String) {
         guard let session = wcSession else {
             print("Watch WorkoutManager: ❌ WCSession not initialized")
@@ -176,6 +176,7 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
         }
 
         print("Watch WorkoutManager: 📤 Sending command to iPhone: '\(command)'")
+        print("Watch WorkoutManager: ⏱️ Including times - Work: \(totalWorkTime)s, Rest: \(totalRestTime)s")
 
         // 常にapplicationContextを更新（シミュレータ対応＆確実性向上）
         updateApplicationContextWithCommand(command)
@@ -185,7 +186,13 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
             let message: [String: Any] = [
                 "type": "command",
                 "command": command,
-                "timestamp": Date().timeIntervalSince1970
+                "timestamp": Date().timeIntervalSince1970,
+                // 時間データを追加
+                "totalWorkTime": totalWorkTime,
+                "totalRestTime": totalRestTime,
+                "currentPhaseTime": currentPhaseTime,
+                "elapsedTime": elapsedTime,
+                "currentPhase": currentPhase
             ]
 
             session.sendMessage(message, replyHandler: { response in
@@ -207,10 +214,17 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
                 "lastCommand": command,
                 "commandTimestamp": Date().timeIntervalSince1970,
                 "commandId": UUID().uuidString,
-                "source": "WorkoutManager"
+                "source": "WorkoutManager",
+                // 時間データも含める
+                "totalWorkTime": totalWorkTime,
+                "totalRestTime": totalRestTime,
+                "currentPhaseTime": currentPhaseTime,
+                "elapsedTime": elapsedTime,
+                "currentPhase": currentPhase
             ]
             try session.updateApplicationContext(context)
-            print("Watch WorkoutManager: 💾 Command saved to applicationContext: '\(command)'")
+            print("Watch WorkoutManager: 💾 Command and time data saved to applicationContext")
+            print("Watch WorkoutManager: 📊 Times - Work: \(totalWorkTime)s, Rest: \(totalRestTime)s")
         } catch {
             print("Watch WorkoutManager: ❌ Failed to update applicationContext: \(error)")
         }
@@ -771,6 +785,12 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
             phoneContext["workoutState"] = state
         }
         phoneContext["timestamp"] = Date().timeIntervalSince1970
+
+        // 時間データを常に含める
+        phoneContext["totalWorkTime"] = totalWorkTime
+        phoneContext["totalRestTime"] = totalRestTime
+        phoneContext["currentPhaseTime"] = currentPhaseTime
+        phoneContext["currentPhase"] = currentPhase
 
         let now = Date()
         let elapsedSinceLast = now.timeIntervalSince(lastPhoneSyncDate ?? .distantPast)

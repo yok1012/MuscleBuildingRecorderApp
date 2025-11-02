@@ -118,28 +118,39 @@ class WatchConnectivityService: NSObject, ObservableObject, WCSessionDelegate {
 
         let message: [String: Any] = [
             "type": WatchMessageType.wakeUp.rawValue,
-            "timestamp": Date().timeIntervalSince1970
+            "timestamp": Date().timeIntervalSince1970,
+            "urgent": true
         ]
 
+        print("iPhone: 🚀 Attempting to wake up Watch app...")
+
+        // アプリケーションコンテキストを先に更新（確実性を高める）
+        do {
+            var context = session.applicationContext
+            context["wakeUp"] = true
+            context["wakeUpCommand"] = "start"
+            context["timestamp"] = Date().timeIntervalSince1970
+            try session.updateApplicationContext(context)
+            print("iPhone: 💾 Wake up context saved to applicationContext")
+        } catch {
+            print("iPhone: ⚠️ Failed to update wake up context: \(error)")
+        }
+
+        // リアルタイムメッセージも送信
         if session.isReachable {
             // 高優先度メッセージとして送信
             session.sendMessage(message, replyHandler: { response in
-                print("iPhone: Watch woke up successfully: \(response)")
+                print("iPhone: ✅ Watch woke up successfully: \(response)")
                 DispatchQueue.main.async {
                     self.watchStatus = "Watch起動済み"
                 }
             }) { error in
-                print("iPhone: Failed to wake up watch: \(error)")
+                print("iPhone: ⚠️ Failed to wake up watch via message: \(error)")
             }
         } else {
-            // アプリケーションコンテキストでも送信
-            do {
-                var context = session.applicationContext
-                context["wakeUp"] = true
-                context["timestamp"] = Date().timeIntervalSince1970
-                try session.updateApplicationContext(context)
-            } catch {
-                print("iPhone: Failed to update wake up context: \(error)")
+            print("iPhone: 📵 Watch not reachable, relying on applicationContext")
+            DispatchQueue.main.async {
+                self.watchStatus = "Watch起動待機中"
             }
         }
     }
@@ -330,6 +341,15 @@ class WatchConnectivityService: NSObject, ObservableObject, WCSessionDelegate {
     private func processApplicationContext(_ context: [String: Any]) {
         print("iPhone: 🔍 Processing applicationContext: \(context.keys.sorted())")
 
+        // 時間データを抽出
+        let watchTotalWorkTime = context["totalWorkTime"] as? TimeInterval ?? 0
+        let watchTotalRestTime = context["totalRestTime"] as? TimeInterval ?? 0
+        let watchCurrentPhaseTime = context["currentPhaseTime"] as? TimeInterval ?? 0
+        let watchElapsedTime = context["elapsedTime"] as? TimeInterval ?? 0
+        let watchCurrentPhase = context["currentPhase"] as? String ?? "idle"
+
+        print("iPhone: ⏱️ Watch times - Work: \(watchTotalWorkTime)s, Rest: \(watchTotalRestTime)s, Phase: \(watchCurrentPhase)")
+
         // コマンドタイプのメッセージをチェック
         if let type = context["type"] as? String, type == "command",
            let command = context["lastCommand"] as? String {
@@ -350,7 +370,13 @@ class WatchConnectivityService: NSObject, ObservableObject, WCSessionDelegate {
 
             if shouldExecute {
                 DispatchQueue.main.async { [weak self] in
-                    self?.handleWatchCommand(command)
+                    // コマンドを実行し、時間データも同期
+                    self?.handleWatchCommandWithTimeSync(
+                        command: command,
+                        totalWorkTime: watchTotalWorkTime,
+                        totalRestTime: watchTotalRestTime,
+                        currentPhase: watchCurrentPhase
+                    )
                     self?.lastMessageTime = Date()
                 }
             }
@@ -360,11 +386,20 @@ class WatchConnectivityService: NSObject, ObservableObject, WCSessionDelegate {
         if let workoutState = context["workoutState"] as? String {
             print("iPhone: 🏃 Watch workout state: \(workoutState)")
             if workoutState == "running" || workoutState == "work" || workoutState == "rest" {
-                // Watchでワークアウトが実行中の場合、iPhoneでも開始
-                print("iPhone: 🚀 Auto-starting session based on Watch state")
+                // Watchでワークアウトが実行中の場合、iPhoneでも開始（時間データ付き）
+                print("iPhone: 🚀 Auto-starting session based on Watch state with time sync")
                 DispatchQueue.main.async {
                     if SessionManager.shared.currentPhase == .idle {
-                        SessionManager.shared.startSession()
+                        SessionManager.shared.startSessionWithTimeSync(
+                            totalWorkTime: watchTotalWorkTime,
+                            totalRestTime: watchTotalRestTime
+                        )
+                    } else {
+                        // 既に動作中の場合は時間だけ同期
+                        SessionManager.shared.syncTimeFromWatch(
+                            totalWorkTime: watchTotalWorkTime,
+                            totalRestTime: watchTotalRestTime
+                        )
                     }
                 }
             }
@@ -429,11 +464,24 @@ class WatchConnectivityService: NSObject, ObservableObject, WCSessionDelegate {
                     }
 
                 case WatchMessageType.command.rawValue:
-                    // Watchからのコマンド処理
+                    // Watchからのコマンド処理（時間データ付き）
                     print("iPhone: 📨 Received command message via direct sendMessage")
                     if let command = payload["command"] as? String {
                         print("iPhone: 🎯 Command string found: '\(command)'")
-                        self.handleWatchCommand(command)
+
+                        // 時間データも抽出
+                        let watchTotalWorkTime = payload["totalWorkTime"] as? TimeInterval ?? 0
+                        let watchTotalRestTime = payload["totalRestTime"] as? TimeInterval ?? 0
+                        let watchCurrentPhase = payload["currentPhase"] as? String ?? "idle"
+
+                        print("iPhone: ⏱️ Message includes times - Work: \(watchTotalWorkTime)s, Rest: \(watchTotalRestTime)s")
+
+                        self.handleWatchCommandWithTimeSync(
+                            command: command,
+                            totalWorkTime: watchTotalWorkTime,
+                            totalRestTime: watchTotalRestTime,
+                            currentPhase: watchCurrentPhase
+                        )
                         self.watchStatus = "Command: \(command)"
                     } else {
                         print("iPhone: ⚠️ Received command message but no command string found")
@@ -444,7 +492,7 @@ class WatchConnectivityService: NSObject, ObservableObject, WCSessionDelegate {
                     break
                 }
             } else {
-                // 従来の処理（後方互換性のため）
+                // 従来の処理（後方互換性のため）+ 時間データ同期
                 if let heartRate = payload["heartRate"] as? Double {
                     self.watchHeartRate = heartRate
                     self.heartRateSubject.send(heartRate)
@@ -454,6 +502,16 @@ class WatchConnectivityService: NSObject, ObservableObject, WCSessionDelegate {
                 if let elapsedTime = payload["elapsedTime"] as? TimeInterval {
                     self.watchElapsedTime = elapsedTime
                     self.watchElapsedTimeString = Self.formatTime(elapsedTime)
+                }
+
+                // 時間データが含まれている場合は同期
+                if let watchTotalWorkTime = payload["totalWorkTime"] as? TimeInterval,
+                   let watchTotalRestTime = payload["totalRestTime"] as? TimeInterval {
+                    print("iPhone: 🔄 Syncing time data from Watch - Work: \(watchTotalWorkTime)s, Rest: \(watchTotalRestTime)s")
+                    SessionManager.shared.syncTimeFromWatch(
+                        totalWorkTime: watchTotalWorkTime,
+                        totalRestTime: watchTotalRestTime
+                    )
                 }
 
                 if let stateString = payload["workoutState"] as? String,
@@ -487,27 +545,45 @@ class WatchConnectivityService: NSObject, ObservableObject, WCSessionDelegate {
     }
 
     private func handleWatchCommand(_ command: String) {
-        print("iPhone: 🔧 handleWatchCommand called with: '\(command)'")
+        handleWatchCommandWithTimeSync(command: command, totalWorkTime: 0, totalRestTime: 0, currentPhase: "idle")
+    }
+
+    private func handleWatchCommandWithTimeSync(command: String, totalWorkTime: TimeInterval, totalRestTime: TimeInterval, currentPhase: String) {
+        print("iPhone: 🔧 handleWatchCommandWithTimeSync called with: '\(command)'")
+        print("iPhone: ⏱️ Time sync - Work: \(totalWorkTime)s, Rest: \(totalRestTime)s, Phase: \(currentPhase)")
 
         // すでにメインキューにいる場合とそうでない場合を処理
         let executeCommand = {
-            print("iPhone: 🚀 Executing command: '\(command)' on main thread")
+            print("iPhone: 🚀 Executing command: '\(command)' on main thread with time sync")
 
             switch command {
             case "togglePhase":
-                print("iPhone: 📱 Calling SessionManager.shared.togglePhase()")
+                print("iPhone: 📱 Calling SessionManager.shared.togglePhase() with time sync")
+                // 時間データを同期してからフェーズ切り替え
+                SessionManager.shared.syncTimeFromWatch(
+                    totalWorkTime: totalWorkTime,
+                    totalRestTime: totalRestTime
+                )
                 SessionManager.shared.togglePhase()
-                print("iPhone: ✅ togglePhase() completed")
+                print("iPhone: ✅ togglePhase() with time sync completed")
 
             case "startSession":
-                print("iPhone: 📱 Calling SessionManager.shared.startSession()")
-                SessionManager.shared.startSession()
-                print("iPhone: ✅ startSession() completed")
+                print("iPhone: 📱 Calling SessionManager.shared.startSession() with time sync")
+                SessionManager.shared.startSessionWithTimeSync(
+                    totalWorkTime: totalWorkTime,
+                    totalRestTime: totalRestTime
+                )
+                print("iPhone: ✅ startSession() with time sync completed")
 
             case "endSession":
-                print("iPhone: 📱 Calling SessionManager.shared.endSession()")
+                print("iPhone: 📱 Calling SessionManager.shared.endSession() with time sync")
+                // 終了前に最終的な時間を同期
+                SessionManager.shared.syncTimeFromWatch(
+                    totalWorkTime: totalWorkTime,
+                    totalRestTime: totalRestTime
+                )
                 SessionManager.shared.endSession()
-                print("iPhone: ✅ endSession() completed")
+                print("iPhone: ✅ endSession() with time sync completed")
 
             case "showExerciseSelection":
                 print("iPhone: 📮 Posting ShowExerciseSelection notification")
