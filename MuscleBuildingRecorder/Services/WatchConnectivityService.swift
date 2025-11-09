@@ -18,7 +18,7 @@ enum WatchMessageType: String {
     case command = "command"
 }
 
-class WatchConnectivityService: NSObject, ObservableObject {
+class WatchConnectivityService: NSObject, ObservableObject, WCSessionDelegate {
     static let shared = WatchConnectivityService()
 
     @Published var watchHeartRate: Double = 0.0
@@ -55,6 +55,11 @@ class WatchConnectivityService: NSObject, ObservableObject {
         session = WCSession.default
         session?.delegate = self
         session?.activate()
+
+        // DEBUG: セッション設定確認（問題解決後削除）
+        #if DEBUG
+        print("📱 iPhone: WCSession setup complete - delegate: \(String(describing: session?.delegate))")
+        #endif
 
         // 初期コンテキストの処理
         if let currentSession = session, !currentSession.applicationContext.isEmpty {
@@ -228,6 +233,11 @@ class WatchConnectivityService: NSObject, ObservableObject {
         }
 
         if activationState == .activated {
+            // DEBUG: アクティベーション確認（問題解決後削除）
+            #if DEBUG
+            print("📱 iPhone: WCSession activated - reachable: \(session.isReachable), paired: \(session.isPaired), installed: \(session.isWatchAppInstalled)")
+            #endif
+
             DispatchQueue.main.async { [weak self] in
                 self?.isWatchConnected = session.isReachable
                 self?.watchStatus = session.isReachable ? "接続済み" : "待機中"
@@ -261,6 +271,10 @@ class WatchConnectivityService: NSObject, ObservableObject {
     // MARK: - Receive Data from Watch
 
     func session(_ session: WCSession, didReceiveMessage message: [String : Any]) {
+        // DEBUG: メッセージ受信確認（問題解決後削除）
+        #if DEBUG
+        print("📱 iPhone: Message received from Watch - type: \(message["type"] ?? "unknown"), command: \(message["command"] ?? "none")")
+        #endif
         handleIncomingPayload(message)
     }
 
@@ -270,6 +284,11 @@ class WatchConnectivityService: NSObject, ObservableObject {
             replyHandler(["type": "pong", "timestamp": Date().timeIntervalSince1970])
             return
         }
+
+        // DEBUG: 返信付きメッセージ受信確認（問題解決後削除）
+        #if DEBUG
+        print("📱 iPhone: ReplyHandler message received - type: \(message["type"] ?? "unknown"), command: \(message["command"] ?? "none")")
+        #endif
 
         handleIncomingPayload(message)
         replyHandler(["received": true, "timestamp": Date().timeIntervalSince1970])
@@ -359,6 +378,11 @@ class WatchConnectivityService: NSObject, ObservableObject {
 
                 case WatchMessageType.command.rawValue:
                     if let command = payload["command"] as? String {
+                        // DEBUG: コマンド処理確認（問題解決後削除）
+                        #if DEBUG
+                        print("📱 iPhone: Processing command '\(command)' from Watch")
+                        #endif
+
                         let totalWorkTime = payload["totalWorkTime"] as? TimeInterval ?? 0
                         let totalRestTime = payload["totalRestTime"] as? TimeInterval ?? 0
                         let currentPhase = payload["currentPhase"] as? String ?? "idle"
@@ -448,6 +472,11 @@ class WatchConnectivityService: NSObject, ObservableObject {
                                                 previousPhaseDuration: TimeInterval?) {
         let sessionManager = SessionManager.shared
 
+        // DEBUG: コマンド実行確認（問題解決後削除）
+        #if DEBUG
+        print("📱 iPhone: Executing command '\(command)', current phase: \(sessionManager.currentPhase)")
+        #endif
+
         switch command {
         case "startSession":
             if sessionManager.currentPhase == .idle {
@@ -459,11 +488,17 @@ class WatchConnectivityService: NSObject, ObservableObject {
                 } else {
                     sessionManager.startSession()
                 }
+                #if DEBUG
+                print("📱 iPhone: Started session")
+                #endif
             }
 
         case "endSession":
             if sessionManager.currentPhase != .idle {
                 sessionManager.endSession()
+                #if DEBUG
+                print("📱 iPhone: Ended session")
+                #endif
             }
 
         case "togglePhase":
@@ -476,6 +511,9 @@ class WatchConnectivityService: NSObject, ObservableObject {
                 completedPhaseDuration: previousPhaseDuration
             )
             sessionManager.togglePhase()
+            #if DEBUG
+            print("📱 iPhone: Toggled phase to \(sessionManager.currentPhase)")
+            #endif
 
         case "showExerciseSelection":
             handleWatchExerciseChangeRequest()
@@ -500,8 +538,3 @@ class WatchConnectivityService: NSObject, ObservableObject {
         return String(format: "%02d:%02d", minutes, seconds)
     }
 }
-
-// MARK: - WCSessionDelegate Extensions for iOS
-#if os(iOS)
-extension WatchConnectivityService: WCSessionDelegate {}
-#endif
