@@ -75,6 +75,12 @@ xcodebuild -project MuscleBuildingRecorder.xcodeproj -list
 
 # Reset if build issues
 rm -rf ~/Library/Developer/Xcode/DerivedData
+
+# Run linter (if configured)
+swiftlint lint
+
+# Run formatter (if configured)
+swiftformat .
 ```
 
 ### Swift Package Manager Build (Alternative)
@@ -118,6 +124,7 @@ swift build --package-path . -c debug --target WorkoutTimerCore
 - Real-time sample buffer for visualization (`recentSamples`)
 - Multi-day ZIP export capability via MultiDayExportView
 - File path: `Documents/SensorLogs/[type]_yyyyMMdd.csv`
+- Session sensor data stored in `sessionSensorData` array during workout
 - Note: `logDirectory` property must be internal/public for MultiDayExportView access
 
 **HeartRateLogManager** (`/Models/HeartRateLog.swift`)
@@ -193,6 +200,7 @@ All implement `HeartRateSource` protocol with `PassthroughSubject<Double, Never>
 - FileHandle APIs: Use `close()` not `closeFile()`, `seekToEnd()` not `seekToEndOfFile()`, `write(contentsOf:)` not `write()`
 - Explicit tuple type annotations required for optionals in sensor data
 - Combine framework must be imported for @Published in all ObservableObject classes
+- WatchOS 9.0+ uses HKLiveWorkoutDataSource for enhanced workout tracking
 
 ### Behavioral Details
 - SetRecords created eagerly on phase start, not end
@@ -232,6 +240,8 @@ All implement `HeartRateSource` protocol with `PassthroughSubject<Double, Never>
 - `isReachable` requires: Watch on wrist, unlocked, app foreground
 - Fallback to `updateApplicationContext` for background
 - Check WatchDebugView for status
+- Phone-to-watch sync uses context updates with timestamp for bidirectional time sync
+- Watch sends workout state changes via `sendMessage` when reachable
 
 ### Sensor Data Issues
 - Check CMMotionManager availability first
@@ -298,3 +308,11 @@ File system uses synchronized groups (objectVersion 77 in .pbxproj).
 - NSMotionUsageDescription
 - WKBackgroundModes: workout-processing
 - WKCompanionAppBundleIdentifier: yokAppDev.MuscleBuildingRecorder
+
+## Recent Updates
+
+### v2 Branch Changes (2025-11)
+- Implemented bidirectional time synchronization between Watch and iPhone
+- Added automatic app launch functionality when workout starts
+- Enhanced sensor data collection with session-based storage
+- Improved Watch-iPhone communication reliability with timestamp-based sync

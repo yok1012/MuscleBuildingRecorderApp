@@ -94,10 +94,23 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
     private func setupWatchConnectivity() {
         #if os(watchOS)
         if WCSession.isSupported() {
+            print("Watch WorkoutManager: 🔧 Setting up WCSession...")
             wcSession = WCSession.default
             wcSession?.delegate = self
             wcSession?.activate()
-            print("Watch: WCSession activated")
+            print("Watch WorkoutManager: ✅ WCSession activated with delegate: \(String(describing: wcSession?.delegate))")
+
+            // 初期状態を確認
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                if let session = self?.wcSession {
+                    print("Watch WorkoutManager: 📊 WCSession status check:")
+                    print("  - isReachable: \(session.isReachable)")
+                    print("  - isCompanionAppInstalled: \(session.isCompanionAppInstalled)")
+                    print("  - activationState: \(session.activationState.rawValue)")
+                }
+            }
+        } else {
+            print("Watch WorkoutManager: ❌ WCSession is not supported")
         }
         #endif
     }
@@ -112,42 +125,67 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
         }
     }
 
-    func session(_ session: WCSession, didReceiveMessage message: [String : Any]) {
-        print("Watch: Received message from iPhone: \(message)")
+    func session(_ session: WCSession, didReceiveMessage message: [String : Any], replyHandler: @escaping ([String : Any]) -> Void) {
+        print("Watch WorkoutManager: 📥 Received message from iPhone with reply handler")
 
-        // コマンドタイプの処理
+        // WatchConnectivityDelegateに転送
+        WatchConnectivityDelegate.shared.onMessageReceived?(message)
+
+        // pingメッセージへの応答
+        if let type = message["type"] as? String, type == "ping" {
+            replyHandler(["type": "pong", "timestamp": Date().timeIntervalSince1970])
+            return
+        }
+
+        // その他のメッセージも処理
+        handleIncomingMessage(message)
+        replyHandler(["received": true, "timestamp": Date().timeIntervalSince1970])
+    }
+
+    func session(_ session: WCSession, didReceiveMessage message: [String : Any]) {
+        print("Watch WorkoutManager: 📥 Received message from iPhone (no reply handler)")
+
+        // WatchConnectivityDelegateに転送（ContentViewで処理）
+        WatchConnectivityDelegate.shared.onMessageReceived?(message)
+
+        // メッセージを処理
+        handleIncomingMessage(message)
+    }
+
+    private func handleIncomingMessage(_ message: [String: Any]) {
+        // WorkoutManager固有の処理（コマンドタイプの処理）
         if let command = message["command"] as? String {
             DispatchQueue.main.async {
-                print("Watch: Processing command: \(command)")
+                print("Watch WorkoutManager: Processing command: \(command)")
                 switch command {
                 case "start":
-                    print("Watch: Starting workout from iPhone command")
+                    print("Watch WorkoutManager: Starting workout from iPhone command")
                     if !self.isWorkoutActive {
                         self.startWorkout()
                         self.debugMessage = "Started from iPhone"
                     } else {
-                        print("Watch: Workout already active, ignoring start command")
+                        print("Watch WorkoutManager: Workout already active, ignoring start command")
                     }
                 case "stop":
-                    print("Watch: Stopping workout from iPhone command")
+                    print("Watch WorkoutManager: Stopping workout from iPhone command")
                     if self.isWorkoutActive {
                         self.endWorkout()
                         self.debugMessage = "Stopped from iPhone"
                     }
                 case "pause":
-                    print("Watch: Pausing workout from iPhone command")
+                    print("Watch WorkoutManager: Pausing workout from iPhone command")
                     if self.isWorkoutActive && !self.isPaused {
                         self.togglePause()
                         self.debugMessage = "Paused from iPhone"
                     }
                 case "resume":
-                    print("Watch: Resuming workout from iPhone command")
+                    print("Watch WorkoutManager: Resuming workout from iPhone command")
                     if self.isWorkoutActive && self.isPaused {
                         self.togglePause()
                         self.debugMessage = "Resumed from iPhone"
                     }
                 default:
-                    print("Watch: Unknown command: \(command)")
+                    print("Watch WorkoutManager: Unknown command: \(command)")
                 }
             }
         }
@@ -156,7 +194,7 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
         if let type = message["type"] as? String, type == "phaseChange" {
             if let phase = message["phase"] as? String {
                 DispatchQueue.main.async {
-                    print("Watch: Phase change received: \(phase)")
+                    print("Watch WorkoutManager: Phase change received: \(phase)")
                     self.setPhase(phase)
                     self.debugMessage = "Phase: \(phase)"
                 }
@@ -164,30 +202,39 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
         }
     }
 
+    func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String : Any]) {
+        print("Watch WorkoutManager: 📦 Received applicationContext from iPhone")
+        print("Watch WorkoutManager: Context keys: \(applicationContext.keys.sorted())")
+
+        // WatchConnectivityDelegateに転送
+        WatchConnectivityDelegate.shared.onMessageReceived?(applicationContext)
+
+        // applicationContextも処理
+        handleIncomingMessage(applicationContext)
+    }
+
     private func sendHeartRateToPhone(_ heartRate: Double) {
-        notifyPhoneOfWorkout(heartRate: heartRate, elapsed: elapsedTime, force: true)
+        // 心拍数更新は強制送信しない（自動で3秒間隔で送信される）
+        notifyPhoneOfWorkout(heartRate: heartRate, elapsed: elapsedTime, force: false)
     }
 
     // iPhoneにワークアウトコマンドを送信（時間データを含む）
-    private func sendWorkoutCommandToPhone(_ command: String) {
+    func sendWorkoutCommandToPhone(_ command: String) {
         guard let session = wcSession else {
-            print("Watch WorkoutManager: ❌ WCSession not initialized")
+            setupWatchConnectivity()
             return
         }
 
-        print("Watch WorkoutManager: 📤 Sending command to iPhone: '\(command)'")
-        print("Watch WorkoutManager: ⏱️ Including times - Work: \(totalWorkTime)s, Rest: \(totalRestTime)s")
-
-        // 常にapplicationContextを更新（シミュレータ対応＆確実性向上）
+        // applicationContextを更新（確実性のため）
         updateApplicationContextWithCommand(command)
 
-        // リアルタイム送信も試みる（実機で有効）
-        if session.isReachable {
+        // 重要なコマンドの場合のみsendMessageを使用
+        if session.isReachable && (command == "startSession" || command == "endSession" || command == "togglePhase") {
             let message: [String: Any] = [
                 "type": "command",
                 "command": command,
                 "timestamp": Date().timeIntervalSince1970,
-                // 時間データを追加
+                "source": "WorkoutManager",
                 "totalWorkTime": totalWorkTime,
                 "totalRestTime": totalRestTime,
                 "currentPhaseTime": currentPhaseTime,
@@ -195,13 +242,7 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
                 "currentPhase": currentPhase
             ]
 
-            session.sendMessage(message, replyHandler: { response in
-                print("Watch WorkoutManager: ✅ Command '\(command)' acknowledged by iPhone")
-            }) { error in
-                print("Watch WorkoutManager: ⚠️ Failed to send command '\(command)': \(error)")
-            }
-        } else {
-            print("Watch WorkoutManager: 📦 iPhone not reachable (normal in simulator)")
+            session.sendMessage(message, replyHandler: nil, errorHandler: nil)
         }
     }
 
@@ -215,7 +256,6 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
                 "commandTimestamp": Date().timeIntervalSince1970,
                 "commandId": UUID().uuidString,
                 "source": "WorkoutManager",
-                // 時間データも含める
                 "totalWorkTime": totalWorkTime,
                 "totalRestTime": totalRestTime,
                 "currentPhaseTime": currentPhaseTime,
@@ -223,10 +263,9 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
                 "currentPhase": currentPhase
             ]
             try session.updateApplicationContext(context)
-            print("Watch WorkoutManager: 💾 Command and time data saved to applicationContext")
-            print("Watch WorkoutManager: 📊 Times - Work: \(totalWorkTime)s, Rest: \(totalRestTime)s")
         } catch {
-            print("Watch WorkoutManager: ❌ Failed to update applicationContext: \(error)")
+            // エラーはログに記録するが、頻度を制限
+            print("Watch: Context update failed: \(error.localizedDescription)")
         }
     }
 #endif
@@ -467,6 +506,73 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
         notifyPhoneOfWorkout(state: phase, force: true)
     }
 
+    func applyPhaseChangeFromPhone(
+        phase: String,
+        totalWorkTime: TimeInterval?,
+        totalRestTime: TimeInterval?,
+        elapsedTime: TimeInterval?,
+        currentPhaseTime: TimeInterval?,
+        previousPhase _: String?,
+        previousPhaseDuration _: TimeInterval?
+    ) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+
+            if let totalWorkTime {
+                self.totalWorkTime = totalWorkTime
+            }
+            if let totalRestTime {
+                self.totalRestTime = totalRestTime
+            }
+
+            let aggregateElapsed: TimeInterval?
+            if let elapsedTime {
+                aggregateElapsed = elapsedTime
+            } else if let totalWorkTime, let totalRestTime {
+                aggregateElapsed = totalWorkTime + totalRestTime
+            } else {
+                aggregateElapsed = nil
+            }
+
+            if let aggregateElapsed {
+                self.elapsedTime = aggregateElapsed
+                self.startTime = Date().addingTimeInterval(-aggregateElapsed)
+            }
+
+            if let currentPhaseTime {
+                self.currentPhaseTime = max(currentPhaseTime, 0)
+                self.phaseStartTime = Date().addingTimeInterval(-self.currentPhaseTime)
+            } else if self.phaseStartTime == nil {
+                self.phaseStartTime = Date()
+                self.currentPhaseTime = 0
+            }
+
+            let normalizedPhase = phase.lowercased()
+            self.currentPhase = normalizedPhase
+
+            let isActive = normalizedPhase != "idle"
+            self.isWorkoutActive = isActive
+            self.isPaused = false
+
+            if isActive {
+                if self.timer == nil {
+                    self.pausedTime = 0
+                    if self.startTime == nil {
+                        self.startTime = Date()
+                    }
+                    self.startTimer()
+                }
+            } else {
+                self.stopTimer()
+                self.pausedTime = 0
+                self.currentPhaseTime = 0
+            }
+
+            self.lastPhoneSyncDate = Date()
+            self.debugMessage = "Phone sync \(normalizedPhase)"
+        }
+    }
+
     private func markWorkoutActive(startDate: Date, message: String) {
         stopTimer()
         isWorkoutActive = true
@@ -486,6 +592,7 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
     }
 
     private func startTimer() {
+        var updateCounter = 0
         timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             guard let self, let startTime = self.startTime else { return }
             let elapsed = self.pausedTime + Date().timeIntervalSince(startTime)
@@ -496,7 +603,12 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
                 self.currentPhaseTime = Date().timeIntervalSince(phaseStart)
             }
 
-            self.notifyPhoneOfWorkout(elapsed: elapsed)
+            // 5秒に1回だけiPhoneに通知（過負荷を防ぐ）
+            updateCounter += 1
+            if updateCounter >= 5 {
+                updateCounter = 0
+                self.notifyPhoneOfWorkout(elapsed: elapsed)
+            }
         }
     }
 
@@ -794,21 +906,25 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
 
         let now = Date()
         let elapsedSinceLast = now.timeIntervalSince(lastPhoneSyncDate ?? .distantPast)
-        let shouldSend = force || elapsedSinceLast >= 1.0 || session.isReachable
 
-        guard shouldSend else { return }
+        // 通信頻度を制限（強制の場合を除き、最低3秒間隔）
+        let minInterval: TimeInterval = force ? 0 : 3.0
+        guard elapsedSinceLast >= minInterval else { return }
 
         lastPhoneSyncDate = now
 
-        if session.isReachable {
-            session.sendMessage(phoneContext, replyHandler: nil) { error in
-                print("Watch: Failed to send update to phone: \(error)")
+        // applicationContextのみ更新（過剰なsendMessageを防ぐ）
+        do {
+            try session.updateApplicationContext(phoneContext)
+
+            // 重要な状態変更の場合のみsendMessageも使う
+            if force && session.isReachable && (state == "running" || state == "ended" || state == "idle") {
+                session.sendMessage(phoneContext, replyHandler: nil, errorHandler: nil)
             }
-        } else {
-            do {
-                try session.updateApplicationContext(phoneContext)
-            } catch {
-                print("Watch: Failed to update application context: \(error)")
+        } catch {
+            // エラーは記録するが、クラッシュさせない
+            if elapsedSinceLast >= 10.0 { // エラーログも頻度制限
+                print("Watch: Failed to update context: \(error.localizedDescription)")
             }
         }
         #endif

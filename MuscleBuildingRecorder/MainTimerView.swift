@@ -421,9 +421,16 @@ struct MainTimerView: View {
     private func setupSessionObservers() {
         // SessionManagerのフェーズ変更を監視してWatchに通知
         _ = sessionManager.$currentPhase.sink { phase in
+            guard phase == .idle else { return }
             watchConnectivity.sendPhaseChange(
                 phase: phase.rawValue,
-                cycleIndex: sessionManager.cycleIndex
+                cycleIndex: sessionManager.cycleIndex,
+                totalWorkTime: sessionManager.totalWorkTime,
+                totalRestTime: sessionManager.totalRestTime,
+                elapsedTime: sessionManager.elapsedTime,
+                currentPhaseTime: 0,
+                previousPhase: nil,
+                previousPhaseDuration: nil
             )
         }
 

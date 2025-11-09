@@ -34,13 +34,13 @@ struct MuscleBuildingRecorderApp: App {
     private func setupApp() {
         print("iPhone App: 🚀 Starting app setup...")
 
-        // WatchConnectivityの初期化（重要！）
-        _ = WatchConnectivityService.shared
-        print("iPhone App: ✅ WatchConnectivityService initialized")
+        // WatchConnectivityの初期化（重要！最初に実行）
+        let watchService = WatchConnectivityService.shared
+        print("iPhone App: ✅ WatchConnectivityService initialized: \(watchService)")
 
         // SessionManagerの初期化
-        _ = SessionManager.shared
-        print("iPhone App: ✅ SessionManager initialized")
+        let sessionMgr = SessionManager.shared
+        print("iPhone App: ✅ SessionManager initialized: \(sessionMgr)")
 
         heartRateManager.requestAuthorization()
         dataController.loadInitialData()
@@ -48,5 +48,17 @@ struct MuscleBuildingRecorderApp: App {
         // センサーログマネージャーの初期化
         sensorLogManager.startSessionIfNeeded()
         print("iPhone App: ✅ SensorLogManager initialized")
+
+        // 初期化状態を確認
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            print("iPhone App: 🔍 Checking WCSession state...")
+            print("iPhone App: WCSession is supported: \(WCSession.isSupported())")
+            if WCSession.isSupported() {
+                let session = WCSession.default
+                print("iPhone App: WCSession delegate: \(String(describing: session.delegate))")
+                print("iPhone App: WCSession activation state: \(session.activationState.rawValue)")
+                print("iPhone App: Is reachable: \(session.isReachable)")
+            }
+        }
     }
 }

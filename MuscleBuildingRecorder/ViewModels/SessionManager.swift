@@ -119,35 +119,87 @@ class SessionManager: ObservableObject {
     }
 
     // Watchからの時間データ同期
-    func syncTimeFromWatch(totalWorkTime: TimeInterval, totalRestTime: TimeInterval) {
+    func syncTimeFromWatch(
+        totalWorkTime: TimeInterval,
+        totalRestTime: TimeInterval,
+        currentPhaseIdentifier: String? = nil,
+        currentPhaseTime: TimeInterval? = nil,
+        completedPhaseIdentifier: String? = nil,
+        completedPhaseDuration: TimeInterval? = nil
+    ) {
         print("SessionManager: 🔄 syncTimeFromWatch() called")
         print("SessionManager: Current - Work: \(self.totalWorkTime)s, Rest: \(self.totalRestTime)s")
         print("SessionManager: Watch - Work: \(totalWorkTime)s, Rest: \(totalRestTime)s")
+        if let currentPhaseIdentifier {
+            print("SessionManager: Watch current phase identifier: \(currentPhaseIdentifier)")
+        }
+        if let completedPhaseIdentifier {
+            print("SessionManager: Watch previous phase identifier: \(completedPhaseIdentifier)")
+        }
 
         // Watchの時間データで更新
         self.totalWorkTime = totalWorkTime
         self.totalRestTime = totalRestTime
         self.elapsedTime = totalWorkTime + totalRestTime
+        self.sessionStartTime = Date().addingTimeInterval(-(totalWorkTime + totalRestTime))
+
+        // 標準ではwatchから送られた累積値と一致させる
+        self.workTimeAccumulated = totalWorkTime
+        self.restTimeAccumulated = totalRestTime
+
+        let normalizedCompletedPhase = completedPhaseIdentifier.flatMap { phase(from: $0) }
+        let normalizedCurrentPhase = currentPhaseIdentifier.flatMap { phase(from: $0) }
+
+        if let completedPhase = normalizedCompletedPhase,
+           let completedDuration = completedPhaseDuration,
+           completedDuration > 0 {
+            switch completedPhase {
+            case .work:
+                self.workTimeAccumulated = max(totalWorkTime - completedDuration, 0)
+            case .rest:
+                self.restTimeAccumulated = max(totalRestTime - completedDuration, 0)
+            case .idle:
+                break
+            }
+            self.phaseStartTime = Date().addingTimeInterval(-completedDuration)
+        } else if normalizedCompletedPhase != nil {
+            // フェーズ情報は届いたが時間が不明な場合は二重加算を避けるため直近時刻でリセット
+            self.phaseStartTime = Date()
+        } else if normalizedCompletedPhase == nil,
+                  let phase = normalizedCurrentPhase,
+                  let phaseDuration = currentPhaseTime {
+            if phase != .idle {
+                self.currentPhase = phase
+            }
+            self.phaseStartTime = Date().addingTimeInterval(-phaseDuration)
+        }
+
+        if let phase = normalizedCurrentPhase {
+            self.currentPhase = phase
+        }
 
         // 表示用文字列も更新
         updateElapsedTimeString()
 
         print("SessionManager: ✅ Times synced from Watch")
 
-        let record = dataController.createSetRecord(
-            sessionId: currentSession!.id!,
-            phase: .work,
-            cycleIndex: cycleIndex
-        )
-        record.category = selectedCategory
-        record.name = selectedExercise
-        record.load = currentLoad
-        record.reps = currentReps
-        record.session = currentSession // セッションとの関連付けを追加
-        currentSetRecord = record
+        // Watch側で先行して開始されたケースでセットレコードが未生成の場合のみ作成
+        if currentSetRecord == nil, let session = currentSession {
+            let record = dataController.createSetRecord(
+                sessionId: session.id!,
+                phase: currentPhase,
+                cycleIndex: cycleIndex
+            )
+            record.category = selectedCategory
+            record.name = selectedExercise
+            record.load = currentLoad
+            record.reps = currentReps
+            record.session = session
+            currentSetRecord = record
 
-        // Core Dataに即座に保存
-        dataController.save()
+            // Core Dataに即座に保存
+            dataController.save()
+        }
     }
 
     func togglePhase() {
@@ -163,20 +215,43 @@ class SessionManager: ObservableObject {
 
         print("SessionManager: ✅ Toggling phase from \(currentPhase.rawValue)...")
 
+        let previousPhase = currentPhase
+        let now = Date()
+        let completedPhaseDuration: TimeInterval
+        if let startTime = phaseStartTime {
+            completedPhaseDuration = max(now.timeIntervalSince(startTime), 0)
+        } else {
+            completedPhaseDuration = 0
+        }
+
         completeCurrentSetRecord()
 
-        let newPhase: WorkoutPhase = currentPhase == .work ? .rest : .work
+        let newPhase: WorkoutPhase = previousPhase == .work ? .rest : .work
 
         // サイクルインデックスの更新（rest→workの遷移時）
-        if currentPhase == .rest && newPhase == .work {
+        if previousPhase == .rest && newPhase == .work {
             cycleIndex += 1
         }
 
         currentPhase = newPhase
-        phaseStartTime = Date()
+        phaseStartTime = now
 
-        // Watchにフェーズ変更を通知（改善版：フェーズとサイクルを通知）
-        watchConnectivity.sendPhaseChange(phase: newPhase.rawValue, cycleIndex: cycleIndex)
+        if let sessionStart = sessionStartTime {
+            elapsedTime = now.timeIntervalSince(sessionStart)
+            updateElapsedTimeString()
+        }
+
+        // Watchにフェーズ変更を通知（フェーズ/サイクル/時間を送信）
+        watchConnectivity.sendPhaseChange(
+            phase: newPhase.rawValue,
+            cycleIndex: cycleIndex,
+            totalWorkTime: totalWorkTime,
+            totalRestTime: totalRestTime,
+            elapsedTime: elapsedTime,
+            currentPhaseTime: 0,
+            previousPhase: previousPhase.rawValue,
+            previousPhaseDuration: completedPhaseDuration
+        )
 
         let record = dataController.createSetRecord(
             sessionId: currentSession!.id!,
@@ -334,6 +409,19 @@ class SessionManager: ObservableObject {
               let records = session.setRecords?.allObjects as? [SetRecord] else { return 0 }
 
         return records.reduce(0) { $0 + ($1.load * $1.reps) }
+    }
+
+    private func phase(from identifier: String) -> WorkoutPhase? {
+        switch identifier.lowercased() {
+        case "work", "筋トレ":
+            return .work
+        case "rest", "休憩":
+            return .rest
+        case "idle", "待機中":
+            return .idle
+        default:
+            return WorkoutPhase(rawValue: identifier.capitalized)
+        }
     }
 
     func loadDefaultExerciseValues() {
