@@ -63,7 +63,6 @@ class SessionManager: ObservableObject {
     func startSession() {
         print("SessionManager: 🎬 startSession() called")
         print("SessionManager: Current phase: \(currentPhase.rawValue)")
-        print("SessionManager: Current thread: \(Thread.current)")
 
         guard currentPhase == .idle else {
             print("SessionManager: ⚠️ startSession() ignored - already in \(currentPhase.rawValue) phase")
@@ -90,10 +89,20 @@ class SessionManager: ObservableObject {
 
         // センサーデータをクリア
         sessionSensorData.removeAll()
+        
+        // 心拍数モニタリングを開始（Watch/iPhone自動選択）
+        heartRateManager.startMonitoring()
 
-        // Watchアプリを起動してワークアウト開始を通知
-        watchConnectivity.wakeUpWatch()
-        watchConnectivity.startWatchWorkout()
+        // Watchが利用可能な場合のみ、Watchワークアウトを開始
+        if watchConnectivity.isWatchConnected {
+            print("SessionManager: Watch connected - starting Watch workout")
+            watchConnectivity.wakeUpWatch()
+            watchConnectivity.startWatchWorkout()
+        } else {
+            print("SessionManager: Watch not connected - running in iPhone standalone mode")
+            // iPhoneスタンドアロンモードで動作
+            // 心拍数はHeartRateManagerが自動でiPhone HealthKitから取得
+        }
     }
 
     // Watchからの時間同期付きセッション開始
@@ -183,10 +192,17 @@ class SessionManager: ObservableObject {
 
         print("SessionManager: ✅ Times synced from Watch")
 
+        // セッションやIDが欠落している場合は補完する（Watchのみで開始されたケースを考慮）
+        let shouldEnsureSession = currentPhase != .idle || totalWorkTime > 0 || totalRestTime > 0
+        let session = shouldEnsureSession ? ensureActiveSession(startTime: sessionStartTime) : currentSession
+
         // Watch側で先行して開始されたケースでセットレコードが未生成の場合のみ作成
-        if currentSetRecord == nil, let session = currentSession {
+        if currentSetRecord == nil,
+           let session,
+           let sessionId = session.id,
+           currentPhase != .idle {
             let record = dataController.createSetRecord(
-                sessionId: session.id!,
+                sessionId: sessionId,
                 phase: currentPhase,
                 cycleIndex: cycleIndex
             )
@@ -203,18 +219,52 @@ class SessionManager: ObservableObject {
     }
 
     func togglePhase() {
-        print("SessionManager: 🔄 togglePhase() called")
-        print("SessionManager: Current phase: \(currentPhase.rawValue)")
-        print("SessionManager: Current thread: \(Thread.current)")
+        // iPhone UIからの呼び出し用（Watchに通知する）
+        togglePhaseInternal(notifyWatch: true)
+    }
 
-        guard currentPhase != .idle else {
-            print("SessionManager: 🚀 togglePhase() starting new session from idle")
-            startSession()
+    /// Watchからのフェーズ変更を適用（Watchには通知しない）
+    /// - Parameters:
+    ///   - newPhaseIdentifier: 新しいフェーズ ("work" or "rest")
+    ///   - previousPhaseIdentifier: 前のフェーズ
+    ///   - previousPhaseDuration: 前のフェーズの継続時間
+    func applyPhaseChangeFromWatch(
+        newPhaseIdentifier: String,
+        previousPhaseIdentifier: String?,
+        previousPhaseDuration: TimeInterval?
+    ) {
+        print("SessionManager: 📲 applyPhaseChangeFromWatch() - newPhase: \(newPhaseIdentifier)")
+
+        guard let newPhase = phase(from: newPhaseIdentifier), newPhase != .idle else {
+            print("SessionManager: ⚠️ Invalid phase identifier: \(newPhaseIdentifier)")
             return
         }
 
-        print("SessionManager: ✅ Toggling phase from \(currentPhase.rawValue)...")
+        // idleの場合はセッション開始
+        if currentPhase == .idle {
+            print("SessionManager: 🚀 Starting new session from Watch command")
+            startSession()
+            // セッション開始後、必要に応じてフェーズを設定
+            if newPhase != .work {
+                applyPhaseInternal(newPhase: newPhase, notifyWatch: false)
+            }
+            return
+        }
 
+        // 既に同じフェーズの場合は何もしない（重複処理防止）
+        if currentPhase == newPhase {
+            print("SessionManager: ℹ️ Already in phase \(newPhaseIdentifier), skipping")
+            return
+        }
+
+        applyPhaseInternal(newPhase: newPhase, notifyWatch: false)
+    }
+
+    /// フェーズ変更の内部実装
+    /// - Parameters:
+    ///   - newPhase: 新しいフェーズ
+    ///   - notifyWatch: Watchに通知するかどうか（iPhone UIからの操作時はtrue、Watchからの操作時はfalse）
+    private func applyPhaseInternal(newPhase: WorkoutPhase, notifyWatch: Bool) {
         let previousPhase = currentPhase
         let now = Date()
         let completedPhaseDuration: TimeInterval
@@ -226,7 +276,11 @@ class SessionManager: ObservableObject {
 
         completeCurrentSetRecord()
 
-        let newPhase: WorkoutPhase = previousPhase == .work ? .rest : .work
+        guard let session = ensureActiveSession(startTime: sessionStartTime),
+              let sessionId = session.id else {
+            print("SessionManager: ⚠️ applyPhaseInternal() aborted - active session unavailable")
+            return
+        }
 
         // サイクルインデックスの更新（rest→workの遷移時）
         if previousPhase == .rest && newPhase == .work {
@@ -241,20 +295,22 @@ class SessionManager: ObservableObject {
             updateElapsedTimeString()
         }
 
-        // Watchにフェーズ変更を通知（フェーズ/サイクル/時間を送信）
-        watchConnectivity.sendPhaseChange(
-            phase: newPhase.rawValue,
-            cycleIndex: cycleIndex,
-            totalWorkTime: totalWorkTime,
-            totalRestTime: totalRestTime,
-            elapsedTime: elapsedTime,
-            currentPhaseTime: 0,
-            previousPhase: previousPhase.rawValue,
-            previousPhaseDuration: completedPhaseDuration
-        )
+        // Watchに通知（iPhone UIからの操作時のみ）
+        if notifyWatch {
+            watchConnectivity.sendPhaseChange(
+                phase: newPhase.rawValue,
+                cycleIndex: cycleIndex,
+                totalWorkTime: totalWorkTime,
+                totalRestTime: totalRestTime,
+                elapsedTime: elapsedTime,
+                currentPhaseTime: 0,
+                previousPhase: previousPhase.rawValue,
+                previousPhaseDuration: completedPhaseDuration
+            )
+        }
 
         let record = dataController.createSetRecord(
-            sessionId: currentSession!.id!,
+            sessionId: sessionId,
             phase: newPhase,
             cycleIndex: cycleIndex
         )
@@ -263,11 +319,28 @@ class SessionManager: ObservableObject {
         record.load = currentLoad
         record.reps = currentReps
         record.note = currentNote
-        record.session = currentSession // セッションとの関連付けを追加
+        record.session = currentSession
         currentSetRecord = record
 
         // Core Dataに即座に保存
         dataController.save()
+
+        print("SessionManager: ✅ Phase changed to \(newPhase.rawValue), notifyWatch: \(notifyWatch)")
+    }
+
+    /// iPhone UIからのトグル操作
+    private func togglePhaseInternal(notifyWatch: Bool) {
+        print("SessionManager: 🔄 togglePhaseInternal() called, notifyWatch: \(notifyWatch)")
+        print("SessionManager: Current phase: \(currentPhase.rawValue)")
+
+        guard currentPhase != .idle else {
+            print("SessionManager: 🚀 togglePhase() starting new session from idle")
+            startSession()
+            return
+        }
+
+        let newPhase: WorkoutPhase = currentPhase == .work ? .rest : .work
+        applyPhaseInternal(newPhase: newPhase, notifyWatch: notifyWatch)
     }
 
     func saveCurrentCycle() {
@@ -282,7 +355,6 @@ class SessionManager: ObservableObject {
     func endSession() {
         print("SessionManager: 🛑 endSession() called")
         print("SessionManager: Current phase: \(currentPhase.rawValue)")
-        print("SessionManager: Current thread: \(Thread.current)")
 
         timer?.invalidate()
         timer = nil
@@ -306,9 +378,14 @@ class SessionManager: ObservableObject {
             // セッションデータを保持（リザルト画面で表示するため）
             lastCompletedSession = session
         }
+        
+        // 心拍数モニタリングを停止
+        heartRateManager.stopMonitoring()
 
-        // Watchにワークアウト終了を通知
-        watchConnectivity.stopWatchWorkout()
+        // Watchが接続されている場合のみ、Watchワークアウト終了を通知
+        if watchConnectivity.isWatchConnected {
+            watchConnectivity.stopWatchWorkout()
+        }
 
         // リセット前に合計時間を記録
         let finalWorkTime = totalWorkTime
@@ -402,6 +479,28 @@ class SessionManager: ObservableObject {
         // メモリクリーンアップ
         sessionSensorData.removeAll()
         heartRateLogManager.clearLogs()
+    }
+
+    @discardableResult
+    private func ensureActiveSession(startTime: Date? = nil) -> Session? {
+        if currentSession == nil {
+            let resolvedStart = startTime ?? sessionStartTime ?? Date()
+            sessionStartTime = sessionStartTime ?? resolvedStart
+
+            let session = dataController.createSession()
+            session.startedAt = resolvedStart
+            currentSession = session
+        }
+
+        if let session = currentSession, session.id == nil {
+            session.id = UUID()
+        }
+
+        if timer == nil, currentPhase != .idle {
+            startTimer()
+        }
+
+        return currentSession
     }
 
     private func calculateTotalVolume() -> Double {

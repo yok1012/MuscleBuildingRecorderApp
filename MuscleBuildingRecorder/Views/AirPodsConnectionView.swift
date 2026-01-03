@@ -1,10 +1,10 @@
 import SwiftUI
 import Combine
 
+/// 心拍数モニタービュー（デバッグ・テスト用）
 struct AirPodsConnectionView: View {
     @StateObject private var heartRateManager = HeartRateManager.shared
     @State private var isConnecting = false
-    @State private var showSimulatedMode = false
     @State private var errorMessage: String?
 
     var body: some View {
@@ -152,23 +152,6 @@ struct AirPodsConnectionView: View {
             ForEach(HeartRateSourceType.allCases, id: \.self) { source in
                 deviceButton(for: source)
             }
-
-            // シミュレーションモード（開発用）
-            #if DEBUG
-            Toggle("シミュレーションモード", isOn: $showSimulatedMode)
-                .padding(.top, 5)
-                .onChange(of: showSimulatedMode) { newValue in
-                    if newValue {
-                        Task {
-                            await connectToSimulatedAirPods()
-                        }
-                    } else {
-                        Task {
-                            await heartRateManager.disconnectCurrentSource()
-                        }
-                    }
-                }
-            #endif
         }
         .padding()
         .background(Color(.systemGray6))
@@ -180,7 +163,7 @@ struct AirPodsConnectionView: View {
             selectDevice(source)
         }) {
             HStack {
-                Image(systemName: iconForSource(source))
+                Image(systemName: source.icon)
                     .font(.title3)
                     .frame(width: 30)
 
@@ -301,31 +284,6 @@ struct AirPodsConnectionView: View {
     private func disconnect() {
         Task {
             await heartRateManager.disconnectCurrentSource()
-        }
-    }
-
-    private func connectToSimulatedAirPods() async {
-        isConnecting = true
-
-        // AirPodsのシミュレーションモードを開始
-        let airPodsService = HeartRateManager.shared.airPodsService
-        airPodsService.startSimulatedData()
-        heartRateManager.selectedSourceType = .airpods
-        await heartRateManager.connectToSource(.airpods)
-
-        await MainActor.run {
-            isConnecting = false
-        }
-    }
-
-    private func iconForSource(_ source: HeartRateSourceType) -> String {
-        switch source {
-        case .healthKit:
-            return "applewatch"
-        case .bluetooth:
-            return "dot.radiowaves.left.and.right"
-        case .airpods:
-            return "airpodspro"
         }
     }
 

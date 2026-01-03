@@ -11,11 +11,15 @@ import WatchConnectivity
 
 @main
 struct MuscleBuildingRecorderApp: App {
+    // AdMob SDK初期化用AppDelegate
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+
     let dataController = DataController.shared
     @StateObject private var heartRateManager = HeartRateManager.shared
     @StateObject private var sessionManager = SessionManager.shared
     @StateObject private var sensorLogManager = SensorLogManager.shared
     @StateObject private var watchConnectivity = WatchConnectivityService.shared
+    @StateObject private var proUserManager = ProUserManager.shared
 
     var body: some Scene {
         WindowGroup {
@@ -24,6 +28,7 @@ struct MuscleBuildingRecorderApp: App {
                 .environmentObject(sessionManager)
                 .environmentObject(sensorLogManager)
                 .environmentObject(watchConnectivity)
+                .environmentObject(proUserManager)
                 .environment(\.managedObjectContext, dataController.container.viewContext)
                 .onAppear {
                     setupApp()
@@ -45,9 +50,17 @@ struct MuscleBuildingRecorderApp: App {
         heartRateManager.requestAuthorization()
         dataController.loadInitialData()
 
-        // センサーログマネージャーの初期化
-        sensorLogManager.startSessionIfNeeded()
-        print("iPhone App: ✅ SensorLogManager initialized")
+        // 心拍数監視を自動開始（Watchアプリなしでも心拍数取得可能に）
+        // 認可完了後に開始するため少し遅延させる
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+            print("iPhone App: 💓 Starting automatic heart rate monitoring...")
+            heartRateManager.startMonitoring()
+        }
+
+        // 注意: SensorLogManagerはWCSessionDelegateを実装しなくなりました
+        // WatchConnectivityServiceが唯一のデリゲートとして動作し、
+        // センサーデータをSensorLogManagerに転送します
+        print("iPhone App: ✅ SensorLogManager initialized (receives data from WatchConnectivityService)")
 
         // 初期化状態を確認
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {

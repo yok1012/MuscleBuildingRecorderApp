@@ -76,6 +76,16 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: .init("WakeUp"))) { _ in
             handleWakeUpRequest()
         }
+        // WorkoutManagerのcurrentPhaseを監視してUIを同期
+        .onReceive(workoutManager.$currentPhase) { phase in
+            updatePhase(from: phase)
+        }
+        // WorkoutManagerのisWorkoutActiveを監視
+        .onReceive(workoutManager.$isWorkoutActive) { isActive in
+            if !isActive && currentPhase != .idle {
+                currentPhase = .idle
+            }
+        }
     }
 
     // MARK: - Header Section
@@ -253,28 +263,16 @@ struct ContentView: View {
                 }
                 .buttonStyle(PlainButtonStyle())
 
-                // 小さい補助ボタン
-                HStack(spacing: 8) {
-                    Button(action: { requestExerciseChange() }) {
-                        Label("種目", systemImage: "arrow.triangle.2.circlepath")
-                            .font(.caption2)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 6)
-                            .background(Color.secondary.opacity(0.3))
-                            .cornerRadius(8)
-                    }
-                    .buttonStyle(PlainButtonStyle())
-
-                    Button(action: endWorkout) {
-                        Label("終了", systemImage: "stop.circle")
-                            .font(.caption2)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 6)
-                            .background(Color.red.opacity(0.3))
-                            .cornerRadius(8)
-                    }
-                    .buttonStyle(PlainButtonStyle())
+                // 終了ボタン（種目変更はヘッダーに統合済み）
+                Button(action: endWorkout) {
+                    Label("終了", systemImage: "stop.circle")
+                        .font(.caption2)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 6)
+                        .background(Color.red.opacity(0.3))
+                        .cornerRadius(8)
                 }
+                .buttonStyle(PlainButtonStyle())
 
             } else if currentPhase == .rest {
                 // 休憩中: 運動ボタンを大きく
@@ -292,28 +290,16 @@ struct ContentView: View {
                 }
                 .buttonStyle(PlainButtonStyle())
 
-                // 小さい補助ボタン
-                HStack(spacing: 8) {
-                    Button(action: { requestExerciseChange() }) {
-                        Label("種目", systemImage: "arrow.triangle.2.circlepath")
-                            .font(.caption2)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 6)
-                            .background(Color.secondary.opacity(0.3))
-                            .cornerRadius(8)
-                    }
-                    .buttonStyle(PlainButtonStyle())
-
-                    Button(action: endWorkout) {
-                        Label("終了", systemImage: "stop.circle")
-                            .font(.caption2)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 6)
-                            .background(Color.red.opacity(0.3))
-                            .cornerRadius(8)
-                    }
-                    .buttonStyle(PlainButtonStyle())
+                // 終了ボタン（種目変更はヘッダーに統合済み）
+                Button(action: endWorkout) {
+                    Label("終了", systemImage: "stop.circle")
+                        .font(.caption2)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 6)
+                        .background(Color.red.opacity(0.3))
+                        .cornerRadius(8)
                 }
+                .buttonStyle(PlainButtonStyle())
             }
         }
         .animation(.easeInOut(duration: 0.3), value: currentPhase)
@@ -418,33 +404,45 @@ struct ContentView: View {
     // MARK: - Actions
 
     private func startWorkout() {
-        // ローカルでもワークアウトを開始
+        // ワークアウト開始前の状態チェック
+        guard !workoutManager.isWorkoutActive else {
+            print("Watch ContentView: Workout already active, ignoring start")
+            return
+        }
+
+        // WorkoutManagerでワークアウトを開始（フェーズ設定も含む）
         workoutManager.startWorkout()
-        currentPhase = .work
         workoutManager.setPhase("work")
+
+        // ローカルUI状態を更新
+        currentPhase = .work
         cycleIndex = 0
-        // タイマーは WorkoutManager.startWorkout() 内で開始されるため、ここでは何もしない
 
         // iPhoneに開始を通知
         sendCommandToPhone("startSession")
     }
 
     private func togglePhase(to newPhase: WorkoutPhase) {
+        // ワークアウトがアクティブでない場合は無視
+        guard workoutManager.isWorkoutActive else {
+            print("Watch ContentView: Workout not active, ignoring toggle")
+            return
+        }
+
         let previousPhaseIdentifier = currentPhaseString()
         let previousPhaseDuration = workoutManager.currentPhaseTime
-
-        // ローカルの位相を更新
-        currentPhase = newPhase
-
-        // WorkoutManagerにフェーズを設定
-        workoutManager.setPhase(newPhase == .work ? "work" : newPhase == .rest ? "rest" : "idle")
 
         // サイクルインデックスの更新（rest→workの遷移時）
         if currentPhase == .rest && newPhase == .work {
             cycleIndex += 1
         }
 
-        // 注意: pause/resumeは削除。フェーズ変更時にタイマーは継続して動作させる
+        // WorkoutManagerにフェーズを設定（これが状態の source of truth）
+        let newPhaseString = newPhase == .work ? "work" : newPhase == .rest ? "rest" : "idle"
+        workoutManager.setPhase(newPhaseString)
+
+        // ローカルUI状態を更新
+        currentPhase = newPhase
 
         // iPhoneに位相変更を通知（Watch側の最新時間を付与）
         sendCommandToPhone(
@@ -455,8 +453,13 @@ struct ContentView: View {
     }
 
     private func endWorkout() {
-        // ローカルでワークアウトを終了
+        // ワークアウトがアクティブでない場合でも終了処理を実行（確実にクリーンアップ）
+        print("Watch ContentView: Ending workout")
+
+        // WorkoutManagerでワークアウトを終了
         workoutManager.endWorkout()
+
+        // ローカルUI状態を更新
         currentPhase = .idle
         cycleIndex = 0
         elapsedTime = "00:00"
@@ -508,28 +511,27 @@ struct ContentView: View {
         previousPhaseIdentifier: String? = nil,
         previousPhaseDuration: TimeInterval? = nil
     ) {
-        // 先にapplicationContextを更新
-        updateApplicationContextWithCommand(
-            command,
-            phaseIdentifier: currentPhaseString(),
-            previousPhaseIdentifier: previousPhaseIdentifier,
-            previousPhaseDuration: previousPhaseDuration
-        )
+        print("Watch ContentView: 📤 Sending command '\(command)' to iPhone")
 
         // コマンド送信状態を表示
         isCommandPending = true
         commandStatus = "送信中..."
 
-        // WorkoutManagerを通じて送信（WorkoutManagerがWCSessionのdelegateを管理）
-        workoutManager.sendWorkoutCommandToPhone(command)
+        // WorkoutManagerを通じて送信（applicationContextの更新も内部で行われる）
+        // 注意: previousPhase情報を含めるため、拡張されたメソッドを使用
+        workoutManager.sendWorkoutCommandToPhoneWithContext(
+            command,
+            previousPhase: previousPhaseIdentifier,
+            previousPhaseDuration: previousPhaseDuration
+        )
 
         // startSessionの場合はiPhoneアプリの起動も試みる
         if command == "startSession" {
             wakeUpIPhone()
         }
 
-        // 状態更新（WorkoutManagerから成功/失敗のコールバックがないため、短時間後に完了とみなす）
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+        // 状態更新
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             self.isCommandPending = false
             if WCSession.default.isReachable {
                 self.commandStatus = "✅ 送信完了"
@@ -537,7 +539,7 @@ struct ContentView: View {
                 self.commandStatus = "📦 保存済み"
             }
 
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
                 self.commandStatus = ""
             }
         }
@@ -565,39 +567,6 @@ struct ContentView: View {
             }
         }
         #endif
-    }
-
-    private func updateApplicationContextWithCommand(
-        _ command: String,
-        phaseIdentifier: String,
-        previousPhaseIdentifier: String?,
-        previousPhaseDuration: TimeInterval?
-    ) {
-        do {
-            // 新しいディクショナリを作成（applicationContextは読み取り専用）
-            var context: [String: Any] = [
-                "type": "command",
-                "lastCommand": command,
-                "commandTimestamp": Date().timeIntervalSince1970,
-                // ユニークIDを追加して、同じコマンドでも更新がトリガーされるようにする
-                "commandId": UUID().uuidString,
-                "totalWorkTime": workoutManager.totalWorkTime,
-                "totalRestTime": workoutManager.totalRestTime,
-                "currentPhaseTime": workoutManager.currentPhaseTime,
-                "elapsedTime": workoutManager.elapsedTime,
-                "currentPhase": phaseIdentifier,
-                "cycleIndex": cycleIndex
-            ]
-            if let previousPhaseIdentifier {
-                context["previousPhase"] = previousPhaseIdentifier
-                context["previousPhaseDuration"] = previousPhaseDuration ?? workoutManager.currentPhaseTime
-            }
-            try WCSession.default.updateApplicationContext(context)
-            print("Watch: ✅ Command saved to applicationContext: \(command)")
-            print("Watch: Context content: \(context)")
-        } catch {
-            print("Watch: ❌ Failed to update applicationContext with command '\(command)': \(error)")
-        }
     }
 
     private func handleMessageFromPhone(_ message: [String: Any]) {

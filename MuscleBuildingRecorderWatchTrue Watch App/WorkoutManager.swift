@@ -37,7 +37,7 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
     private var timer: Timer?
     private var realtimeHeartRateTimer: Timer?
     private var phaseStartTime: Date?  // 現在のフェーズの開始時刻
-    private var currentPhase: String = "idle"  // "work", "rest", "idle"
+    @Published var currentPhase: String = "idle"  // "work", "rest", "idle" - ContentViewで監視可能
     #if os(watchOS)
     private var wcSession: WCSession?
     #endif
@@ -89,6 +89,139 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
     override init() {
         super.init()
         setupWatchConnectivity()
+        
+        // セッション復元を試行
+        restoreSessionIfNeeded()
+    }
+
+    // MARK: - Standalone Mode Properties
+    
+    /// Watch単独モード（iPhone未接続で動作中）
+    @Published var isStandaloneMode: Bool = false
+    
+    /// 同期待ちデータがあるか
+    @Published var hasPendingSyncData: Bool = false
+    
+    /// ローカルストレージへの参照
+    private let localStorage = WatchLocalStorage.shared
+    
+    // MARK: - Session Restoration
+    
+    /// アプリ起動時にセッションを復元
+    private func restoreSessionIfNeeded() {
+        guard let savedSession = localStorage.restoreSession() else {
+            print("Watch WorkoutManager: No session to restore")
+            return
+        }
+        
+        print("Watch WorkoutManager: Restoring session from local storage")
+        
+        // 保存されたセッションデータを復元
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            
+            self.currentPhase = savedSession.currentPhase
+            self.totalWorkTime = savedSession.totalWorkTime
+            self.totalRestTime = savedSession.totalRestTime
+            self.elapsedTime = savedSession.elapsedTime
+            self.isStandaloneMode = true
+            
+            // ワークアウトを再開するかユーザーに確認するためのフラグ
+            // （実際のHKWorkoutSessionは再開始する必要がある）
+            self.debugMessage = "Session restored"
+            
+            print("Watch WorkoutManager: Session restored - Phase: \(savedSession.currentPhase), Work: \(savedSession.totalWorkTime)s, Rest: \(savedSession.totalRestTime)s")
+        }
+    }
+    
+    // MARK: - Standalone Mode Methods
+    
+    /// Watch単独でワークアウトを開始
+    func startStandaloneWorkout() {
+        print("Watch WorkoutManager: Starting standalone workout")
+        isStandaloneMode = true
+        
+        // ローカルストレージにセッションを作成
+        let session = localStorage.startSession()
+        print("Watch WorkoutManager: Local session created: \(session.id)")
+        
+        // 通常のワークアウト開始
+        startWorkout()
+        
+        // iPhoneへの通知を試みる（失敗しても継続）
+        if let wcSession = wcSession, wcSession.isReachable {
+            sendWorkoutCommandToPhone("startSession")
+            isStandaloneMode = false  // iPhone接続されていればスタンドアロンモードではない
+        } else {
+            print("Watch WorkoutManager: iPhone not reachable, continuing in standalone mode")
+        }
+    }
+    
+    /// iPhoneが接続されたときに、蓄積データを同期
+    func syncPendingDataToPhone() {
+        let pendingSessions = localStorage.loadPendingSyncData()
+        guard !pendingSessions.isEmpty else {
+            print("Watch WorkoutManager: No pending data to sync")
+            return
+        }
+        
+        guard let session = wcSession, session.isReachable else {
+            print("Watch WorkoutManager: Cannot sync - iPhone not reachable")
+            return
+        }
+        
+        print("Watch WorkoutManager: Syncing \(pendingSessions.count) pending sessions to iPhone")
+        
+        for pendingSession in pendingSessions {
+            let syncData: [String: Any] = [
+                "type": "syncSession",
+                "sessionId": pendingSession.id.uuidString,
+                "startTime": pendingSession.startTime.timeIntervalSince1970,
+                "endTime": pendingSession.endTime?.timeIntervalSince1970 ?? Date().timeIntervalSince1970,
+                "totalWorkTime": pendingSession.totalWorkTime,
+                "totalRestTime": pendingSession.totalRestTime,
+                "elapsedTime": pendingSession.elapsedTime,
+                "heartRateSamplesCount": pendingSession.heartRateSamples.count,
+                "timestamp": Date().timeIntervalSince1970
+            ]
+            
+            session.sendMessage(syncData, replyHandler: { [weak self] response in
+                if response["success"] as? Bool == true {
+                    // 同期成功 - ローカルデータを削除
+                    self?.localStorage.removePendingSyncData(sessionId: pendingSession.id)
+                    print("Watch WorkoutManager: Session \(pendingSession.id) synced successfully")
+                }
+            }, errorHandler: { error in
+                print("Watch WorkoutManager: Failed to sync session: \(error.localizedDescription)")
+            })
+        }
+        
+        updatePendingSyncStatus()
+    }
+    
+    /// 同期待ちステータスを更新
+    private func updatePendingSyncStatus() {
+        DispatchQueue.main.async { [weak self] in
+            self?.hasPendingSyncData = self?.localStorage.hasPendingData() ?? false
+        }
+    }
+    
+    /// 現在のセッション状態をローカルストレージに保存
+    private func saveCurrentStateToLocalStorage() {
+        guard isStandaloneMode, isWorkoutActive else { return }
+        
+        localStorage.updatePhase(currentPhase, cycleIndex: 0)  // cycleIndexはWatch側では単純化
+        localStorage.updateTimes(
+            totalWorkTime: totalWorkTime,
+            totalRestTime: totalRestTime,
+            elapsedTime: elapsedTime
+        )
+    }
+    
+    /// 心拍数をローカルストレージに保存（スタンドアロンモード時）
+    private func saveHeartRateToLocalStorage(_ bpm: Double) {
+        guard isStandaloneMode, isWorkoutActive, bpm > 0 else { return }
+        localStorage.addHeartRateSample(bpm: bpm, phase: currentPhase)
     }
 
     private func setupWatchConnectivity() {
@@ -122,6 +255,46 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
             print("Watch: WCSession activation failed: \(error)")
         } else {
             print("Watch: WCSession activated with state: \(activationState.rawValue)")
+        }
+    }
+
+    func sessionReachabilityDidChange(_ session: WCSession) {
+        print("Watch WorkoutManager: Reachability changed to: \(session.isReachable)")
+        
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            
+            if session.isReachable {
+                // iPhoneに接続された
+                print("Watch WorkoutManager: iPhone connected")
+                
+                // スタンドアロンモードで動作中なら、iPhoneに状態を同期
+                if self.isStandaloneMode && self.isWorkoutActive {
+                    print("Watch WorkoutManager: Syncing current standalone session to iPhone")
+                    self.sendWorkoutCommandToPhoneWithContext(
+                        "syncState",
+                        previousPhase: nil,
+                        previousPhaseDuration: nil
+                    )
+                    self.isStandaloneMode = false  // iPhoneと連携モードに切り替え
+                }
+                
+                // 保留中のデータを同期
+                self.syncPendingDataToPhone()
+            } else {
+                // iPhoneから切断された
+                print("Watch WorkoutManager: iPhone disconnected")
+                
+                // ワークアウト中ならスタンドアロンモードに切り替え
+                if self.isWorkoutActive && !self.isStandaloneMode {
+                    print("Watch WorkoutManager: Switching to standalone mode")
+                    self.isStandaloneMode = true
+                    
+                    // ローカルストレージにセッションを開始
+                    _ = self.localStorage.startSession()
+                    self.saveCurrentStateToLocalStorage()
+                }
+            }
         }
     }
 
@@ -213,61 +386,104 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
         handleIncomingMessage(applicationContext)
     }
 
-    private func sendHeartRateToPhone(_ heartRate: Double) {
-        // 心拍数更新は強制送信しない（自動で3秒間隔で送信される）
-        notifyPhoneOfWorkout(heartRate: heartRate, elapsed: elapsedTime, force: false)
-    }
+    // 心拍数送信のスロットリング用
+    private var lastHeartRateSendTime: Date?
+    private let heartRateSendInterval: TimeInterval = 0.5  // 0.5秒間隔に制限
 
-    // iPhoneにワークアウトコマンドを送信（時間データを含む）
-    func sendWorkoutCommandToPhone(_ command: String) {
-        guard let session = wcSession else {
-            setupWatchConnectivity()
+    private func sendHeartRateToPhone(_ heartRate: Double) {
+        guard let session = wcSession, heartRate > 0 else { return }
+
+        // スロットリング: 0.5秒以内の重複送信を防ぐ
+        let now = Date()
+        if let lastSend = lastHeartRateSendTime,
+           now.timeIntervalSince(lastSend) < heartRateSendInterval {
             return
         }
+        lastHeartRateSendTime = now
 
-        // applicationContextを更新（確実性のため）
-        updateApplicationContextWithCommand(command)
+        let message: [String: Any] = [
+            "type": "heartRate",
+            "heartRate": heartRate,
+            "timestamp": now.timeIntervalSince1970
+        ]
 
-        // 重要なコマンドの場合のみsendMessageを使用
-        if session.isReachable && (command == "startSession" || command == "endSession" || command == "togglePhase") {
-            let message: [String: Any] = [
-                "type": "command",
-                "command": command,
-                "timestamp": Date().timeIntervalSince1970,
-                "source": "WorkoutManager",
-                "totalWorkTime": totalWorkTime,
-                "totalRestTime": totalRestTime,
-                "currentPhaseTime": currentPhaseTime,
-                "elapsedTime": elapsedTime,
-                "currentPhase": currentPhase
-            ]
-
+        // reachableな場合のみ送信（applicationContextは使わない - 頻度が高すぎる）
+        if session.isReachable {
             session.sendMessage(message, replyHandler: nil, errorHandler: nil)
         }
     }
 
-    private func updateApplicationContextWithCommand(_ command: String) {
+    // iPhoneにワークアウトコマンドを送信（時間データを含む）
+    func sendWorkoutCommandToPhone(_ command: String) {
+        sendWorkoutCommandToPhoneWithContext(command, previousPhase: nil, previousPhaseDuration: nil)
+    }
+
+    func sendWorkoutCommandToPhoneWithContext(
+        _ command: String,
+        previousPhase: String?,
+        previousPhaseDuration: TimeInterval?
+    ) {
+        guard let session = wcSession else {
+            print("Watch WorkoutManager: ⚠️ WCSession not available, setting up...")
+            setupWatchConnectivity()
+            return
+        }
+
+        print("Watch WorkoutManager: 📤 Sending command '\(command)' (isReachable: \(session.isReachable))")
+
+        // メッセージを構築
+        var message: [String: Any] = [
+            "type": "command",
+            "command": command,
+            "timestamp": Date().timeIntervalSince1970,
+            "source": "WorkoutManager",
+            "totalWorkTime": totalWorkTime,
+            "totalRestTime": totalRestTime,
+            "currentPhaseTime": currentPhaseTime,
+            "elapsedTime": elapsedTime,
+            "currentPhase": currentPhase
+        ]
+
+        // previousPhase情報を追加
+        if let previousPhase = previousPhase {
+            message["previousPhase"] = previousPhase
+        }
+        if let previousPhaseDuration = previousPhaseDuration {
+            message["previousPhaseDuration"] = previousPhaseDuration
+        }
+
+        // applicationContextを更新（バックアップとして）
+        updateApplicationContextWithMessage(message)
+
+        // 重要なコマンドの場合はsendMessageを使用
+        if session.isReachable && (command == "startSession" || command == "endSession" || command == "togglePhase" || command == "showExerciseSelection") {
+            session.sendMessage(message, replyHandler: { response in
+                print("Watch WorkoutManager: ✅ Command '\(command)' acknowledged by iPhone")
+            }, errorHandler: { error in
+                print("Watch WorkoutManager: ❌ Failed to send command '\(command)': \(error.localizedDescription)")
+                // エラー時はapplicationContextで再試行（既に更新済み）
+            })
+        } else {
+            print("Watch WorkoutManager: 📦 iPhone not reachable, using applicationContext only")
+        }
+    }
+
+    private func updateApplicationContextWithMessage(_ message: [String: Any]) {
         guard let session = wcSession else { return }
 
         do {
-            let context: [String: Any] = [
-                "type": "command",
-                "lastCommand": command,
-                "commandTimestamp": Date().timeIntervalSince1970,
-                "commandId": UUID().uuidString,
-                "source": "WorkoutManager",
-                "totalWorkTime": totalWorkTime,
-                "totalRestTime": totalRestTime,
-                "currentPhaseTime": currentPhaseTime,
-                "elapsedTime": elapsedTime,
-                "currentPhase": currentPhase
-            ]
+            var context = message
+            context["commandId"] = UUID().uuidString  // ユニークIDを追加
+            if let command = message["command"] as? String {
+                context["lastCommand"] = command  // iPhone側のフォールバック処理用
+            }
             try session.updateApplicationContext(context)
+            print("Watch WorkoutManager: 💾 ApplicationContext updated")
         } catch {
-            // エラーはログに記録するが、頻度を制限
-            print("Watch: Context update failed: \(error.localizedDescription)")
+            print("Watch WorkoutManager: ❌ Context update failed: \(error.localizedDescription)")
         }
     }
+
 #endif
 
     func requestAuthorization() {
@@ -414,11 +630,23 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
         stopHeartRateMonitoring()
 
         sessionState = "Ending"
+        
+        // スタンドアロンモードの場合、ローカルストレージにセッションを完了として保存
+        if isStandaloneMode {
+            if let completedSession = localStorage.completeSession() {
+                print("Watch WorkoutManager: Session completed and saved locally: \(completedSession.id)")
+            }
+        }
 
         // iPhoneにワークアウト終了を通知（重要！）
         #if os(watchOS)
         sendWorkoutCommandToPhone("endSession")
         print("Watch WorkoutManager: 🛑 Sent endSession command to iPhone")
+        
+        // iPhoneが接続されている場合、同期を試みる
+        if let session = wcSession, session.isReachable {
+            syncPendingDataToPhone()
+        }
         #endif
 
         workoutSession?.end()
@@ -431,8 +659,10 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
                         DispatchQueue.main.async {
                             self.isWorkoutActive = false
                             self.isPaused = false
+                            self.isStandaloneMode = false
                             self.stopTimer()
                             self.resetMetrics()
+                            self.updatePendingSyncStatus()
                         }
                     }
                 }
@@ -440,24 +670,30 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
                 DispatchQueue.main.async {
                     self.isWorkoutActive = false
                     self.isPaused = false
+                    self.isStandaloneMode = false
                     self.stopTimer()
                     self.resetMetrics()
+                    self.updatePendingSyncStatus()
                 }
             }
         } else {
             DispatchQueue.main.async {
                 self.isWorkoutActive = false
                 self.isPaused = false
+                self.isStandaloneMode = false
                 self.stopTimer()
                 self.resetMetrics()
+                self.updatePendingSyncStatus()
             }
         }
         #else
         DispatchQueue.main.async {
             self.isWorkoutActive = false
             self.isPaused = false
+            self.isStandaloneMode = false
             self.stopTimer()
             self.resetMetrics()
+            self.updatePendingSyncStatus()
         }
         #endif
     }
@@ -489,21 +725,12 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
         }
 
         // 新しいフェーズを設定
-        let previousPhase = currentPhase
         currentPhase = phase
         phaseStartTime = Date()
         currentPhaseTime = 0
 
-        // ワークアウト開始時（idle→workの遷移時）にiPhoneに通知
-        #if os(watchOS)
-        if phase == "work" && previousPhase == "idle" {
-            sendWorkoutCommandToPhone("startSession")
-            print("Watch WorkoutManager: 🚀 Auto-sending startSession to iPhone (idle→work transition)")
-        }
-        #endif
-
-        // iPhoneに通知
-        notifyPhoneOfWorkout(state: phase, force: true)
+        // 注意: iPhoneへの通知はContentViewが責任を持つ（重複送信を避けるため）
+        // notifyPhoneOfWorkout/sendWorkoutCommandToPhoneはここでは呼ばない
     }
 
     func applyPhaseChangeFromPhone(
@@ -593,6 +820,7 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
 
     private func startTimer() {
         var updateCounter = 0
+        var localSaveCounter = 0
         timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             guard let self, let startTime = self.startTime else { return }
             let elapsed = self.pausedTime + Date().timeIntervalSince(startTime)
@@ -603,11 +831,20 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
                 self.currentPhaseTime = Date().timeIntervalSince(phaseStart)
             }
 
-            // 5秒に1回だけiPhoneに通知（過負荷を防ぐ）
+            // 2秒に1回iPhoneに通知（時間同期のため）
             updateCounter += 1
-            if updateCounter >= 5 {
+            if updateCounter >= 2 {
                 updateCounter = 0
                 self.notifyPhoneOfWorkout(elapsed: elapsed)
+            }
+            
+            // スタンドアロンモード時は5秒に1回ローカルストレージに保存
+            if self.isStandaloneMode {
+                localSaveCounter += 1
+                if localSaveCounter >= 5 {
+                    localSaveCounter = 0
+                    self.saveCurrentStateToLocalStorage()
+                }
             }
         }
     }
@@ -876,20 +1113,24 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
             self.queryStatus = "Live: \(Int(value))"
             self.debugMessage = age <= 10 ? "Fresh" : "Old: \(Int(age))s"
             self.sendHeartRateToPhone(value)
+            
+            // スタンドアロンモード時はローカルストレージにも保存
+            self.saveHeartRateToLocalStorage(value)
         }
     }
 
     // MARK: - Debug Utilities
-    private func notifyPhoneOfWorkout(heartRate: Double? = nil,
+    private func notifyPhoneOfWorkout(heartRate _: Double? = nil,
                                       elapsed: TimeInterval? = nil,
                                       state: String? = nil,
                                       force: Bool = false) {
         #if os(watchOS)
         guard let session = wcSession else { return }
 
-        if let heartRate {
-            phoneContext["heartRate"] = heartRate
-        }
+        // Note: 心拍数はiPhone側でHealthKitから直接取得するため、
+        // Watch→iPhone送信しない（安定性向上のため）
+        // heartRateパラメータは互換性のために残すが、使用しない
+
         if let elapsed {
             phoneContext["elapsedTime"] = elapsed
         }
@@ -898,7 +1139,7 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
         }
         phoneContext["timestamp"] = Date().timeIntervalSince1970
 
-        // 時間データを常に含める
+        // 時間データを常に含める（心拍数は除外）
         phoneContext["totalWorkTime"] = totalWorkTime
         phoneContext["totalRestTime"] = totalRestTime
         phoneContext["currentPhaseTime"] = currentPhaseTime
@@ -907,8 +1148,8 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
         let now = Date()
         let elapsedSinceLast = now.timeIntervalSince(lastPhoneSyncDate ?? .distantPast)
 
-        // 通信頻度を制限（強制の場合を除き、最低3秒間隔）
-        let minInterval: TimeInterval = force ? 0 : 3.0
+        // 通信頻度を制限（強制の場合を除き、最低2秒間隔）
+        let minInterval: TimeInterval = force ? 0 : 2.0
         guard elapsedSinceLast >= minInterval else { return }
 
         lastPhoneSyncDate = now

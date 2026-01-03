@@ -117,6 +117,8 @@ swift build --package-path . -c debug --target WorkoutTimerCore
 - Commands: start/stop/pause/resume workout
 - Data: heart rate, workout state, sensor data
 - Fallback: `updateApplicationContext` when unreachable
+- CRITICAL: WCSessionDelegate MUST be declared directly on class (not in empty extension) for iOS
+- Throttling: Heart rate (1s min), workout state (5s normal, 3s forced min)
 
 **SensorLogManager** (`/Services/SensorLogManager.swift`)
 - CSV file management for sensor data (accel/gyro/motion/combined)
@@ -240,8 +242,8 @@ All implement `HeartRateSource` protocol with `PassthroughSubject<Double, Never>
 - `isReachable` requires: Watch on wrist, unlocked, app foreground
 - Fallback to `updateApplicationContext` for background
 - Check WatchDebugView for status
-- Phone-to-watch sync uses context updates with timestamp for bidirectional time sync
-- Watch sends workout state changes via `sendMessage` when reachable
+- CRITICAL: WCSessionDelegate conformance must be in class declaration, not empty extension (Swift/Objective-C interop)
+- Never add excessive debug logging or verification/heartbeat timers - causes crashes and memory leaks
 
 ### Sensor Data Issues
 - Check CMMotionManager availability first
@@ -276,7 +278,7 @@ File system uses synchronized groups (objectVersion 77 in .pbxproj).
 - Xcode: 16.0.1+
 - iOS: 17.0+
 - watchOS: 10.0+
-- Swift: 5.0
+- Swift: 5.9
 - Team ID: MFQB3583D6
 
 ## Required Capabilities
@@ -309,10 +311,90 @@ File system uses synchronized groups (objectVersion 77 in .pbxproj).
 - WKBackgroundModes: workout-processing
 - WKCompanionAppBundleIdentifier: yokAppDev.MuscleBuildingRecorder
 
+### Pro Mode & Monetization
+
+**ProUserManager** (`/Services/ProUserManager.swift`)
+- StoreKit 2 integration for in-app purchases
+- Product IDs:
+  - Monthly subscription: `com.yokAppDev.MuscleBuildingRecorder.pro.month`
+  - Lifetime license: `com.yokAppDev.MuscleBuildingRecorder.pro.lifetime`
+- Transaction listener pattern for purchase state
+- App Group UserDefaults persistence for Watch/Widget sync
+- Feature gating: `canSkipAds()` controls ad display
+- DEBUG methods: `debugSetPro()`, `debugResetPurchaseState()`
+
+**RewardedAdManager** (`/Services/RewardedAdManager.swift`)
+- Google Mobile Ads (AdMob) integration
+- Auto-switches between test/production ad units:
+  - DEBUG: Test ad ID (`ca-app-pub-3940256099942544/1712485313`)
+  - RELEASE: Production ad ID (`ca-app-pub-9111455054322479/8933621549`)
+- Ad state machine: notLoaded → loading → ready → showing
+- Preloading strategy for smooth UX
+- Fallback handling if ads fail to load
+
+**PurchaseView** (`/Views/PurchaseView.swift`)
+- Complete purchase UI with feature list
+- Product sorting (monthly subscription first, then lifetime)
+- Restore purchases functionality
+- Legal section with subscription terms
+- Alert handling for purchase states
+
+**AdMob Configuration**
+- App ID: `ca-app-pub-9111455054322479~2367556652` (iOS-Info.plist)
+- 48 SKAdNetwork identifiers configured
+- Release builds automatically use production ads
+- TestFlight builds use production ad units
+
+### UI Enhancements
+
+**MainTimerView** (`/MainTimerView.swift`)
+- Enhanced time display visibility:
+  - 筋トレ総時間 (total work time): Red badge with flame icon
+  - 休憩総時間 (total rest time): Cyan badge with pause icon
+  - 総時間 (total elapsed): White badge with clock icon
+- All time displays use monospaced fonts for readability
+- Color-coded backgrounds for quick status recognition
+
+**ExerciseInputSheet** (`/ExerciseInputSheet.swift`)
+- Direct number input via TextField for load and reps
+- Dual input methods: TextField + Slider/Stepper
+- Real-time synchronization between input methods
+- Focus state management to prevent conflicts
+- Color-coded value display (blue for load, green for reps)
+
+### DEBUG vs RELEASE Behavior
+
+**DEBUG-only features (hidden in RELEASE):**
+- センサーログセクション in SettingsView
+- Pro状態トグルボタン in SettingsView
+- WatchDebugView
+- Excessive debug logging
+- Test ad units
+
+**RELEASE features:**
+- Production ad units
+- Pro purchase flow
+- Optimized communication throttling
+- Production HealthKit data
+
 ## Recent Updates
 
-### v2 Branch Changes (2025-11)
-- Implemented bidirectional time synchronization between Watch and iPhone
-- Added automatic app launch functionality when workout starts
-- Enhanced sensor data collection with session-based storage
-- Improved Watch-iPhone communication reliability with timestamp-based sync
+### v2 Branch (2025-11)
+- Bidirectional time synchronization between Watch and iPhone
+- Automatic app launch functionality when workout starts
+- Session-based sensor data storage
+- Timestamp-based state sync for reliability
+
+### Stability Fix (2025-11-25)
+- Fixed crashes from excessive debug logging blocking main thread
+- Fixed Watch→iPhone reception (WCSessionDelegate must be in class declaration, not extension)
+- Removed verification/heartbeat timers causing memory leaks
+- Reduced communication volume 80% via throttling
+- Application now production-ready
+
+### Pro Mode Implementation (2026-01)
+- StoreKit 2 integration with monthly and lifetime purchase options
+- AdMob rewarded ads with auto-switching between test/production
+- Pro users skip ads; non-Pro users see ads after workout completion
+- UI improvements: Enhanced time display, direct number input for exercise parameters
+- DEBUG/RELEASE separation: Sensor logs and debug controls hidden in production

@@ -3,7 +3,9 @@ import WatchConnectivity
 import Combine
 
 // センサーログ保存マネージャー
-final class SensorLogManager: NSObject, ObservableObject, WCSessionDelegate {
+// 注意: WCSessionDelegateはWatchConnectivityServiceが担当。
+// センサーデータはWatchConnectivityServiceから転送される。
+final class SensorLogManager: NSObject, ObservableObject {
     static let shared = SensorLogManager()
 
     @Published var isLogging: Bool = false
@@ -14,8 +16,6 @@ final class SensorLogManager: NSObject, ObservableObject, WCSessionDelegate {
     @Published var currentFileType: FileType = .accelerometer
     @Published var recentSamples: [(timestamp: Date, ax: Double, ay: Double, az: Double, gx: Double?, gy: Double?, gz: Double?)] = []
     private let maxRecentSamples = 100  // メモリ管理：最新100サンプルのみ保持
-
-    private let session: WCSession = WCSession.default
     private let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
     var logDirectory: URL { documentsURL.appendingPathComponent("SensorLogs") }
     private let csvDateFormatter: DateFormatter
@@ -53,10 +53,24 @@ final class SensorLogManager: NSObject, ObservableObject, WCSessionDelegate {
 
     // MARK: - Public Methods
 
-    func startSessionIfNeeded() {
-        if WCSession.isSupported() {
-            session.delegate = self
-            session.activate()
+    /// WatchConnectivityServiceから呼び出される：センサーデータの処理
+    func processSensorData(samples: [[String: Any]], sensors: [String]) {
+        DispatchQueue.main.async {
+            self.handleIncomingSamples(samples, sensors: sensors)
+            self.isLogging = true
+            self.enabledSensors = Set(sensors)
+        }
+    }
+
+    /// WatchConnectivityServiceから呼び出される：JSOLNファイルの処理
+    func processJSONLFile(at url: URL) {
+        handleIncomingJSONLFile(at: url)
+    }
+
+    /// ステータス更新
+    func updateLoggingStatus(_ status: String) {
+        DispatchQueue.main.async {
+            self.isLogging = (status == "logging")
         }
     }
 
@@ -297,76 +311,6 @@ final class SensorLogManager: NSObject, ObservableObject, WCSessionDelegate {
 
         } catch {
             print("Failed to process JSONL file: \(error)")
-        }
-    }
-
-    // MARK: - WCSessionDelegate
-
-    func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
-        if let error = error {
-            print("WCSession activation failed: \(error)")
-        } else {
-            print("WCSession activated with state: \(activationState.rawValue)")
-        }
-    }
-
-    func sessionDidBecomeInactive(_ session: WCSession) {
-        print("WCSession became inactive")
-    }
-
-    func sessionDidDeactivate(_ session: WCSession) {
-        print("WCSession deactivated")
-        // Reactivate session
-        session.activate()
-    }
-
-    func session(_ session: WCSession, didReceiveMessage message: [String : Any]) {
-        print("Received message from Watch: \(message)")
-
-        // センサーデータの処理
-        if let type = message["type"] as? String,
-           (type == "accel" || type == "sensor_data"),
-           let samples = message["samples"] as? [[String: Any]] {
-            let sensors = message["sensors"] as? [String] ?? ["accel"]
-            DispatchQueue.main.async {
-                self.handleIncomingSamples(samples, sensors: sensors)
-                self.isLogging = true
-                self.enabledSensors = Set(sensors)
-            }
-        }
-
-        // 旧形式の加速度データ（互換性のため）
-        if let type = message["type"] as? String, type == "accel",
-           let samples = message["samples"] as? [[Any]] {
-            let convertedSamples = samples.compactMap { sample -> [String: Any]? in
-                guard sample.count >= 4,
-                      let t = sample[0] as? Int64,
-                      let ax = sample[1] as? Double,
-                      let ay = sample[2] as? Double,
-                      let az = sample[3] as? Double else { return nil }
-                return ["t": t, "ax": ax, "ay": ay, "az": az]
-            }
-            DispatchQueue.main.async {
-                self.handleIncomingSamples(convertedSamples, sensors: ["accel"])
-                self.isLogging = true
-            }
-        }
-
-        // ステータスメッセージの処理
-        if let status = message["status"] as? String {
-            DispatchQueue.main.async {
-                self.isLogging = (status == "logging")
-            }
-        }
-    }
-
-    func session(_ session: WCSession, didReceive file: WCSessionFile) {
-        print("Received file from Watch: \(file.fileURL)")
-
-        // JSONLファイルの処理
-        if file.fileURL.lastPathComponent.contains("accel") &&
-           file.fileURL.pathExtension == "jsonl" {
-            handleIncomingJSONLFile(at: file.fileURL)
         }
     }
 

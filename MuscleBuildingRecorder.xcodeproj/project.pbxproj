@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		BE2D1B872E91F5B200E741F8 /* MuscleBuildingRecorderWatchTrue Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = BE2D1B672E91F5B100E741F8 /* MuscleBuildingRecorderWatchTrue Watch App.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		BEE35FB62F02674100A7AA69 /* GoogleMobileAds in Frameworks */ = {isa = PBXBuildFile; productRef = BEE35FB52F02674100A7AA69 /* GoogleMobileAds */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -127,6 +128,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				BEE35FB62F02674100A7AA69 /* GoogleMobileAds in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -217,6 +219,7 @@
 			);
 			name = MuscleBuildingRecorder;
 			packageProductDependencies = (
+				BEE35FB52F02674100A7AA69 /* GoogleMobileAds */,
 			);
 			productName = MuscleBuildingRecorder;
 			productReference = BE2D194D2E8D3F2300E741F8 /* MuscleBuildingRecorder.app */;
@@ -379,6 +382,9 @@
 			);
 			mainGroup = BE2D19442E8D3F2300E741F8;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				BEE35FB42F02674100A7AA69 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = BE2D194E2E8D3F2300E741F8 /* Products */;
 			projectDirPath = "";
@@ -645,6 +651,7 @@
 				DEVELOPMENT_TEAM = MFQB3583D6;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "iOS-Info.plist";
 				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "このアプリはBluetooth心拍計およびAirPods Proと接続して、リアルタイムで心拍数を測定するために使用します。";
 				INFOPLIST_KEY_NSBluetoothPeripheralUsageDescription = "このアプリはBluetooth Low Energy心拍計およびAirPods Proからデータを取得するために使用します。";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "このアプリはワークアウト中の心拍数データを読み取り、トレーニングの効果を可視化するためにHealthKitを使用します。";
@@ -684,6 +691,7 @@
 				DEVELOPMENT_TEAM = MFQB3583D6;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "iOS-Info.plist";
 				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "このアプリはBluetooth心拍計およびAirPods Proと接続して、リアルタイムで心拍数を測定するために使用します。";
 				INFOPLIST_KEY_NSBluetoothPeripheralUsageDescription = "このアプリはBluetooth Low Energy心拍計およびAirPods Proからデータを取得するために使用します。";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "このアプリはワークアウト中の心拍数データを読み取り、トレーニングの効果を可視化するためにHealthKitを使用します。";
@@ -818,7 +826,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = yokAppDev.MuscleBuildingRecorder.watchkitapp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = watchos;
@@ -856,7 +864,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = yokAppDev.MuscleBuildingRecorder.watchkitapp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = watchos;
@@ -1029,6 +1037,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		BEE35FB42F02674100A7AA69 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/googleads/swift-package-manager-google-mobile-ads";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 12.14.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		BEE35FB52F02674100A7AA69 /* GoogleMobileAds */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = BEE35FB42F02674100A7AA69 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */;
+			productName = GoogleMobileAds;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = BE2D19452E8D3F2300E741F8 /* Project object */;
 }

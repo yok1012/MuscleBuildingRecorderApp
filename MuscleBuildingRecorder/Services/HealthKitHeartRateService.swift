@@ -1,7 +1,6 @@
 import HealthKit
 import Combine
 import Foundation
-import WatchConnectivity
 
 class HealthKitHeartRateService: HeartRateSource, ObservableObject {
     private let healthStore = HKHealthStore()
@@ -11,8 +10,12 @@ class HealthKitHeartRateService: HeartRateSource, ObservableObject {
 
     private var query: HKQuery?
     private var observerQuery: HKObserverQuery?
-    private var watchConnectivity = WatchConnectivityService.shared
-    private var watchCancellable: AnyCancellable?
+
+    // ローカル心拍数監視用（Watchアプリ起動なしでHealthKitから取得）
+    private var localObserverQuery: HKObserverQuery?
+    private var localAnchoredQuery: HKAnchoredObjectQuery?
+    private var localQueryAnchor: HKQueryAnchor?
+    private var isLocalMonitoringActive: Bool = false
 
     var isAvailable: Bool {
         HKHealthStore.isHealthDataAvailable()
@@ -43,29 +46,15 @@ class HealthKitHeartRateService: HeartRateSource, ObservableObject {
         try await requestAuthorization()
         print("HealthKit: Authorization granted")
 
-        // Watch Connectivityからの心拍数データを購読
-        watchCancellable = watchConnectivity.heartRatePublisher
-            .sink { [weak self] heartRate in
-                print("HealthKit: Received heart rate from Watch: \(heartRate)")
-                self?.heartRateSubject.send(heartRate)
-            }
-
-        // Watchにワークアウト開始を通知
-        watchConnectivity.startWatchWorkout()
-        print("HealthKit: Sent start command to Watch")
-
-        // iPhone側でもワークアウトセッションを開始（バックアップ）
+        // iPhone側でHealthKitから直接心拍データを取得
+        // Note: Watch経由の心拍データは使用しない（安定性向上のため）
         try await startWorkoutSession()
         print("HealthKit: Workout session started")
         startHeartRateQuery()
-        print("HealthKit: Heart rate query started")
+        print("HealthKit: Heart rate query started - iPhone direct HealthKit mode")
     }
 
     func disconnect() {
-        watchCancellable?.cancel()
-        watchCancellable = nil
-        watchConnectivity.stopWatchWorkout()
-
         if let query {
             healthStore.stop(query)
             self.query = nil
@@ -270,5 +259,230 @@ class HealthKitHeartRateService: HeartRateSource, ObservableObject {
             }
             #endif
         }
+    }
+
+    // MARK: - Local Heart Rate Monitoring (Without Watch App)
+
+    /// Watchがバックグラウンドで記録する心拍数をリアルタイム監視
+    /// Watchアプリを起動せずに、HealthKitに保存された心拍数を取得
+    func startLocalHeartRateMonitoring() {
+        guard !isLocalMonitoringActive else {
+            print("HealthKit Local: Already monitoring")
+            return
+        }
+
+        guard HKHealthStore.isHealthDataAvailable() else {
+            print("HealthKit Local: HealthKit not available")
+            return
+        }
+
+        guard let heartRateType = HKObjectType.quantityType(forIdentifier: .heartRate) else {
+            print("HealthKit Local: Failed to create heart rate type")
+            return
+        }
+
+        print("HealthKit Local: Starting local heart rate monitoring (without Watch app)")
+
+        // 認可を確認・リクエスト
+        let typesToRead: Set<HKObjectType> = [heartRateType]
+        healthStore.requestAuthorization(toShare: nil, read: typesToRead) { [weak self] success, error in
+            guard let self = self else { return }
+            
+            if let error = error {
+                print("HealthKit Local: Authorization error: \(error.localizedDescription)")
+                return
+            }
+            
+            if !success {
+                print("HealthKit Local: Authorization denied")
+                return
+            }
+            
+            // 認可状態を確認
+            let status = self.healthStore.authorizationStatus(for: heartRateType)
+            print("HealthKit Local: Authorization status: \(status.rawValue) (2=authorized)")
+            
+            DispatchQueue.main.async {
+                self.isLocalMonitoringActive = true
+                self.startLocalMonitoringQueries(heartRateType: heartRateType)
+            }
+        }
+    }
+    
+    /// ローカル監視クエリを開始（認可後に呼ばれる）
+    private func startLocalMonitoringQueries(heartRateType: HKQuantityType) {
+        print("HealthKit Local: Starting queries...")
+        
+        // 1. ObserverQueryで新しいサンプル追加を監視
+        localObserverQuery = HKObserverQuery(
+            sampleType: heartRateType,
+            predicate: nil
+        ) { [weak self] _, completionHandler, error in
+            if let error = error {
+                print("HealthKit Local: ObserverQuery error: \(error.localizedDescription)")
+                completionHandler()
+                return
+            }
+
+            print("HealthKit Local: ObserverQuery triggered - new data available")
+            // 新しいサンプルが追加されたら、AnchoredQueryで取得
+            self?.fetchLatestHeartRateLocal()
+            completionHandler()
+        }
+
+        if let localObserverQuery = localObserverQuery {
+            healthStore.execute(localObserverQuery)
+            print("HealthKit Local: ObserverQuery started")
+        }
+
+        // 2. 初回データ取得（過去5分以内のデータを取得）
+        fetchLatestHeartRateLocal()
+
+        // 3. バックグラウンド配信を有効化（Watchが記録したら即通知）
+        healthStore.enableBackgroundDelivery(
+            for: heartRateType,
+            frequency: .immediate
+        ) { success, error in
+            if success {
+                print("HealthKit Local: Background delivery enabled for heart rate")
+            } else if let error = error {
+                print("HealthKit Local: Failed to enable background delivery: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    /// 最新の心拍数を取得（Watchアプリなしでも心拍数取得可能）
+    private func fetchLatestHeartRateLocal() {
+        guard let heartRateType = HKObjectType.quantityType(forIdentifier: .heartRate) else {
+            return
+        }
+
+        let now = Date()
+        // 過去15分以内のサンプルを取得
+        // Watchアプリなしの場合、バックグラウンド心拍数記録は約10分間隔のため
+        let fifteenMinutesAgo = now.addingTimeInterval(-900)
+
+        let predicate = HKQuery.predicateForSamples(
+            withStart: fifteenMinutesAgo,
+            end: now,
+            options: .strictEndDate
+        )
+
+        // 既存のクエリがあれば停止
+        if let existingQuery = localAnchoredQuery {
+            healthStore.stop(existingQuery)
+        }
+
+        print("HealthKit Local: Fetching heart rate samples from last 15 minutes...")
+
+        // AnchoredObjectQueryで新しいサンプルのみ効率的に取得
+        let anchoredQuery = HKAnchoredObjectQuery(
+            type: heartRateType,
+            predicate: predicate,
+            anchor: localQueryAnchor,
+            limit: HKObjectQueryNoLimit
+        ) { [weak self] _, samples, _, anchor, error in
+            guard let self = self else { return }
+
+            if let error = error {
+                print("HealthKit Local: AnchoredQuery error: \(error.localizedDescription)")
+                return
+            }
+
+            let sampleCount = (samples as? [HKQuantitySample])?.count ?? 0
+            print("HealthKit Local: Initial query found \(sampleCount) samples")
+
+            // アンカーを保存（次回はこれ以降のデータのみ取得）
+            self.localQueryAnchor = anchor
+
+            // 最新の心拍数サンプルを取得
+            self.processLocalHeartRateSamples(samples)
+        }
+
+        // 継続的な更新ハンドラ（新しいサンプルが追加されるたびに呼ばれる）
+        anchoredQuery.updateHandler = { [weak self] _, samples, _, anchor, error in
+            guard let self = self else { return }
+
+            if let error = error {
+                print("HealthKit Local: Update handler error: \(error.localizedDescription)")
+                return
+            }
+
+            let sampleCount = (samples as? [HKQuantitySample])?.count ?? 0
+            if sampleCount > 0 {
+                print("HealthKit Local: Update received \(sampleCount) new samples")
+            }
+
+            self.localQueryAnchor = anchor
+            self.processLocalHeartRateSamples(samples)
+        }
+
+        healthStore.execute(anchoredQuery)
+        localAnchoredQuery = anchoredQuery
+    }
+
+    /// ローカル監視用の心拍数サンプル処理
+    private func processLocalHeartRateSamples(_ samples: [HKSample]?) {
+        guard let quantitySamples = samples as? [HKQuantitySample],
+              let latestSample = quantitySamples.sorted(by: { $0.endDate > $1.endDate }).first else {
+            return
+        }
+
+        let heartRateUnit = HKUnit.count().unitDivided(by: .minute())
+        let heartRate = latestSample.quantity.doubleValue(for: heartRateUnit)
+        let age = Date().timeIntervalSince(latestSample.endDate)
+
+        // デバイスソースを確認（Watchからのデータか？）
+        let sourceRevision = latestSample.sourceRevision
+        let deviceName = sourceRevision.source.name
+        let deviceModel = latestSample.device?.name ?? "Unknown"
+
+        print("HealthKit Local: Heart rate: \(Int(heartRate)) bpm from \(deviceName) (\(deviceModel))")
+        print("HealthKit Local: Sample age: \(Int(age))s, isAppleWatch: \(deviceName.contains("Watch") || deviceModel.contains("Watch"))")
+
+        // 15分（900秒）以内のサンプルをUI更新
+        // Watchアプリなしの場合、バックグラウンド心拍数記録は約10分間隔のため
+        if age <= 900 {
+            DispatchQueue.main.async {
+                self.heartRateSubject.send(heartRate)
+            }
+            print("HealthKit Local: Sent heart rate \(Int(heartRate)) bpm to UI (age: \(Int(age))s)")
+        } else {
+            print("HealthKit Local: Sample too old (\(Int(age))s > 900s), not sending to UI")
+        }
+    }
+
+    /// ローカル心拍数監視を停止
+    func stopLocalHeartRateMonitoring() {
+        guard isLocalMonitoringActive else {
+            print("HealthKit Local: Not currently monitoring")
+            return
+        }
+
+        print("HealthKit Local: Stopping local heart rate monitoring")
+
+        if let localObserverQuery = localObserverQuery {
+            healthStore.stop(localObserverQuery)
+            self.localObserverQuery = nil
+        }
+
+        if let localAnchoredQuery = localAnchoredQuery {
+            healthStore.stop(localAnchoredQuery)
+            self.localAnchoredQuery = nil
+        }
+
+        // バックグラウンド配信を無効化
+        if let heartRateType = HKObjectType.quantityType(forIdentifier: .heartRate) {
+            healthStore.disableBackgroundDelivery(for: heartRateType) { success, error in
+                if success {
+                    print("HealthKit Local: Background delivery disabled")
+                } else if let error = error {
+                    print("HealthKit Local: Failed to disable background delivery: \(error.localizedDescription)")
+                }
+            }
+        }
+
+        localQueryAnchor = nil
+        isLocalMonitoringActive = false
     }
 }

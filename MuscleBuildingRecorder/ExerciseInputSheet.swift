@@ -5,6 +5,10 @@ struct ExerciseInputSheet: View {
     @Environment(\.dismiss) var dismiss
     @State private var availableCategories: [String] = []
     @State private var availableExercises: [String] = []
+    @State private var loadInputText: String = ""
+    @State private var repsInputText: String = ""
+    @FocusState private var isLoadFieldFocused: Bool
+    @FocusState private var isRepsFieldFocused: Bool
 
     var body: some View {
         NavigationView {
@@ -34,13 +38,32 @@ struct ExerciseInputSheet: View {
                 }
 
                 Section(header: Text("負荷設定")) {
-                    VStack(alignment: .leading) {
-                        HStack {
+                    VStack(alignment: .leading, spacing: 12) {
+                        // 直接入力フィールド + 単位表示
+                        HStack(spacing: 8) {
                             Text("負荷:")
+                                .foregroundColor(.secondary)
+
+                            TextField("0.0", text: $loadInputText)
+                                .keyboardType(.decimalPad)
+                                .textFieldStyle(RoundedBorderTextFieldStyle())
+                                .frame(width: 80)
+                                .focused($isLoadFieldFocused)
+                                .onChange(of: loadInputText) { _, newValue in
+                                    if let value = Double(newValue) {
+                                        sessionManager.currentLoad = value
+                                    }
+                                }
+
+                            Text(sessionManager.loadUnit)
+                                .foregroundColor(.secondary)
+
+                            Spacer()
+
                             Text("\(sessionManager.currentLoad, specifier: "%.1f")")
                                 .font(.title2)
                                 .fontWeight(.bold)
-                            Text(sessionManager.loadUnit)
+                                .foregroundColor(.blue)
                         }
 
                         Slider(
@@ -48,6 +71,11 @@ struct ExerciseInputSheet: View {
                             in: 0...200,
                             step: getLoadStep()
                         )
+                        .onChange(of: sessionManager.currentLoad) { _, newValue in
+                            if !isLoadFieldFocused {
+                                loadInputText = String(format: "%.1f", newValue)
+                            }
+                        }
 
                         HStack {
                             Stepper("", value: $sessionManager.currentLoad, step: getLoadStep())
@@ -55,6 +83,7 @@ struct ExerciseInputSheet: View {
                             Spacer()
                             Button("リセット") {
                                 sessionManager.loadDefaultExerciseValues()
+                                loadInputText = String(format: "%.1f", sessionManager.currentLoad)
                             }
                             .font(.caption)
                         }
@@ -62,13 +91,32 @@ struct ExerciseInputSheet: View {
                 }
 
                 Section(header: Text("回数/時間設定")) {
-                    VStack(alignment: .leading) {
-                        HStack {
+                    VStack(alignment: .leading, spacing: 12) {
+                        // 直接入力フィールド + 単位表示
+                        HStack(spacing: 8) {
                             Text("回数:")
+                                .foregroundColor(.secondary)
+
+                            TextField("0", text: $repsInputText)
+                                .keyboardType(.numberPad)
+                                .textFieldStyle(RoundedBorderTextFieldStyle())
+                                .frame(width: 80)
+                                .focused($isRepsFieldFocused)
+                                .onChange(of: repsInputText) { _, newValue in
+                                    if let value = Double(newValue) {
+                                        sessionManager.currentReps = value
+                                    }
+                                }
+
+                            Text(sessionManager.repsUnit)
+                                .foregroundColor(.secondary)
+
+                            Spacer()
+
                             Text("\(sessionManager.currentReps, specifier: "%.0f")")
                                 .font(.title2)
                                 .fontWeight(.bold)
-                            Text(sessionManager.repsUnit)
+                                .foregroundColor(.green)
                         }
 
                         Slider(
@@ -76,6 +124,11 @@ struct ExerciseInputSheet: View {
                             in: 1...100,
                             step: 1
                         )
+                        .onChange(of: sessionManager.currentReps) { _, newValue in
+                            if !isRepsFieldFocused {
+                                repsInputText = String(format: "%.0f", newValue)
+                            }
+                        }
 
                         Stepper("", value: $sessionManager.currentReps, step: 1)
                             .labelsHidden()
@@ -141,6 +194,9 @@ struct ExerciseInputSheet: View {
         .onAppear {
             loadCategories()
             updateAvailableExercises()
+            // 初期値をテキストフィールドに設定
+            loadInputText = String(format: "%.1f", sessionManager.currentLoad)
+            repsInputText = String(format: "%.0f", sessionManager.currentReps)
         }
     }
 

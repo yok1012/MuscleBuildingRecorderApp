@@ -21,13 +21,13 @@ struct WatchDebugView: View {
             }
             .padding(.horizontal)
 
-            // 心拍数表示
+            // 心拍数表示（iPhone HealthKitから直接取得）
             VStack(spacing: 8) {
-                Text("Watch心拍数")
+                Text("心拍数 (HealthKit)")
                     .font(.caption)
                     .foregroundColor(.secondary)
                 HStack(alignment: .bottom, spacing: 4) {
-                    Text("\(Int(watchConnectivity.watchHeartRate))")
+                    Text("\(Int(heartRateManager.currentHeartRate))")
                         .font(.system(size: 48, weight: .bold, design: .rounded))
                     Text("BPM")
                         .font(.caption)
@@ -130,6 +130,8 @@ struct WatchDebugView: View {
                 Text("デバッグ情報")
                     .font(.caption2)
                     .foregroundColor(.secondary)
+                Text("Watch HR: \(Int(watchConnectivity.watchHeartRate)) BPM")
+                    .font(.caption2)
                 Text("iPhone HR: \(Int(heartRateManager.currentHeartRate)) BPM")
                     .font(.caption2)
                 Text("状態: \(heartRateManager.statusMessage)")

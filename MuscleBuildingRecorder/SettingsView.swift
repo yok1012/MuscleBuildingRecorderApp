@@ -4,9 +4,10 @@ import UniformTypeIdentifiers
 
 struct SettingsView: View {
     @EnvironmentObject var heartRateManager: HeartRateManager
+    @StateObject private var proUserManager = ProUserManager.shared
     @Environment(\.managedObjectContext) var viewContext
     @State private var selectedHeartRateSource: HeartRateSourceType = .healthKit
-    @State private var showingAirPodsAlert = false
+    @State private var showingBLEDeviceSelector = false
     @State private var showingMasterDataEditor = false
     @State private var showingExportOptions = false
     @State private var exportType: ExportType = .csvDetailed
@@ -14,6 +15,7 @@ struct SettingsView: View {
     @State private var exportData: ExportData?
     @State private var showingSuccessAlert = false
     @State private var exportMessage = ""
+    @State private var showingPurchaseView = false
 
     // センサーログ関連の状態
     @StateObject private var sensorLogManager = SensorLogManager.shared
@@ -68,9 +70,12 @@ struct SettingsView: View {
     var body: some View {
         NavigationView {
             Form {
+                proSection
                 heartRateSection
                 dataExportSection
+                #if DEBUG
                 sensorLogSection
+                #endif
                 exerciseMasterSection
                 privacySection
                 appInfoSection
@@ -103,10 +108,8 @@ struct SettingsView: View {
             } message: {
                 Text(exportMessage)
             }
-            .alert("AirPods非対応", isPresented: $showingAirPodsAlert) {
-                Button("OK") { }
-            } message: {
-                Text("AirPods（第3世代）は心拍数測定に対応していません。Apple WatchまたはBluetooth心拍計をご利用ください。")
+            .sheet(isPresented: $showingBLEDeviceSelector) {
+                BLEDeviceSelectorView(bleService: heartRateManager.bleService)
             }
             .sheet(item: $sensorExportData) { data in
                 ShareSheet(
@@ -129,6 +132,9 @@ struct SettingsView: View {
             }
             .sheet(isPresented: $showingMultiDayExport) {
                 MultiDayExportView()
+            }
+            .sheet(isPresented: $showingPurchaseView) {
+                PurchaseView()
             }
         }
     }
@@ -170,40 +176,141 @@ struct SettingsView: View {
 
     private var heartRateSection: some View {
         Section(header: Text("心拍数デバイス")) {
-            ForEach(HeartRateSourceType.allCases, id: \.self) { source in
-                heartRateSourceRow(source: source)
-            }
+            // Apple Watch (HealthKit)
+            healthKitRow
 
-            if heartRateManager.isConnected {
+            // Bluetooth心拍計
+            bluetoothRow
+
+            // 現在の心拍数
+            if heartRateManager.currentHeartRate > 0 {
                 currentHeartRateRow
             }
         }
     }
 
-    private func heartRateSourceRow(source: HeartRateSourceType) -> some View {
+    private var healthKitRow: some View {
         HStack {
-            Image(systemName: source.icon)
+            Image(systemName: "applewatch")
                 .foregroundColor(.blue)
                 .frame(width: 30)
 
             VStack(alignment: .leading) {
-                Text(source.rawValue)
+                Text("Apple Watch (HealthKit)")
                     .font(.headline)
-                Text(source.description)
+                Text(heartRateManager.activeHeartRateSource)
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
 
             Spacer()
 
-            if heartRateManager.selectedSourceType == source {
+            if heartRateManager.isUsingWatchHeartRate || heartRateManager.isStandaloneMode {
                 Image(systemName: "checkmark.circle.fill")
                     .foregroundColor(.green)
             }
         }
-        .contentShape(Rectangle())
-        .onTapGesture {
-            selectHeartRateSource(source)
+    }
+
+    private var bluetoothRow: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Image(systemName: "heart.circle")
+                    .foregroundColor(.blue)
+                    .frame(width: 30)
+
+                VStack(alignment: .leading) {
+                    Text("Bluetooth心拍計")
+                        .font(.headline)
+                    Text(bluetoothStatusText)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+
+                Spacer()
+
+                if heartRateManager.bleService.connectionState == .connected {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(.green)
+                }
+            }
+
+            // 接続中のデバイス情報
+            if let deviceName = heartRateManager.bleService.connectedDeviceName {
+                HStack {
+                    Spacer().frame(width: 38)
+                    HStack {
+                        Image(systemName: "link")
+                            .font(.caption)
+                        Text(deviceName)
+                            .font(.caption)
+                    }
+                    .foregroundColor(.green)
+                    Spacer()
+
+                    // 切断ボタン
+                    Button(action: {
+                        heartRateManager.bleService.disconnect()
+                    }) {
+                        Text("切断")
+                            .font(.caption)
+                            .foregroundColor(.red)
+                    }
+                    .buttonStyle(.bordered)
+                }
+            }
+
+            // デバイス選択・再接続ボタン
+            HStack {
+                Spacer().frame(width: 38)
+
+                if heartRateManager.bleService.savedDeviceUUID != nil && heartRateManager.bleService.connectionState == .disconnected {
+                    Button(action: reconnectBLE) {
+                        HStack {
+                            Image(systemName: "arrow.clockwise")
+                            Text("再接続")
+                        }
+                        .font(.caption)
+                    }
+                    .buttonStyle(.bordered)
+                }
+
+                Button(action: { showingBLEDeviceSelector = true }) {
+                    HStack {
+                        Image(systemName: "magnifyingglass")
+                        Text(heartRateManager.bleService.connectedDeviceName == nil ? "デバイスを検索" : "別のデバイス")
+                    }
+                    .font(.caption)
+                }
+                .buttonStyle(.bordered)
+            }
+        }
+        .padding(.vertical, 4)
+    }
+
+    private var bluetoothStatusText: String {
+        switch heartRateManager.bleService.connectionState {
+        case .disconnected:
+            if heartRateManager.bleService.savedDeviceUUID != nil {
+                return "未接続（保存済みデバイスあり）"
+            }
+            return "未接続"
+        case .connecting:
+            return "接続中..."
+        case .discovering:
+            return "サービス検出中..."
+        case .connected:
+            return "接続済み"
+        }
+    }
+
+    private func reconnectBLE() {
+        Task {
+            do {
+                try await heartRateManager.bleService.reconnect()
+            } catch {
+                print("BLE reconnection failed: \(error)")
+            }
         }
     }
 
@@ -213,6 +320,10 @@ struct SettingsView: View {
                 .foregroundColor(.red)
             Text("現在の心拍数: \(Int(heartRateManager.currentHeartRate)) bpm")
                 .font(.footnote)
+            Spacer()
+            Text(heartRateManager.activeHeartRateSource)
+                .font(.caption)
+                .foregroundColor(.secondary)
         }
     }
 
@@ -534,18 +645,64 @@ struct SettingsView: View {
         }
     }
 
-    // MARK: - Actions
+    // MARK: - Pro Section
+    private var proSection: some View {
+        Section(header: Text("Pro版")) {
+            if proUserManager.isPro {
+                // Pro版購入済み
+                HStack {
+                    Image(systemName: "checkmark.seal.fill")
+                        .foregroundColor(.green)
+                        .font(.title2)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Pro版 有効")
+                            .font(.headline)
+                            .foregroundColor(.green)
+                        Text("広告なしでお楽しみいただけます")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    Spacer()
+                }
+            } else {
+                // Pro版未購入
+                Button(action: { showingPurchaseView = true }) {
+                    HStack {
+                        Image(systemName: "star.fill")
+                            .foregroundColor(.yellow)
+                            .font(.title2)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Pro版にアップグレード")
+                                .font(.headline)
+                            Text("広告なしでトレーニングに集中")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .foregroundColor(.primary)
+            }
 
-    private func selectHeartRateSource(_ source: HeartRateSourceType) {
-        if source == .airpods {
-            showingAirPodsAlert = true
-            return
-        }
-
-        Task {
-            await heartRateManager.connectToSource(source)
+            #if DEBUG
+            // デバッグ用：Pro状態をトグル
+            Button(action: {
+                proUserManager.debugSetPro(!proUserManager.isPro)
+            }) {
+                HStack {
+                    Image(systemName: "hammer.fill")
+                        .foregroundColor(.orange)
+                    Text("DEBUG: Pro状態をトグル")
+                        .foregroundColor(.orange)
+                }
+            }
+            #endif
         }
     }
+
+    // MARK: - Actions
 
     private func resetToDefaults() {
         let request = NSFetchRequest<NSFetchRequestResult>(entityName: "ExerciseMaster")
