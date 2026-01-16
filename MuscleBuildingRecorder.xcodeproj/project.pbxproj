@@ -80,6 +80,22 @@
 			);
 			target = BE2D1B662E91F5B100E741F8 /* MuscleBuildingRecorderWatchTrue Watch App */;
 		};
+		BEE35FC22F09383200A7AA69 /* Exceptions for "MuscleBuildingRecorderWatchTrue Watch AppTests" folder in "MuscleBuildingRecorderWatchTrue Watch AppTests" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				"MuscleBuildingRecorderWatchTrue Watch AppUITests/MuscleBuildingRecorderWatchTrue_Watch_AppUITests.swift",
+				"MuscleBuildingRecorderWatchTrue Watch AppUITests/MuscleBuildingRecorderWatchTrue_Watch_AppUITestsLaunchTests.swift",
+			);
+			target = BE2D1B722E91F5B200E741F8 /* MuscleBuildingRecorderWatchTrue Watch AppTests */;
+		};
+		BEE35FC32F09383200A7AA69 /* Exceptions for "MuscleBuildingRecorderWatchTrue Watch AppTests" folder in "MuscleBuildingRecorderWatchTrue Watch AppUITests" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				"MuscleBuildingRecorderWatchTrue Watch AppUITests/MuscleBuildingRecorderWatchTrue_Watch_AppUITests.swift",
+				"MuscleBuildingRecorderWatchTrue Watch AppUITests/MuscleBuildingRecorderWatchTrue_Watch_AppUITestsLaunchTests.swift",
+			);
+			target = BE2D1B7C2E91F5B200E741F8 /* MuscleBuildingRecorderWatchTrue Watch AppUITests */;
+		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -113,12 +129,11 @@
 		};
 		BE2D1B762E91F5B200E741F8 /* MuscleBuildingRecorderWatchTrue Watch AppTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				BEE35FC22F09383200A7AA69 /* Exceptions for "MuscleBuildingRecorderWatchTrue Watch AppTests" folder in "MuscleBuildingRecorderWatchTrue Watch AppTests" target */,
+				BEE35FC32F09383200A7AA69 /* Exceptions for "MuscleBuildingRecorderWatchTrue Watch AppTests" folder in "MuscleBuildingRecorderWatchTrue Watch AppUITests" target */,
+			);
 			path = "MuscleBuildingRecorderWatchTrue Watch AppTests";
-			sourceTree = "<group>";
-		};
-		BE2D1B802E91F5B200E741F8 /* MuscleBuildingRecorderWatchTrue Watch AppUITests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = "MuscleBuildingRecorderWatchTrue Watch AppUITests";
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -179,7 +194,6 @@
 				BE2D1B592E91E05700E741F8 /* MuscleBuildingRecorderWatch */,
 				BE2D1B682E91F5B100E741F8 /* MuscleBuildingRecorderWatchTrue Watch App */,
 				BE2D1B762E91F5B200E741F8 /* MuscleBuildingRecorderWatchTrue Watch AppTests */,
-				BE2D1B802E91F5B200E741F8 /* MuscleBuildingRecorderWatchTrue Watch AppUITests */,
 				BE2D194E2E8D3F2300E741F8 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -328,9 +342,6 @@
 			);
 			dependencies = (
 				BE2D1B7F2E91F5B200E741F8 /* PBXTargetDependency */,
-			);
-			fileSystemSynchronizedGroups = (
-				BE2D1B802E91F5B200E741F8 /* MuscleBuildingRecorderWatchTrue Watch AppUITests */,
 			);
 			name = "MuscleBuildingRecorderWatchTrue Watch AppUITests";
 			packageProductDependencies = (

@@ -205,6 +205,27 @@ struct HistoryDetailView: View {
                     .foregroundColor(.white)
                     .cornerRadius(10)
             }
+
+            // 心拍数データエクスポート
+            HStack(spacing: 12) {
+                Button(action: exportHeartRateCSV) {
+                    Label("心拍数CSV", systemImage: "heart.text.square")
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.red)
+                        .foregroundColor(.white)
+                        .cornerRadius(10)
+                }
+
+                Button(action: exportHeartRateJSON) {
+                    Label("心拍数JSON", systemImage: "heart.circle")
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.pink)
+                        .foregroundColor(.white)
+                        .cornerRadius(10)
+                }
+            }
         }
     }
 
@@ -239,6 +260,41 @@ struct HistoryDetailView: View {
             type: exportType.contentType
         )
         showingShareSheet = true
+    }
+
+    private func exportHeartRateCSV() {
+        guard let startDate = session.startedAt else { return }
+
+        let logger = HeartRateCSVLogger.shared
+        if let fileURL = logger.getLogFile(for: startDate) {
+            exportData = ExportData(
+                content: try! String(contentsOf: fileURL, encoding: .utf8),
+                filename: fileURL.lastPathComponent,
+                type: .commaSeparatedText
+            )
+        } else {
+            print("心拍数CSVファイルが見つかりません")
+        }
+    }
+
+    private func exportHeartRateJSON() {
+        guard let startDate = session.startedAt else { return }
+
+        let logger = HeartRateCSVLogger.shared
+        if let jsonData = logger.getLogDataAsJSON(for: startDate),
+           let jsonString = String(data: jsonData, encoding: .utf8) {
+            let dateFormatter = DateFormatter()
+            dateFormatter.dateFormat = "yyyyMMdd_HHmmss"
+            let filename = "heartrate_\(dateFormatter.string(from: startDate)).json"
+
+            exportData = ExportData(
+                content: jsonString,
+                filename: filename,
+                type: .json
+            )
+        } else {
+            print("心拍数JSONデータが見つかりません")
+        }
     }
 
     private func exportJSONWithHeartRateLogs() -> String {

@@ -2,6 +2,8 @@ import Foundation
 import Combine
 import CoreData
 import WatchConnectivity
+import UIKit
+import UserNotifications
 
 class SessionManager: ObservableObject {
     static let shared = SessionManager()
@@ -25,6 +27,16 @@ class SessionManager: ObservableObject {
     @Published var loadUnit: String = "kg"
     @Published var repsUnit: String = "回"
 
+    // 休憩時間管理
+    @Published var restTimeLimit: TimeInterval = 60  // 休憩時間の上限（秒）
+    @Published var isRestTimeExceeded: Bool = false   // 休憩時間超過フラグ
+    @Published var restTimeAlertEnabled: Bool = true  // 休憩時間アラート有効/無効
+
+    // 心拍数自動判別
+    @Published var autoPhaseDetectionEnabled: Bool = false  // 自動判別機能の有効/無効
+    @Published var suggestedPhase: WorkoutPhase? = nil       // 推奨フェーズ（現在のフェーズと異なる場合に表示）
+    @Published var heartRateBaseline: Double = 70            // 安静時心拍数の基準値
+
     private var timer: Timer?
     private var workTimeAccumulated: TimeInterval = 0
     private var restTimeAccumulated: TimeInterval = 0
@@ -35,8 +47,12 @@ class SessionManager: ObservableObject {
     private let watchConnectivity = WatchConnectivityService.shared
     private let heartRateLogManager = HeartRateLogManager.shared
     private let sensorLogManager = SensorLogManager.shared
+    private let heartRateCSVLogger = HeartRateCSVLogger.shared  // 心拍数CSVログ
     private var heartRateCancellable: AnyCancellable?
     private var sessionSensorData: [[String: Any]] = []  // セッション中のセンサーデータ
+
+    // 心拍数CSVログ補完用
+    private var currentPhaseStartTimestamp: Int64 = 0
 
     private init() {
         loadDefaultExerciseValues()
@@ -51,13 +67,82 @@ class SessionManager: ObservableObject {
                       self.currentPhase != .idle,
                       heartRate > 0 else { return }
 
-                // 心拍数ログを記録
+                // 心拍数ログを記録（メモリ内）
                 self.heartRateLogManager.addLog(
                     heartRate: heartRate,
                     phase: self.currentPhase.rawValue.capitalized,
                     cycleIndex: self.cycleIndex
                 )
+
+                // 心拍数CSVログを記録（ファイル出力）
+                self.heartRateCSVLogger.logHeartRate(heartRate)
+
+                // 心拍数による自動フェーズ判別
+                self.analyzeHeartRateForPhaseDetection(heartRate: heartRate)
             }
+    }
+
+    // MARK: - Heart Rate Auto Phase Detection
+    private var lastHeartRateAnalysisTime: Date = Date()
+    private let heartRateAnalysisInterval: TimeInterval = 3.0  // 3秒ごとに分析
+
+    private func analyzeHeartRateForPhaseDetection(heartRate: Double) {
+        guard autoPhaseDetectionEnabled else {
+            suggestedPhase = nil
+            return
+        }
+
+        // 3秒ごとに分析
+        let now = Date()
+        guard now.timeIntervalSince(lastHeartRateAnalysisTime) >= heartRateAnalysisInterval else {
+            return
+        }
+        lastHeartRateAnalysisTime = now
+
+        let slope = heartRateManager.heartRateSlope
+        let relativeHR = heartRate / heartRateBaseline  // 安静時に対する比率
+
+        // 判別ロジック:
+        // - 心拍数が基準の120%以上 かつ 傾きが正 → 運動中と推定
+        // - 心拍数が基準の110%以下 かつ 傾きが負 → 休憩中と推定
+        let detectedPhase: WorkoutPhase?
+
+        if relativeHR >= 1.2 && slope > 0 {
+            // 心拍数が高く、さらに上昇中 → 運動中
+            detectedPhase = .work
+        } else if relativeHR <= 1.1 && slope < -2 {
+            // 心拍数が低め、下降中 → 休憩中
+            detectedPhase = .rest
+        } else if relativeHR >= 1.3 {
+            // 心拍数が非常に高い → 運動中（傾きに関係なく）
+            detectedPhase = .work
+        } else if relativeHR <= 1.05 && heartRate < heartRateBaseline + 10 {
+            // 心拍数がほぼ安静時レベル → 休憩中
+            detectedPhase = .rest
+        } else {
+            detectedPhase = nil
+        }
+
+        // 現在のフェーズと異なる場合のみ提案
+        DispatchQueue.main.async {
+            if let detected = detectedPhase, detected != self.currentPhase {
+                self.suggestedPhase = detected
+            } else {
+                self.suggestedPhase = nil
+            }
+        }
+    }
+
+    func dismissPhaseSuggestion() {
+        suggestedPhase = nil
+    }
+
+    func acceptPhaseSuggestion() {
+        guard let suggested = suggestedPhase else { return }
+        suggestedPhase = nil
+        if suggested != currentPhase {
+            togglePhase()
+        }
     }
 
     func startSession() {
@@ -86,6 +171,11 @@ class SessionManager: ObservableObject {
 
         // 心拍数ログの記録を開始
         heartRateLogManager.startNewSession()
+
+        // 心拍数CSVログの記録を開始
+        heartRateCSVLogger.startSession()
+        heartRateCSVLogger.setPhase("work", cycleIndex: cycleIndex)
+        currentPhaseStartTimestamp = Int64(Date().timeIntervalSince1970 * 1000)
 
         // センサーデータをクリア
         sessionSensorData.removeAll()
@@ -267,11 +357,25 @@ class SessionManager: ObservableObject {
     private func applyPhaseInternal(newPhase: WorkoutPhase, notifyWatch: Bool) {
         let previousPhase = currentPhase
         let now = Date()
+        let phaseEndTimestamp = Int64(now.timeIntervalSince1970 * 1000)
         let completedPhaseDuration: TimeInterval
         if let startTime = phaseStartTime {
             completedPhaseDuration = max(now.timeIntervalSince(startTime), 0)
         } else {
             completedPhaseDuration = 0
+        }
+
+        // 心拍数CSVログの補完（前のフェーズのデータに種目情報を追記）
+        if currentPhaseStartTimestamp > 0 {
+            heartRateCSVLogger.supplementPhaseData(
+                phaseStartTimestamp: currentPhaseStartTimestamp,
+                phaseEndTimestamp: phaseEndTimestamp,
+                category: selectedCategory,
+                exercise: selectedExercise,
+                reps: currentReps,
+                load: currentLoad,
+                note: currentNote
+            )
         }
 
         completeCurrentSetRecord()
@@ -290,9 +394,20 @@ class SessionManager: ObservableObject {
         currentPhase = newPhase
         phaseStartTime = now
 
+        // 心拍数CSVログの新しいフェーズを開始
+        currentPhaseStartTimestamp = Int64(now.timeIntervalSince1970 * 1000)
+        heartRateCSVLogger.setPhase(newPhase.rawValue, cycleIndex: cycleIndex)
+
+        // 休憩時間アラートをリセット
+        resetRestTimeAlert()
+
+        // 新しいフェーズ開始時は表示を00:00にリセット
+        // （タイマーが次のtickでphaseStartTimeから計算するまでの間、総時間が一瞬表示されるのを防ぐ）
+        elapsedTimeString = "00:00"
+
         if let sessionStart = sessionStartTime {
+            // 総セッション時間は更新（統計用）
             elapsedTime = now.timeIntervalSince(sessionStart)
-            updateElapsedTimeString()
         }
 
         // Watchに通知（iPhone UIからの操作時のみ）
@@ -360,25 +475,44 @@ class SessionManager: ObservableObject {
         timer = nil
         print("SessionManager: Timer invalidated")
 
-        if let record = currentSetRecord {
+        // 最後のフェーズの心拍数CSVログを補完
+        let now = Date()
+        let phaseEndTimestamp = Int64(now.timeIntervalSince1970 * 1000)
+        if currentPhaseStartTimestamp > 0 {
+            heartRateCSVLogger.supplementPhaseData(
+                phaseStartTimestamp: currentPhaseStartTimestamp,
+                phaseEndTimestamp: phaseEndTimestamp,
+                category: selectedCategory,
+                exercise: selectedExercise,
+                reps: currentReps,
+                load: currentLoad,
+                note: currentNote
+            )
+        }
+
+        // 心拍数CSVログを終了
+        heartRateCSVLogger.endSession()
+        currentPhaseStartTimestamp = 0
+
+        if currentSetRecord != nil {
             completeCurrentSetRecord()
         }
 
         if let session = currentSession {
-            session.endedAt = Date()
+            session.endedAt = now
             session.totalWorkSec = Int32(totalWorkTime)
             session.totalRestSec = Int32(totalRestTime)
             session.totalVolume = calculateTotalVolume()
 
             // 心拍数ログを保存
-            let heartRateLogs = heartRateLogManager.currentSessionLogs
+            _ = heartRateLogManager.currentSessionLogs
 
             dataController.save()
 
             // セッションデータを保持（リザルト画面で表示するため）
             lastCompletedSession = session
         }
-        
+
         // 心拍数モニタリングを停止
         heartRateManager.stopMonitoring()
 
@@ -387,15 +521,11 @@ class SessionManager: ObservableObject {
             watchConnectivity.stopWatchWorkout()
         }
 
-        // リセット前に合計時間を記録
-        let finalWorkTime = totalWorkTime
-        let finalRestTime = totalRestTime
+        // iPhone側のWatch状態をリセット（前回セッションの時間表示を防ぐ）
+        watchConnectivity.resetWatchState()
 
+        // セッションを完全にリセット（時間データは lastCompletedSession に保存済み）
         resetSession()
-
-        // リザルト表示用に時間を復元
-        totalWorkTime = finalWorkTime
-        totalRestTime = finalRestTime
     }
 
     private func completeCurrentSetRecord() {
@@ -441,17 +571,60 @@ class SessionManager: ObservableObject {
         let seconds = Int(phaseElapsed) % 60
         elapsedTimeString = String(format: "%02d:%02d", minutes, seconds)
 
-        // 総経過時間を更新
-        if let sessionStart = sessionStartTime {
-            elapsedTime = Date().timeIntervalSince(sessionStart)
-        }
-
         // フェーズ別の合計時間を更新
         if currentPhase == .work {
             totalWorkTime = workTimeAccumulated + phaseElapsed
         } else if currentPhase == .rest {
             totalRestTime = restTimeAccumulated + phaseElapsed
+
+            // 休憩時間超過チェック
+            checkRestTimeExceeded(phaseElapsed: phaseElapsed)
         }
+
+        // 総経過時間は常にwork+restの合計として計算（統一）
+        elapsedTime = totalWorkTime + totalRestTime
+    }
+
+    // MARK: - Rest Time Alert
+    private var hasTriggeredRestAlert: Bool = false
+
+    private func checkRestTimeExceeded(phaseElapsed: TimeInterval) {
+        guard restTimeAlertEnabled else { return }
+
+        if phaseElapsed >= restTimeLimit && !hasTriggeredRestAlert {
+            hasTriggeredRestAlert = true
+            isRestTimeExceeded = true
+            triggerRestTimeAlert()
+        }
+    }
+
+    private func triggerRestTimeAlert() {
+        // バイブレーション
+        let generator = UINotificationFeedbackGenerator()
+        generator.notificationOccurred(.warning)
+
+        // ローカル通知
+        let content = UNMutableNotificationContent()
+        content.title = "休憩時間超過"
+        content.body = "設定した休憩時間（\(Int(restTimeLimit))秒）を超えました。次のセットを始めましょう！"
+        content.sound = .default
+
+        let request = UNNotificationRequest(
+            identifier: "restTimeExceeded",
+            content: content,
+            trigger: nil  // 即時
+        )
+
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error = error {
+                print("Failed to schedule rest time notification: \(error)")
+            }
+        }
+    }
+
+    func resetRestTimeAlert() {
+        hasTriggeredRestAlert = false
+        isRestTimeExceeded = false
     }
 
     // 経過時間の表示文字列を更新

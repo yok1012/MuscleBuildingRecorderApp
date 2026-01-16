@@ -166,23 +166,46 @@ struct SessionSummaryView: View {
     }
 
     private var exportButtons: some View {
-        HStack(spacing: 20) {
-            Button(action: exportCSV) {
-                Label("CSVエクスポート", systemImage: "doc.text")
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color.blue)
-                    .foregroundColor(.white)
-                    .cornerRadius(10)
+        VStack(spacing: 12) {
+            HStack(spacing: 12) {
+                Button(action: exportCSV) {
+                    Label("CSVエクスポート", systemImage: "doc.text")
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.blue)
+                        .foregroundColor(.white)
+                        .cornerRadius(10)
+                }
+
+                Button(action: exportJSON) {
+                    Label("JSONエクスポート", systemImage: "doc.badge.gearshape")
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.green)
+                        .foregroundColor(.white)
+                        .cornerRadius(10)
+                }
             }
 
-            Button(action: exportJSON) {
-                Label("JSONエクスポート", systemImage: "doc.badge.gearshape")
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color.green)
-                    .foregroundColor(.white)
-                    .cornerRadius(10)
+            // 心拍数データエクスポート
+            HStack(spacing: 12) {
+                Button(action: exportHeartRateCSV) {
+                    Label("心拍数CSV", systemImage: "heart.text.square")
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.red)
+                        .foregroundColor(.white)
+                        .cornerRadius(10)
+                }
+
+                Button(action: exportHeartRateJSON) {
+                    Label("心拍数JSON", systemImage: "heart.circle")
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.pink)
+                        .foregroundColor(.white)
+                        .cornerRadius(10)
+                }
             }
         }
     }
@@ -262,6 +285,44 @@ struct SessionSummaryView: View {
         dateFormatter.dateFormat = "yyyyMMdd_HHmmss"
         let filename = "workout_\(dateFormatter.string(from: Date())).json"
         saveAndShare(content: json, filename: filename, type: .json)
+    }
+
+    private func exportHeartRateCSV() {
+        guard let session = displaySession ?? sessionManager.currentSession,
+              let startDate = session.startedAt else { return }
+
+        let logger = HeartRateCSVLogger.shared
+        if let fileURL = logger.getLogFile(for: startDate) {
+            exportURL = fileURL
+            showingShareSheet = true
+        } else {
+            print("心拍数CSVファイルが見つかりません")
+        }
+    }
+
+    private func exportHeartRateJSON() {
+        guard let session = displaySession ?? sessionManager.currentSession,
+              let startDate = session.startedAt else { return }
+
+        let logger = HeartRateCSVLogger.shared
+        if let jsonData = logger.getLogDataAsJSON(for: startDate) {
+            let dateFormatter = DateFormatter()
+            dateFormatter.dateFormat = "yyyyMMdd_HHmmss"
+            let filename = "heartrate_\(dateFormatter.string(from: Date())).json"
+
+            let tempDir = FileManager.default.temporaryDirectory
+            let fileURL = tempDir.appendingPathComponent(filename)
+
+            do {
+                try jsonData.write(to: fileURL)
+                exportURL = fileURL
+                showingShareSheet = true
+            } catch {
+                print("Failed to save JSON file: \(error)")
+            }
+        } else {
+            print("心拍数JSONデータが見つかりません")
+        }
     }
 
     private func saveAndShare(content: String, filename: String, type: UTType) {

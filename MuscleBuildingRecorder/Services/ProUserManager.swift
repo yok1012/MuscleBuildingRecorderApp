@@ -17,8 +17,8 @@ final class ProUserManager: NSObject, ObservableObject {
     // App Store Connectで設定するProduct ID
     // 月額サブスクリプション（Auto-Renewable Subscription）
     private let monthlySubscriptionID = "com.yokAppDev.MuscleBuildingRecorder.pro.month"
-    // 永久ライセンス（Non-Consumable）
-    private let lifetimeID = "com.yokAppDev.MuscleBuildingRecorder.pro.lifetime"
+    // 買い切りライセンス（Non-Consumable）
+    private let lifetimeID = "yokAppDev.muscleBuilding.pro"
 
     // すべての商品ID
     private var allProductIDs: Set<String> {
@@ -280,7 +280,7 @@ final class ProUserManager: NSObject, ObservableObject {
                             purchasedProductIDs.insert(transaction.productID)
                         }
                     } else {
-                        // 非消耗型（永久ライセンス）
+                        // 非消耗型（買い切りライセンス）
                         purchasedProductIDs.insert(transaction.productID)
                     }
                 }
@@ -323,7 +323,7 @@ final class ProUserManager: NSObject, ObservableObject {
         products.first { $0.id == monthlySubscriptionID }
     }
 
-    /// 永久ライセンス製品を取得
+    /// 買い切りライセンス製品を取得
     var lifetimeProduct: Product? {
         products.first { $0.id == lifetimeID }
     }

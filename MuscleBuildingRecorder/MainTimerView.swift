@@ -1,6 +1,7 @@
 import SwiftUI
 import Combine
 import UIKit
+import UserNotifications
 
 struct MainTimerView: View {
     @EnvironmentObject var sessionManager: SessionManager
@@ -15,9 +16,26 @@ struct MainTimerView: View {
     @State private var isShowingAd = false
     @State private var pulseAnimation = false
     @State private var exerciseSwipeOffset: CGFloat = 0
+    @State private var showingFinishConfirmation = false
+    @State private var showingRestSettings = false
+
+    // インライン編集モード
+    enum InlineEditMode: Equatable {
+        case none
+        case reps
+        case load
+    }
+    @State private var inlineEditMode: InlineEditMode = .none
 
     enum WatchCheckResult {
         case notChecked, connected, unreachable, timeout
+    }
+
+    // iPad対応: ボタン等の最大幅を制限
+    private let maxContentWidth: CGFloat = 500
+
+    private func effectiveWidth(_ geometryWidth: CGFloat) -> CGFloat {
+        min(geometryWidth, maxContentWidth)
     }
 
     var body: some View {
@@ -30,6 +48,7 @@ struct MainTimerView: View {
                 // 種目エリア（スワイプ対応）
                 exerciseSection
                     .frame(height: geometry.size.height * 0.12)
+                    .frame(maxWidth: maxContentWidth)
                     .padding(.horizontal)
 
                 // 中央: タイマーと目標表示
@@ -39,6 +58,7 @@ struct MainTimerView: View {
                 // 心拍数表示
                 heartRateSection
                     .frame(height: geometry.size.height * 0.10)
+                    .frame(maxWidth: maxContentWidth)
 
                 // メインアクションボタンエリア
                 mainActionSection(geometry: geometry)
@@ -47,18 +67,36 @@ struct MainTimerView: View {
                 // 下部: 完了ボタンと状態表示
                 secondaryControlsSection
                     .frame(height: geometry.size.height * 0.14)
+                    .frame(maxWidth: maxContentWidth)
                     .padding(.horizontal)
             }
+            .frame(maxWidth: .infinity)
             .background(animatedBackground)
         }
         .sheet(isPresented: $showingInputSheet) {
             ExerciseInputSheet()
+                .environmentObject(sessionManager)
         }
         .sheet(isPresented: $showingExerciseSelection) {
             ExerciseSelectionSheet()
+                .environmentObject(sessionManager)
+        }
+        .sheet(isPresented: $showingRestSettings) {
+            RestTimeSettingsSheet()
+                .environmentObject(sessionManager)
         }
         .fullScreenCover(isPresented: $showingSummary) {
             SessionSummaryView()
+                .environmentObject(sessionManager)
+                .environmentObject(proUserManager)
+        }
+        .alert("トレーニング終了", isPresented: $showingFinishConfirmation) {
+            Button("キャンセル", role: .cancel) { }
+            Button("終了する", role: .destructive) {
+                finishWorkoutWithAdGate()
+            }
+        } message: {
+            Text("トレーニングを終了しますか？\n\n総時間: \(formatTime(sessionManager.elapsedTime))\n筋トレ: \(formatTime(sessionManager.totalWorkTime))\n休憩: \(formatTime(sessionManager.totalRestTime))")
         }
         .onReceive(watchConnectivity.$showExerciseSelectionRequested) { requested in
             // Watchから種目選択画面の表示リクエストを受信
@@ -75,6 +113,18 @@ struct MainTimerView: View {
             withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
                 pulseAnimation = true
             }
+            // 通知のパーミッションをリクエスト
+            requestNotificationPermission()
+        }
+    }
+
+    // MARK: - Notification Permission
+    private func requestNotificationPermission() {
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
+            if let error = error {
+                print("Notification permission error: \(error)")
+            }
+            print("Notification permission granted: \(granted)")
         }
     }
 
@@ -240,38 +290,79 @@ struct MainTimerView: View {
                 .shadow(color: .black.opacity(0.3), radius: 10, x: 0, y: 5)
                 .scaleEffect(pulseAnimation && sessionManager.currentPhase == .work ? 1.02 : 1.0)
 
-            // 目標表示（回数 × 重量）
+            // 目標表示（回数 × 重量）- タップで直接編集可能
             if sessionManager.currentPhase != .idle {
-                HStack(spacing: 8) {
-                    Text("目標:")
-                        .font(.subheadline)
-                        .foregroundColor(.white.opacity(0.7))
-
-                    Text("\(Int(sessionManager.currentReps))回")
-                        .font(.title3)
-                        .fontWeight(.bold)
-                        .foregroundColor(.yellow)
-
-                    Text("×")
-                        .font(.subheadline)
-                        .foregroundColor(.white.opacity(0.7))
-
-                    Text("\(String(format: "%.1f", sessionManager.currentLoad))kg")
-                        .font(.title3)
-                        .fontWeight(.bold)
-                        .foregroundColor(.yellow)
-
-                    // 入力ボタン（小）
-                    Button(action: { showingInputSheet = true }) {
-                        Image(systemName: "pencil.circle.fill")
-                            .font(.title2)
+                VStack(spacing: 8) {
+                    // メイン表示行
+                    HStack(spacing: 8) {
+                        Text("目標:")
+                            .font(.subheadline)
                             .foregroundColor(.white.opacity(0.7))
+
+                        // 回数（タップで編集モード切替）
+                        Button(action: {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                inlineEditMode = inlineEditMode == .reps ? .none : .reps
+                            }
+                            let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+                            impactFeedback.impactOccurred()
+                        }) {
+                            Text("\(Int(sessionManager.currentReps))回")
+                                .font(.title3)
+                                .fontWeight(.bold)
+                                .foregroundColor(inlineEditMode == .reps ? .white : .yellow)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                .background(inlineEditMode == .reps ? Color.yellow : Color.clear)
+                                .cornerRadius(8)
+                        }
+                        .buttonStyle(.plain)
+
+                        Text("×")
+                            .font(.subheadline)
+                            .foregroundColor(.white.opacity(0.7))
+
+                        // 重量（タップで編集モード切替）
+                        Button(action: {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                inlineEditMode = inlineEditMode == .load ? .none : .load
+                            }
+                            let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+                            impactFeedback.impactOccurred()
+                        }) {
+                            Text("\(String(format: "%.1f", sessionManager.currentLoad))kg")
+                                .font(.title3)
+                                .fontWeight(.bold)
+                                .foregroundColor(inlineEditMode == .load ? .white : .yellow)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                .background(inlineEditMode == .load ? Color.yellow : Color.clear)
+                                .cornerRadius(8)
+                        }
+                        .buttonStyle(.plain)
+
+                        // 詳細入力ボタン
+                        Button(action: { showingInputSheet = true }) {
+                            Image(systemName: "slider.horizontal.3")
+                                .font(.title2)
+                                .foregroundColor(.white.opacity(0.7))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .background(Color.black.opacity(0.2))
+                    .cornerRadius(20)
+
+                    // インライン編集コントロール（展開時のみ表示）
+                    if inlineEditMode != .none {
+                        inlineEditControls
+                            .transition(.asymmetric(
+                                insertion: .scale.combined(with: .opacity),
+                                removal: .scale.combined(with: .opacity)
+                            ))
                     }
                 }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 10)
-                .background(Color.black.opacity(0.2))
-                .cornerRadius(20)
             }
 
             // 総経過時間（見やすく改善）
@@ -293,6 +384,66 @@ struct MainTimerView: View {
                 .cornerRadius(12)
             }
         }
+    }
+
+    // MARK: - Inline Edit Controls (インライン編集コントロール)
+    private var inlineEditControls: some View {
+        HStack(spacing: 12) {
+            if inlineEditMode == .reps {
+                // 回数編集
+                inlineIncrementButton(value: -5, label: "-5", color: .red)
+                inlineIncrementButton(value: -1, label: "-1", color: .orange)
+
+                Text("\(Int(sessionManager.currentReps))")
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .foregroundColor(.white)
+                    .frame(minWidth: 50)
+
+                inlineIncrementButton(value: +1, label: "+1", color: .green.opacity(0.7))
+                inlineIncrementButton(value: +5, label: "+5", color: .green)
+            } else if inlineEditMode == .load {
+                // 重量編集
+                inlineIncrementButton(value: -5, label: "-5", color: .red)
+                inlineIncrementButton(value: -2.5, label: "-2.5", color: .orange)
+
+                Text(String(format: "%.1f", sessionManager.currentLoad))
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .foregroundColor(.white)
+                    .frame(minWidth: 60)
+
+                inlineIncrementButton(value: +2.5, label: "+2.5", color: .green.opacity(0.7))
+                inlineIncrementButton(value: +5, label: "+5", color: .green)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(Color.black.opacity(0.3))
+        .cornerRadius(16)
+    }
+
+    private func inlineIncrementButton(value: Double, label: String, color: Color) -> some View {
+        Button(action: {
+            let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+            impactFeedback.impactOccurred()
+
+            withAnimation(.easeInOut(duration: 0.1)) {
+                if inlineEditMode == .reps {
+                    sessionManager.currentReps = max(1, sessionManager.currentReps + value)
+                } else if inlineEditMode == .load {
+                    sessionManager.currentLoad = max(0, sessionManager.currentLoad + value)
+                }
+            }
+        }) {
+            Text(label)
+                .font(.system(size: 16, weight: .bold))
+                .foregroundColor(.white)
+                .frame(width: 54, height: 44)
+                .background(color)
+                .cornerRadius(10)
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Heart Rate Section (心拍数表示)
@@ -347,11 +498,71 @@ struct MainTimerView: View {
         .background(Color.white.opacity(0.1))
         .cornerRadius(20)
         .padding(.horizontal)
+        .overlay(alignment: .bottom) {
+            // 心拍数による自動フェーズ提案
+            if let suggestedPhase = sessionManager.suggestedPhase {
+                phaseSuggestionView(suggested: suggestedPhase)
+                    .offset(y: 50)
+            }
+        }
+    }
+
+    // MARK: - Phase Suggestion View (心拍数自動判別の提案)
+    @ViewBuilder
+    private func phaseSuggestionView(suggested: WorkoutPhase) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: "heart.text.square.fill")
+                .font(.title3)
+                .foregroundColor(.yellow)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("心拍数から判断")
+                    .font(.caption2)
+                    .foregroundColor(.white.opacity(0.7))
+                Text("\(suggested == .work ? "筋トレ" : "休憩")に切り替えますか？")
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundColor(.white)
+            }
+
+            Spacer()
+
+            Button(action: {
+                sessionManager.acceptPhaseSuggestion()
+            }) {
+                Text("切替")
+                    .font(.caption)
+                    .fontWeight(.bold)
+                    .foregroundColor(.black)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Color.yellow)
+                    .cornerRadius(8)
+            }
+
+            Button(action: {
+                sessionManager.dismissPhaseSuggestion()
+            }) {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.title3)
+                    .foregroundColor(.white.opacity(0.5))
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(Color.black.opacity(0.7))
+        .cornerRadius(12)
+        .padding(.horizontal, 20)
+        .transition(.move(edge: .bottom).combined(with: .opacity))
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: sessionManager.suggestedPhase != nil)
     }
 
     // MARK: - Main Action Section (大きなアクションボタン)
     private func mainActionSection(geometry: GeometryProxy) -> some View {
-        VStack(spacing: 16) {
+        // iPad対応: 幅を制限
+        let buttonWidth = effectiveWidth(geometry.size.width)
+
+        return VStack(spacing: 16) {
             if sessionManager.currentPhase == .idle {
                 // 待機中: 大きなスタートボタン
                 Button(action: startSessionWithWatchCheck) {
@@ -363,8 +574,8 @@ struct MainTimerView: View {
                             .fontWeight(.bold)
                     }
                     .foregroundColor(.white)
-                    .frame(width: geometry.size.width * 0.8,
-                           height: geometry.size.width * 0.55)
+                    .frame(width: buttonWidth * 0.8,
+                           height: min(buttonWidth * 0.55, 220))
                     .background(
                         RoundedRectangle(cornerRadius: 35)
                             .fill(
@@ -406,8 +617,8 @@ struct MainTimerView: View {
                                 .fontWeight(.bold)
                         }
                         .foregroundColor(.white)
-                        .frame(width: geometry.size.width * 0.85,
-                               height: geometry.size.width * 0.35)
+                        .frame(width: buttonWidth * 0.85,
+                               height: min(buttonWidth * 0.35, 140))
                         .background(
                             RoundedRectangle(cornerRadius: 30)
                                 .fill(
@@ -425,19 +636,32 @@ struct MainTimerView: View {
             } else if sessionManager.currentPhase == .rest {
                 // 休憩中: 状態表示 + 筋トレボタン + 保存ボタン
                 VStack(spacing: 12) {
-                    // 現在の状態表示
+                    // 現在の状態表示（休憩時間超過時は警告表示）
                     HStack(spacing: 8) {
-                        Image(systemName: "cup.and.saucer.fill")
+                        Image(systemName: sessionManager.isRestTimeExceeded ? "exclamationmark.triangle.fill" : "cup.and.saucer.fill")
                             .font(.title2)
-                        Text("休憩中")
-                            .font(.headline)
-                            .fontWeight(.bold)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(sessionManager.isRestTimeExceeded ? "休憩時間超過!" : "休憩中")
+                                .font(.headline)
+                                .fontWeight(.bold)
+                            if sessionManager.restTimeAlertEnabled {
+                                Text("目安: \(Int(sessionManager.restTimeLimit))秒")
+                                    .font(.caption2)
+                                    .opacity(0.8)
+                            }
+                        }
+                        // 休憩時間設定ボタン
+                        Button(action: { showingRestSettings = true }) {
+                            Image(systemName: "gearshape.fill")
+                                .font(.caption)
+                        }
                     }
                     .foregroundColor(.white)
                     .padding(.horizontal, 24)
                     .padding(.vertical, 10)
-                    .background(Color.blue.opacity(0.8))
+                    .background(sessionManager.isRestTimeExceeded ? Color.orange.opacity(0.9) : Color.blue.opacity(0.8))
                     .cornerRadius(20)
+                    .animation(.easeInOut(duration: 0.3), value: sessionManager.isRestTimeExceeded)
 
                     // 筋トレボタン（大）
                     Button(action: { sessionManager.togglePhase() }) {
@@ -449,8 +673,8 @@ struct MainTimerView: View {
                                 .fontWeight(.bold)
                         }
                         .foregroundColor(.white)
-                        .frame(width: geometry.size.width * 0.85,
-                               height: geometry.size.width * 0.32)
+                        .frame(width: buttonWidth * 0.85,
+                               height: min(buttonWidth * 0.32, 130))
                         .background(
                             RoundedRectangle(cornerRadius: 30)
                                 .fill(
@@ -497,6 +721,7 @@ struct MainTimerView: View {
                 }
             }
         }
+        .frame(maxWidth: maxContentWidth)
         .animation(.spring(response: 0.4, dampingFraction: 0.7), value: sessionManager.currentPhase)
     }
 
@@ -506,7 +731,7 @@ struct MainTimerView: View {
             if sessionManager.currentPhase != .idle {
                 // 完了ボタン
                 Button(action: {
-                    finishWorkoutWithAdGate()
+                    showingFinishConfirmation = true
                 }) {
                     Label("完了", systemImage: "stop.circle.fill")
                         .font(.callout)
@@ -822,5 +1047,134 @@ struct ExerciseSelectionSheet: View {
         WatchConnectivityService.shared.sendExerciseChange(category: category, exercise: exercise)
 
         dismiss()
+    }
+}
+
+// MARK: - Rest Time Settings Sheet
+struct RestTimeSettingsSheet: View {
+    @EnvironmentObject var sessionManager: SessionManager
+    @Environment(\.dismiss) var dismiss
+    @State private var selectedTime: TimeInterval = 60
+
+    private let presetTimes: [TimeInterval] = [30, 45, 60, 90, 120, 180]
+
+    var body: some View {
+        NavigationView {
+            Form {
+                Section(header: Text("休憩時間の目安")) {
+                    // プリセットボタン
+                    LazyVGrid(columns: [
+                        GridItem(.flexible()),
+                        GridItem(.flexible()),
+                        GridItem(.flexible())
+                    ], spacing: 12) {
+                        ForEach(presetTimes, id: \.self) { time in
+                            Button(action: {
+                                selectedTime = time
+                                sessionManager.restTimeLimit = time
+                            }) {
+                                Text(formatRestTime(time))
+                                    .font(.headline)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 16)
+                                    .background(selectedTime == time ? Color.blue : Color.gray.opacity(0.2))
+                                    .foregroundColor(selectedTime == time ? .white : .primary)
+                                    .cornerRadius(12)
+                            }
+                        }
+                    }
+                    .padding(.vertical, 8)
+                }
+
+                Section(header: Text("カスタム設定")) {
+                    HStack {
+                        Text("休憩時間:")
+                        Spacer()
+                        Text("\(Int(selectedTime))秒")
+                            .font(.headline)
+                            .foregroundColor(.blue)
+                    }
+
+                    Slider(value: $selectedTime, in: 10...300, step: 5)
+                        .onChange(of: selectedTime) { _, newValue in
+                            sessionManager.restTimeLimit = newValue
+                        }
+                }
+
+                Section(header: Text("通知設定")) {
+                    Toggle("休憩時間超過アラート", isOn: $sessionManager.restTimeAlertEnabled)
+
+                    if sessionManager.restTimeAlertEnabled {
+                        Text("休憩時間が設定値を超えると、バイブレーションと通知でお知らせします。")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+
+                Section(header: Text("心拍数自動判別")) {
+                    Toggle("自動フェーズ検出", isOn: $sessionManager.autoPhaseDetectionEnabled)
+
+                    if sessionManager.autoPhaseDetectionEnabled {
+                        HStack {
+                            Text("安静時心拍数:")
+                            Spacer()
+                            Text("\(Int(sessionManager.heartRateBaseline)) bpm")
+                                .foregroundColor(.blue)
+                        }
+
+                        Stepper(value: $sessionManager.heartRateBaseline, in: 40...100, step: 5) {
+                            EmptyView()
+                        }
+
+                        Text("心拍数の変化から運動/休憩状態を自動検出し、フェーズ切り替えを提案します。")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+
+                Section {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("💡 休憩時間の目安")
+                            .font(.headline)
+
+                        Text("• 筋肥大目的: 60〜90秒")
+                            .font(.caption)
+                        Text("• 筋力向上目的: 2〜3分")
+                            .font(.caption)
+                        Text("• 持久力向上: 30〜45秒")
+                            .font(.caption)
+                    }
+                    .foregroundColor(.secondary)
+                }
+            }
+            .navigationTitle("休憩時間設定")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("完了") {
+                        dismiss()
+                    }
+                    .fontWeight(.bold)
+                }
+            }
+        }
+        .onAppear {
+            selectedTime = sessionManager.restTimeLimit
+        }
+    }
+
+    private func formatRestTime(_ seconds: TimeInterval) -> String {
+        let secs = Int(seconds)
+        if secs >= 60 {
+            let mins = secs / 60
+            let remainingSecs = secs % 60
+            if remainingSecs == 0 {
+                return "\(mins)分"
+            } else {
+                return "\(mins)分\(remainingSecs)秒"
+            }
+        } else {
+            return "\(secs)秒"
+        }
     }
 }

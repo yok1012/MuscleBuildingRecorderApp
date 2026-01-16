@@ -14,12 +14,18 @@ struct MuscleBuildingRecorderApp: App {
     // AdMob SDK初期化用AppDelegate
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
+    // ScenePhaseを監視してアプリのアクティブ状態を検知
+    @Environment(\.scenePhase) private var scenePhase
+
     let dataController = DataController.shared
     @StateObject private var heartRateManager = HeartRateManager.shared
     @StateObject private var sessionManager = SessionManager.shared
     @StateObject private var sensorLogManager = SensorLogManager.shared
     @StateObject private var watchConnectivity = WatchConnectivityService.shared
     @StateObject private var proUserManager = ProUserManager.shared
+
+    // AdMob初期化が完了したかどうか
+    @State private var hasRequestedTracking = false
 
     var body: some Scene {
         WindowGroup {
@@ -33,6 +39,14 @@ struct MuscleBuildingRecorderApp: App {
                 .onAppear {
                     setupApp()
                 }
+        }
+        .onChange(of: scenePhase) { oldPhase, newPhase in
+            if newPhase == .active && !hasRequestedTracking {
+                // アプリがアクティブになった時にATT/AdMobを初期化
+                print("iPhone App: 📱 Scene became active, requesting tracking authorization...")
+                hasRequestedTracking = true
+                appDelegate.requestTrackingAuthorization()
+            }
         }
     }
 

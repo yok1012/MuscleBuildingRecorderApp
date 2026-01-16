@@ -105,6 +105,16 @@ class WatchConnectivityService: NSObject, ObservableObject, WCSessionDelegate {
         sendCommandToWatch("resume")
     }
 
+    /// iPhone側のWatch状態をリセット（セッション終了時に呼び出す）
+    func resetWatchState() {
+        DispatchQueue.main.async { [weak self] in
+            self?.watchWorkoutState = .idle
+            self?.watchElapsedTime = 0
+            self?.watchElapsedTimeString = "00:00"
+            self?.watchStatus = self?.isWatchConnected == true ? "接続済み" : "未接続"
+        }
+    }
+
     // MARK: - Enhanced Communication Methods
 
     func wakeUpWatch() {

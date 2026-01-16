@@ -159,7 +159,7 @@ struct PurchaseView: View {
                         .font(.caption)
                         .foregroundColor(.blue)
                 } else {
-                    Label("買い切り", systemImage: "infinity")
+                    Label("買い切りライセンス", systemImage: "infinity")
                         .font(.caption)
                         .foregroundColor(.green)
                 }
@@ -281,19 +281,27 @@ struct PurchaseView: View {
                 .padding(.vertical, 8)
 
             VStack(alignment: .leading, spacing: 8) {
-                Text("サブスクリプションについて")
+                Text("購入について")
                     .font(.footnote)
                     .fontWeight(.semibold)
 
-                Text("• サブスクリプションはApple IDに請求されます")
+                Text("• サブスクリプションと買い切りライセンスからお選びいただけます")
                     .font(.caption2)
                     .foregroundColor(.secondary)
 
-                Text("• 期間終了の24時間以上前にキャンセルしない限り、自動的に更新されます")
+                Text("• サブスクリプションはApple IDに請求され、期間終了の24時間以上前にキャンセルしない限り自動更新されます")
                     .font(.caption2)
                     .foregroundColor(.secondary)
 
-                Text("• 設定アプリ > Apple ID > サブスクリプションから管理・解約できます")
+                Text("• 買い切りライセンスは一度購入すれば永久に広告なしで使用できます")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+
+                Text("• 購入はApple IDに紐付けられ、同じApple IDの端末で利用できます")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+
+                Text("• サブスクリプションは設定アプリ > Apple ID > サブスクリプションから管理・解約できます")
                     .font(.caption2)
                     .foregroundColor(.secondary)
             }
@@ -302,7 +310,7 @@ struct PurchaseView: View {
 
             // 法的リンク
             HStack(spacing: 16) {
-                Link("プライバシーポリシー", destination: URL(string: "https://www.apple.com/legal/privacy/")!)
+                Link("プライバシーポリシー", destination: URL(string: "https://yok1012.github.io/MuscleBuildingRecorder/")!)
                 Link("利用規約", destination: URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!)
             }
             .font(.footnote)

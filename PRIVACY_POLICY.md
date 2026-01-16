@@ -42,16 +42,44 @@ yok1012ichi@gmail.com
 ### 2.4 広告識別子（IDFA）
 本アプリは、広告配信のためにGoogle AdMobを使用しており、広告識別子（IDFA）を取得します。詳細は「5. 第三者サービスの利用」をご覧ください。
 
+### 2.5 使用状況データ
+本アプリは、サービス品質向上のために以下の使用状況データを収集します：
+- アプリの起動回数と使用頻度
+- 機能の利用状況（どの画面が閲覧されたか）
+- セッション時間（アプリの使用時間）
+- ユーザーインターフェースの操作パターン
+
+これらのデータは匿名化され、アプリの改善とユーザー体験の向上にのみ使用されます。個人を特定できる情報は含まれません。
+
+### 2.6 診断データ
+本アプリは、アプリの安定性とパフォーマンス向上のために以下の診断データを収集します：
+
+- **クラッシュデータ**: アプリのクラッシュ情報（エラーログ、スタックトレース、クラッシュ時の操作履歴）
+- **パフォーマンスデータ**: アプリの起動時間、画面読み込み時間、メモリ使用量、バッテリー消費量
+- **その他の診断データ**: ネットワーク接続状態、Bluetooth接続状態、センサーの動作状態
+
+これらのデータは匿名化され、アプリの安定性向上とバグ修正にのみ使用されます。個人を特定できる情報は含まれません。
+
+### 2.7 モーションセンサーデータ（Apple Watch）
+Apple Watchを使用してトレーニングを記録する場合、以下のセンサーデータを収集します：
+
+- **加速度センサーデータ（手の動き）**: 運動の動きとフォームを検出するため
+- **ジャイロスコープデータ**: 運動の方向、回転、および姿勢を検出するため
+- **運動の強度データ**: トレーニングの効果を分析するため
+
+**重要**: これらのモーションセンサーデータは、すべてデバイス内（Apple Watch内）にのみ保存され、外部サーバーに送信されることはありません。データはトレーニングセッション終了後、セッションデータとともにiPhoneに同期されますが、これもデバイス間のローカル通信のみで行われます。
+
 ---
 
 ## 3. 情報の利用目的
 
 取得した情報は、以下の目的で利用します。
 
-1. **本アプリの提供・運営**: トレーニング記録、心拍数モニタリング、データ分析機能の提供
-2. **本アプリの改善**: ユーザー体験の向上、バグ修正、新機能の開発
-3. **カスタマーサポート**: お問い合わせへの対応、技術サポートの提供
+1. **本アプリの提供・運営**: トレーニング記録、心拍数モニタリング、モーションセンサーデータ分析、データ分析機能の提供
+2. **本アプリの改善**: ユーザー体験の向上、バグ修正、新機能の開発、使用状況データとパフォーマンスデータに基づく最適化
+3. **カスタマーサポート**: お問い合わせへの対応、技術サポートの提供、クラッシュデータに基づく問題解決
 4. **広告配信**: パーソナライズされた広告の表示（Pro版ユーザーを除く）
+5. **アナリティクス**: 使用状況データと診断データに基づくアプリの利用傾向分析とサービス改善
 
 ---
 
@@ -244,16 +272,44 @@ This information is used only for app operation and bug fixes and is never trans
 ### 2.4 Advertising Identifier (IDFA)
 The App uses Google AdMob for ad delivery and collects the Advertising Identifier (IDFA). See "5. Use of Third-Party Services" for details.
 
+### 2.5 Usage Data
+The App collects the following usage data to improve service quality:
+- App launch frequency and usage frequency
+- Feature usage patterns (which screens are viewed)
+- Session duration (app usage time)
+- User interface interaction patterns
+
+This data is anonymized and used only for app improvement and user experience enhancement. It does not contain personally identifiable information.
+
+### 2.6 Diagnostic Data
+The App collects the following diagnostic data to improve app stability and performance:
+
+- **Crash Data**: App crash information (error logs, stack traces, actions before crash)
+- **Performance Data**: App launch time, screen loading time, memory usage, battery consumption
+- **Other Diagnostic Data**: Network connection status, Bluetooth connection status, sensor operation status
+
+This data is anonymized and used only for app stability improvement and bug fixes. It does not contain personally identifiable information.
+
+### 2.7 Motion Sensor Data (Apple Watch)
+When using Apple Watch to record training, the following sensor data is collected:
+
+- **Accelerometer Data (Hand Movement)**: To detect exercise movements and form
+- **Gyroscope Data**: To detect exercise direction, rotation, and posture
+- **Exercise Intensity Data**: To analyze training effectiveness
+
+**Important**: All motion sensor data is stored only on the device (Apple Watch) and is never transmitted to external servers. After a training session ends, the data is synced to iPhone along with session data, but this is done only through local communication between devices.
+
 ---
 
 ## 3. Purpose of Information Use
 
 We use collected information for the following purposes:
 
-1. **Provide and operate the App**: Training records, heart rate monitoring, data analysis features
-2. **Improve the App**: Enhance user experience, fix bugs, develop new features
-3. **Customer support**: Respond to inquiries and provide technical support
+1. **Provide and operate the App**: Training records, heart rate monitoring, motion sensor data analysis, data analysis features
+2. **Improve the App**: Enhance user experience, fix bugs, develop new features, optimization based on usage and performance data
+3. **Customer support**: Respond to inquiries, provide technical support, problem solving based on crash data
 4. **Ad delivery**: Display personalized ads (except for Pro users)
+5. **Analytics**: Analyze app usage trends and service improvement based on usage data and diagnostic data
 
 ---
 

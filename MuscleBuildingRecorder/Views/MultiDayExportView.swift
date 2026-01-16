@@ -41,7 +41,7 @@ struct MultiDayExportView: View {
                 }
 
                 // ファイルタイプ選択
-                Section(header: Text("エクスポートするデータタイプ")) {
+                Section(header: Text("センサーデータ")) {
                     ForEach(["accelerometer", "gyroscope", "motion", "combined"], id: \.self) { fileType in
                         HStack {
                             Button(action: { toggleFileType(fileType) }) {
@@ -59,6 +59,31 @@ struct MultiDayExportView: View {
                             }
                         }
                     }
+                }
+
+                // 心拍数データ
+                Section(header: Text("心拍数データ")) {
+                    HStack {
+                        Button(action: { toggleFileType("heartrate") }) {
+                            HStack {
+                                Image(systemName: selectedFileTypes.contains("heartrate") ? "checkmark.square.fill" : "square")
+                                    .foregroundColor(.red)
+                                Image(systemName: "heart.fill")
+                                    .foregroundColor(.red)
+                                Text("心拍数ログ")
+                            }
+                        }
+                        Spacer()
+                        if let size = getFileSize(for: "heartrate") {
+                            Text(formatBytes(size))
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+
+                    Text("セッション中の心拍数、フェーズ、種目情報を含む時系列データ")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                 }
 
                 // エクスポート設定
@@ -161,6 +186,7 @@ struct MultiDayExportView: View {
         case "gyroscope": return "ジャイロスコープ"
         case "motion": return "デバイスモーション"
         case "combined": return "統合データ"
+        case "heartrate": return "心拍数ログ"
         default: return fileType
         }
     }
@@ -198,7 +224,14 @@ struct MultiDayExportView: View {
             let dateString = dateFormatter.string(from: currentDate)
 
             for fileType in selectedFileTypes {
-                let filename = "\(fileType)_\(dateString).csv"
+                // 心拍数ログは別のファイル名形式
+                let filename: String
+                if fileType == "heartrate" {
+                    filename = "heartrate_\(dateString).csv"
+                } else {
+                    filename = "\(fileType)_\(dateString).csv"
+                }
+
                 let url = sensorLogManager.logDirectory
                     .appendingPathComponent(filename)
 

@@ -39,10 +39,38 @@ struct ExerciseInputSheet: View {
 
                 Section(header: Text("負荷設定")) {
                     VStack(alignment: .leading, spacing: 12) {
-                        // 直接入力フィールド + 単位表示
-                        HStack(spacing: 8) {
-                            Text("負荷:")
+                        // 現在値の大きな表示
+                        HStack {
+                            Spacer()
+                            Text("\(sessionManager.currentLoad, specifier: "%.1f")")
+                                .font(.system(size: 48, weight: .bold))
+                                .foregroundColor(.blue)
+                            Text(sessionManager.loadUnit)
+                                .font(.title2)
                                 .foregroundColor(.secondary)
+                            Spacer()
+                        }
+                        .padding(.vertical, 8)
+
+                        // インクリメンタルボタン（減少）
+                        HStack(spacing: 6) {
+                            incrementButton(value: -5, color: .red, for: "load")
+                            incrementButton(value: -2.5, color: .orange, for: "load")
+                            incrementButton(value: -1, color: .yellow.opacity(0.8), for: "load")
+                        }
+
+                        // インクリメンタルボタン（増加）
+                        HStack(spacing: 6) {
+                            incrementButton(value: +1, color: .green.opacity(0.7), for: "load")
+                            incrementButton(value: +2.5, color: .green.opacity(0.85), for: "load")
+                            incrementButton(value: +5, color: .green, for: "load")
+                        }
+
+                        // 直接入力フィールド
+                        HStack(spacing: 8) {
+                            Text("直接入力:")
+                                .foregroundColor(.secondary)
+                                .font(.caption)
 
                             TextField("0.0", text: $loadInputText)
                                 .keyboardType(.decimalPad)
@@ -55,15 +83,13 @@ struct ExerciseInputSheet: View {
                                     }
                                 }
 
-                            Text(sessionManager.loadUnit)
-                                .foregroundColor(.secondary)
-
                             Spacer()
 
-                            Text("\(sessionManager.currentLoad, specifier: "%.1f")")
-                                .font(.title2)
-                                .fontWeight(.bold)
-                                .foregroundColor(.blue)
+                            Button("リセット") {
+                                sessionManager.loadDefaultExerciseValues()
+                                loadInputText = String(format: "%.1f", sessionManager.currentLoad)
+                            }
+                            .font(.caption)
                         }
 
                         Slider(
@@ -76,26 +102,41 @@ struct ExerciseInputSheet: View {
                                 loadInputText = String(format: "%.1f", newValue)
                             }
                         }
-
-                        HStack {
-                            Stepper("", value: $sessionManager.currentLoad, step: getLoadStep())
-                                .labelsHidden()
-                            Spacer()
-                            Button("リセット") {
-                                sessionManager.loadDefaultExerciseValues()
-                                loadInputText = String(format: "%.1f", sessionManager.currentLoad)
-                            }
-                            .font(.caption)
-                        }
                     }
                 }
 
                 Section(header: Text("回数/時間設定")) {
                     VStack(alignment: .leading, spacing: 12) {
-                        // 直接入力フィールド + 単位表示
-                        HStack(spacing: 8) {
-                            Text("回数:")
+                        // 現在値の大きな表示
+                        HStack {
+                            Spacer()
+                            Text("\(sessionManager.currentReps, specifier: "%.0f")")
+                                .font(.system(size: 48, weight: .bold))
+                                .foregroundColor(.green)
+                            Text(sessionManager.repsUnit)
+                                .font(.title2)
                                 .foregroundColor(.secondary)
+                            Spacer()
+                        }
+                        .padding(.vertical, 8)
+
+                        // インクリメンタルボタン（減少）
+                        HStack(spacing: 6) {
+                            incrementButton(value: -5, color: .red, for: "reps")
+                            incrementButton(value: -1, color: .orange, for: "reps")
+                        }
+
+                        // インクリメンタルボタン（増加）
+                        HStack(spacing: 6) {
+                            incrementButton(value: +1, color: .green.opacity(0.7), for: "reps")
+                            incrementButton(value: +5, color: .green, for: "reps")
+                        }
+
+                        // 直接入力フィールド
+                        HStack(spacing: 8) {
+                            Text("直接入力:")
+                                .foregroundColor(.secondary)
+                                .font(.caption)
 
                             TextField("0", text: $repsInputText)
                                 .keyboardType(.numberPad)
@@ -108,15 +149,7 @@ struct ExerciseInputSheet: View {
                                     }
                                 }
 
-                            Text(sessionManager.repsUnit)
-                                .foregroundColor(.secondary)
-
                             Spacer()
-
-                            Text("\(sessionManager.currentReps, specifier: "%.0f")")
-                                .font(.title2)
-                                .fontWeight(.bold)
-                                .foregroundColor(.green)
                         }
 
                         Slider(
@@ -129,9 +162,6 @@ struct ExerciseInputSheet: View {
                                 repsInputText = String(format: "%.0f", newValue)
                             }
                         }
-
-                        Stepper("", value: $sessionManager.currentReps, step: 1)
-                            .labelsHidden()
                     }
                 }
 
@@ -214,6 +244,45 @@ struct ExerciseInputSheet: View {
         case "W": return 10
         case "レベル": return 1
         default: return 1
+        }
+    }
+
+    // MARK: - Increment Button
+    @ViewBuilder
+    private func incrementButton(value: Double, color: Color, for type: String) -> some View {
+        Button(action: {
+            // 触覚フィードバック
+            let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+            impactFeedback.impactOccurred()
+
+            withAnimation(.easeInOut(duration: 0.1)) {
+                if type == "load" {
+                    let newValue = max(0, sessionManager.currentLoad + value)
+                    sessionManager.currentLoad = newValue
+                    loadInputText = String(format: "%.1f", newValue)
+                } else {
+                    let newValue = max(1, sessionManager.currentReps + value)
+                    sessionManager.currentReps = newValue
+                    repsInputText = String(format: "%.0f", newValue)
+                }
+            }
+        }) {
+            Text(value >= 0 ? "+\(formatIncrementValue(value))" : "\(formatIncrementValue(value))")
+                .font(.system(size: 18, weight: .bold))
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .frame(height: 54)
+                .background(color)
+                .cornerRadius(12)
+        }
+        .buttonStyle(.plain)  // Form内でタップが正しく検出されるように
+    }
+
+    private func formatIncrementValue(_ value: Double) -> String {
+        if value == floor(value) {
+            return String(format: "%.0f", value)
+        } else {
+            return String(format: "%.1f", value)
         }
     }
 }
