@@ -2,6 +2,7 @@ import SwiftUI
 import Combine
 import UIKit
 import UserNotifications
+import CoreData
 
 struct MainTimerView: View {
     @EnvironmentObject var sessionManager: SessionManager
@@ -405,7 +406,7 @@ struct MainTimerView: View {
             } else if inlineEditMode == .load {
                 // 重量編集
                 inlineIncrementButton(value: -5, label: "-5", color: .red)
-                inlineIncrementButton(value: -2.5, label: "-2.5", color: .orange)
+                inlineIncrementButton(value: -1, label: "-1", color: .orange)
 
                 Text(String(format: "%.1f", sessionManager.currentLoad))
                     .font(.title2)
@@ -413,7 +414,7 @@ struct MainTimerView: View {
                     .foregroundColor(.white)
                     .frame(minWidth: 60)
 
-                inlineIncrementButton(value: +2.5, label: "+2.5", color: .green.opacity(0.7))
+                inlineIncrementButton(value: +1, label: "+1", color: .green.opacity(0.7))
                 inlineIncrementButton(value: +5, label: "+5", color: .green)
             }
         }
@@ -447,13 +448,35 @@ struct MainTimerView: View {
     }
 
     // MARK: - Heart Rate Section (心拍数表示)
+
+    // 現在の心拍ゾーンを計算
+    private var currentHeartRateZone: HeartRateZone {
+        WidgetStateStore.shared.currentHeartRateZone(heartRate: heartRateManager.currentHeartRate)
+    }
+
     private var heartRateSection: some View {
-        HStack(spacing: 40) {
+        HStack(spacing: 20) {
+            // 心拍ゾーン表示（左端に追加）
+            VStack(spacing: 4) {
+                Circle()
+                    .fill(currentHeartRateZone.color)
+                    .frame(width: 36, height: 36)
+                    .overlay {
+                        Text("\(currentHeartRateZone.rawValue)")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(.white)
+                    }
+                    .shadow(color: currentHeartRateZone.color.opacity(0.6), radius: 4)
+                Text(currentHeartRateZone.description)
+                    .font(.system(size: 9))
+                    .foregroundColor(.white.opacity(0.7))
+            }
+
             // 心拍数
             HStack(spacing: 10) {
                 Image(systemName: "heart.fill")
                     .font(.title2)
-                    .foregroundColor(.red)
+                    .foregroundColor(currentHeartRateZone.color)
                     .scaleEffect(pulseAnimation ? 1.1 : 1.0)
 
                 VStack(alignment: .leading, spacing: 0) {
@@ -493,7 +516,7 @@ struct MainTimerView: View {
                     .foregroundColor(.white.opacity(0.5))
             }
         }
-        .padding(.horizontal, 20)
+        .padding(.horizontal, 16)
         .padding(.vertical, 12)
         .background(Color.white.opacity(0.1))
         .cornerRadius(20)
@@ -955,6 +978,7 @@ struct ExerciseSelectionSheet: View {
     @Environment(\.dismiss) var dismiss
     @State private var selectedCategory: String = ""
     @State private var selectedExercise: String = ""
+    @State private var showingAddExercise = false
 
     var body: some View {
         NavigationView {
@@ -985,6 +1009,20 @@ struct ExerciseSelectionSheet: View {
 
                 // エクササイズリスト
                 List {
+                    // 種目追加ボタン
+                    Button(action: { showingAddExercise = true }) {
+                        HStack {
+                            Image(systemName: "plus.circle.fill")
+                                .foregroundColor(.green)
+                                .font(.title2)
+                            Text("新しい種目を追加")
+                                .font(.headline)
+                                .foregroundColor(.green)
+                            Spacer()
+                        }
+                        .padding(.vertical, 8)
+                    }
+
                     ForEach(sessionManager.getExercises(for: selectedCategory.isEmpty ?
                                                         sessionManager.selectedCategory :
                                                         selectedCategory), id: \.self) { exercise in
@@ -1024,6 +1062,16 @@ struct ExerciseSelectionSheet: View {
                         dismiss()
                     }
                 }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: { showingAddExercise = true }) {
+                        Image(systemName: "plus")
+                    }
+                }
+            }
+            .sheet(isPresented: $showingAddExercise) {
+                QuickAddExerciseView(
+                    preselectedCategory: selectedCategory.isEmpty ? sessionManager.selectedCategory : selectedCategory
+                )
             }
         }
         .onAppear {
@@ -1047,6 +1095,125 @@ struct ExerciseSelectionSheet: View {
         WatchConnectivityService.shared.sendExerciseChange(category: category, exercise: exercise)
 
         dismiss()
+    }
+}
+
+// MARK: - Quick Add Exercise View (種目選択画面からの簡易追加)
+struct QuickAddExerciseView: View {
+    @Environment(\.dismiss) var dismiss
+
+    let preselectedCategory: String
+
+    @State private var name: String = ""
+    @State private var selectedCategory: ExerciseCategory = .chest
+    @State private var loadUnit: String = "kg"
+    @State private var repsUnit: String = "回"
+    @State private var defaultLoad: Double = 20
+    @State private var defaultReps: Double = 10
+
+    private var dataController: DataController {
+        DataController.shared
+    }
+
+    var body: some View {
+        NavigationView {
+            Form {
+                Section(header: Text("種目名")) {
+                    TextField("種目名を入力", text: $name)
+                }
+
+                Section(header: Text("カテゴリー")) {
+                    Picker("カテゴリー", selection: $selectedCategory) {
+                        ForEach(ExerciseCategory.allCases) { category in
+                            Label {
+                                Text(category.displayName)
+                            } icon: {
+                                Image(systemName: category.icon)
+                            }
+                            .tag(category)
+                        }
+                    }
+                    .pickerStyle(.navigationLink)
+                }
+
+                Section(header: Text("デフォルト値")) {
+                    HStack {
+                        Text("負荷")
+                        Spacer()
+                        TextField("", value: $defaultLoad, format: .number)
+                            .textFieldStyle(.roundedBorder)
+                            .keyboardType(.decimalPad)
+                            .frame(width: 80)
+                        Text(loadUnit)
+                            .foregroundColor(.secondary)
+                    }
+
+                    HStack {
+                        Text("回数")
+                        Spacer()
+                        TextField("", value: $defaultReps, format: .number)
+                            .textFieldStyle(.roundedBorder)
+                            .keyboardType(.decimalPad)
+                            .frame(width: 80)
+                        Text(repsUnit)
+                            .foregroundColor(.secondary)
+                    }
+                }
+
+                Section(header: Text("単位設定")) {
+                    HStack {
+                        Text("負荷単位")
+                        Spacer()
+                        TextField("kg", text: $loadUnit)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 80)
+                    }
+
+                    HStack {
+                        Text("回数単位")
+                        Spacer()
+                        TextField("回", text: $repsUnit)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 80)
+                    }
+                }
+            }
+            .navigationTitle("種目追加")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("キャンセル") {
+                        dismiss()
+                    }
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("追加") {
+                        addExercise()
+                        dismiss()
+                    }
+                    .fontWeight(.bold)
+                    .disabled(name.isEmpty)
+                }
+            }
+            .onAppear {
+                // プリセレクトされたカテゴリーを設定
+                selectedCategory = ExerciseCategory.from(string: preselectedCategory)
+            }
+        }
+    }
+
+    private func addExercise() {
+        let context = dataController.container.viewContext
+        let exercise = ExerciseMaster(context: context)
+        exercise.id = UUID()
+        exercise.name = name
+        exercise.category = selectedCategory.rawValue
+        exercise.loadUnit = loadUnit
+        exercise.repsUnit = repsUnit
+        exercise.defaultLoad = defaultLoad
+        exercise.defaultReps = defaultReps
+        exercise.isActive = true
+        dataController.save()
     }
 }
 

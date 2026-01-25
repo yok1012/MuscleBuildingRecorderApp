@@ -37,10 +37,15 @@ class SessionManager: ObservableObject {
     @Published var suggestedPhase: WorkoutPhase? = nil       // 推奨フェーズ（現在のフェーズと異なる場合に表示）
     @Published var heartRateBaseline: Double = 70            // 安静時心拍数の基準値
 
-    private var timer: Timer?
+    // MARK: - Timer (Combine-based unified timer)
+    private var timerCancellable: AnyCancellable?
     private var workTimeAccumulated: TimeInterval = 0
     private var restTimeAccumulated: TimeInterval = 0
     private var sessionStartTime: Date?
+
+    // Widget/Live Activity更新の頻度制限
+    private var lastWidgetUpdateTime: Date = .distantPast
+    private let widgetUpdateInterval: TimeInterval = 1.0  // 1秒間隔
 
     private let dataController = DataController.shared
     private let heartRateManager = HeartRateManager.shared
@@ -440,6 +445,18 @@ class SessionManager: ObservableObject {
         // Core Dataに即座に保存
         dataController.save()
 
+        // 休憩フェーズに入った時は通知をスケジュール
+        if newPhase == .rest {
+            scheduleRestNotifications()
+        } else {
+            // ワークフェーズに入った時は通知をキャンセル
+            cancelRestNotifications()
+        }
+
+        // Widget/Live Activityを強制更新（フェーズ変更時は即座に更新）
+        WidgetStateStore.shared.forceWidgetUpdate()
+        syncToWidgetState()
+
         print("SessionManager: ✅ Phase changed to \(newPhase.rawValue), notifyWatch: \(notifyWatch)")
     }
 
@@ -471,9 +488,8 @@ class SessionManager: ObservableObject {
         print("SessionManager: 🛑 endSession() called")
         print("SessionManager: Current phase: \(currentPhase.rawValue)")
 
-        timer?.invalidate()
-        timer = nil
-        print("SessionManager: Timer invalidated")
+        stopTimer()
+        print("SessionManager: Timer stopped")
 
         // 最後のフェーズの心拍数CSVログを補完
         let now = Date()
@@ -524,6 +540,13 @@ class SessionManager: ObservableObject {
         // iPhone側のWatch状態をリセット（前回セッションの時間表示を防ぐ）
         watchConnectivity.resetWatchState()
 
+        // 休憩通知をキャンセル
+        cancelRestNotifications()
+
+        // Widget/Live Activityの状態をクリア
+        WidgetStateStore.shared.clearWorkoutState()
+        LiveActivityManager.shared.endLiveActivity()
+
         // セッションを完全にリセット（時間データは lastCompletedSession に保存済み）
         resetSession()
     }
@@ -554,12 +577,41 @@ class SessionManager: ObservableObject {
         dataController.save()
     }
 
+    // MARK: - Unified Timer (Combine-based)
+
+    /// Combineベースの統一タイマーを開始
+    /// - 1秒間隔でtimerTickを実行
+    /// - メモリリーク防止のためweak selfを使用
     private func startTimer() {
-        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
-            self.updateElapsedTime()
-        }
+        // 既存のタイマーがあればキャンセル
+        timerCancellable?.cancel()
+
+        timerCancellable = Timer.publish(every: 1.0, on: .main, in: .common)
+            .autoconnect()
+            .sink { [weak self] _ in
+                self?.handleTimerTick()
+            }
     }
 
+    /// タイマーを停止
+    private func stopTimer() {
+        timerCancellable?.cancel()
+        timerCancellable = nil
+    }
+
+    /// 統一タイマーのtick処理
+    /// - 時間更新、休憩時間チェック、Widget更新を一括管理
+    private func handleTimerTick() {
+        guard currentPhase != .idle else { return }
+
+        // 1. 経過時間を更新
+        updateElapsedTime()
+
+        // 2. Widget/Live Activity更新（頻度制限付き）
+        updateWidgetIfNeeded()
+    }
+
+    /// 経過時間の更新処理
     private func updateElapsedTime() {
         guard let startTime = phaseStartTime else {
             elapsedTimeString = "00:00"
@@ -583,6 +635,21 @@ class SessionManager: ObservableObject {
 
         // 総経過時間は常にwork+restの合計として計算（統一）
         elapsedTime = totalWorkTime + totalRestTime
+    }
+
+    /// Widget/Live Activityの更新（頻度制限付き）
+    private func updateWidgetIfNeeded() {
+        let now = Date()
+        guard now.timeIntervalSince(lastWidgetUpdateTime) >= widgetUpdateInterval else {
+            return
+        }
+        lastWidgetUpdateTime = now
+
+        // Widget/Live Activityに状態を同期
+        syncToWidgetState()
+
+        // Live Activityも更新
+        setupLiveActivity()
     }
 
     // MARK: - Rest Time Alert
@@ -669,7 +736,7 @@ class SessionManager: ObservableObject {
             session.id = UUID()
         }
 
-        if timer == nil, currentPhase != .idle {
+        if timerCancellable == nil, currentPhase != .idle {
             startTimer()
         }
 
@@ -834,5 +901,223 @@ class SessionManager: ObservableObject {
             print("Failed to serialize sensor data: \(error)")
             return "[]"
         }
+    }
+
+    // MARK: - Session Persistence (タスクキル対応)
+
+    /// 復元可能なセッション状態があるかチェック
+    @Published var hasPendingSessionRestore: Bool = false
+    @Published var pendingRestoreState: SessionPersistenceState?
+
+    /// 現在のセッション状態を永続化
+    func saveSessionState() {
+        guard currentPhase != .idle else {
+            // idleの場合は保存済み状態をクリア
+            clearSavedSessionState()
+            return
+        }
+
+        let state = SessionPersistenceState(
+            sessionId: currentSession?.id?.uuidString,
+            phase: currentPhase.rawValue,
+            totalWorkTime: totalWorkTime,
+            totalRestTime: totalRestTime,
+            phaseStartTime: phaseStartTime,
+            sessionStartTime: sessionStartTime,
+            cycleIndex: cycleIndex,
+            selectedCategory: selectedCategory,
+            selectedExercise: selectedExercise,
+            currentLoad: currentLoad,
+            currentReps: currentReps,
+            savedAt: Date()
+        )
+
+        guard let userDefaults = AppGroupConfig.sharedUserDefaults else {
+            print("SessionManager: ❌ Failed to get App Group UserDefaults")
+            return
+        }
+
+        do {
+            let data = try JSONEncoder().encode(state)
+            userDefaults.set(data, forKey: WidgetStateKeys.sessionPersistenceState)
+            userDefaults.synchronize()
+            print("SessionManager: 💾 Session state saved - phase: \(state.phase), work: \(Int(state.totalWorkTime))s, rest: \(Int(state.totalRestTime))s")
+        } catch {
+            print("SessionManager: ❌ Failed to save session state: \(error)")
+        }
+    }
+
+    /// 保存されたセッション状態をクリア
+    func clearSavedSessionState() {
+        guard let userDefaults = AppGroupConfig.sharedUserDefaults else { return }
+        userDefaults.removeObject(forKey: WidgetStateKeys.sessionPersistenceState)
+        userDefaults.synchronize()
+        hasPendingSessionRestore = false
+        pendingRestoreState = nil
+        print("SessionManager: 🗑️ Saved session state cleared")
+    }
+
+    /// 保存されたセッション状態を読み込み（起動時に呼び出し）
+    func loadSavedSessionState() {
+        guard let userDefaults = AppGroupConfig.sharedUserDefaults,
+              let data = userDefaults.data(forKey: WidgetStateKeys.sessionPersistenceState) else {
+            // 保存状態がない場合、不整合を防ぐためWidgetStateもクリア
+            hasPendingSessionRestore = false
+            pendingRestoreState = nil
+            cleanupInconsistentState()
+            return
+        }
+
+        do {
+            let state = try JSONDecoder().decode(SessionPersistenceState.self, from: data)
+            if state.isValidForRestore {
+                pendingRestoreState = state
+                hasPendingSessionRestore = true
+                print("SessionManager: 📂 Found restorable session - phase: \(state.phase), saved \(state.timeSinceSavedString)")
+            } else {
+                // 無効な状態（古すぎるorアイドル）はクリア
+                clearSavedSessionState()
+                cleanupInconsistentState()
+            }
+        } catch {
+            print("SessionManager: ❌ Failed to load saved session state: \(error)")
+            clearSavedSessionState()
+            cleanupInconsistentState()
+        }
+    }
+
+    /// 不整合状態をクリーンアップ（起動時に呼び出し）
+    private func cleanupInconsistentState() {
+        // 現在idleで、保存状態もない場合は完全リセット
+        if currentPhase == .idle {
+            // Widget状態をクリア
+            WidgetStateStore.shared.clearWorkoutState()
+
+            // SessionManagerの時間関連プロパティもリセット（残留データ防止）
+            resetSession()
+
+            print("SessionManager: 🧹 Cleaned up inconsistent state - all properties reset")
+        }
+    }
+
+    /// 保存されたセッションを復元
+    func restoreSession() {
+        guard let state = pendingRestoreState, state.isValidForRestore else {
+            print("SessionManager: ⚠️ No valid session to restore")
+            clearSavedSessionState()
+            return
+        }
+
+        print("SessionManager: 🔄 Restoring session...")
+
+        // セッション/SetRecordの復元（Core Dataから検索or新規作成）
+        if let sessionIdString = state.sessionId,
+           let sessionId = UUID(uuidString: sessionIdString) {
+            // 既存セッションを検索
+            let request: NSFetchRequest<Session> = Session.fetchRequest()
+            request.predicate = NSPredicate(format: "id == %@", sessionId as CVarArg)
+            request.fetchLimit = 1
+
+            if let existingSession = try? dataController.container.viewContext.fetch(request).first {
+                currentSession = existingSession
+                print("SessionManager: ✅ Restored existing session from Core Data")
+            } else {
+                // セッションが見つからない場合は新規作成
+                let session = dataController.createSession()
+                session.startedAt = state.sessionStartTime ?? Date()
+                currentSession = session
+                print("SessionManager: ✅ Created new session (original not found)")
+            }
+        } else {
+            // sessionIdがない場合は新規作成
+            let session = dataController.createSession()
+            session.startedAt = state.sessionStartTime ?? Date()
+            currentSession = session
+            print("SessionManager: ✅ Created new session for restore")
+        }
+
+        // 状態を復元
+        selectedCategory = state.selectedCategory
+        selectedExercise = state.selectedExercise
+        currentLoad = state.currentLoad
+        currentReps = state.currentReps
+        cycleIndex = state.cycleIndex
+
+        // 時間を復元（保存からの経過時間を加算）
+        let elapsedSinceSave = state.timeSinceSaved
+        let restoredPhase = WorkoutPhase(rawValue: state.phase) ?? .work
+
+        if restoredPhase == .work {
+            totalWorkTime = state.totalWorkTime + elapsedSinceSave
+            totalRestTime = state.totalRestTime
+        } else if restoredPhase == .rest {
+            totalWorkTime = state.totalWorkTime
+            totalRestTime = state.totalRestTime + elapsedSinceSave
+        }
+
+        workTimeAccumulated = totalWorkTime
+        restTimeAccumulated = totalRestTime
+        sessionStartTime = state.sessionStartTime
+        phaseStartTime = Date()  // フェーズは今から再開
+        currentPhase = restoredPhase
+
+        // タイマー開始
+        startTimer()
+
+        // 新しいSetRecordを作成
+        guard let session = currentSession, let sessionId = session.id else {
+            print("SessionManager: ❌ Failed to get session for SetRecord")
+            return
+        }
+
+        let record = dataController.createSetRecord(
+            sessionId: sessionId,
+            phase: currentPhase,
+            cycleIndex: cycleIndex
+        )
+        // 復元時の種目情報を設定
+        record.category = selectedCategory
+        record.name = selectedExercise
+        record.load = currentLoad
+        record.reps = currentReps
+        currentSetRecord = record
+
+        // Widgetを更新
+        syncToWidgetState()
+
+        // 保存状態をクリア
+        clearSavedSessionState()
+
+        print("SessionManager: ✅ Session restored - phase: \(currentPhase.rawValue), totalWork: \(Int(totalWorkTime))s, totalRest: \(Int(totalRestTime))s")
+    }
+
+    /// セッション復元をスキップして状態をクリア
+    func skipSessionRestore() {
+        print("SessionManager: ⏭️ Session restore skipped by user")
+
+        // 未完了のセッションがあればマーク
+        if let state = pendingRestoreState,
+           let sessionIdString = state.sessionId,
+           let sessionId = UUID(uuidString: sessionIdString) {
+            let request: NSFetchRequest<Session> = Session.fetchRequest()
+            request.predicate = NSPredicate(format: "id == %@", sessionId as CVarArg)
+            request.fetchLimit = 1
+
+            if let existingSession = try? dataController.container.viewContext.fetch(request).first {
+                // 中断セッションとして終了時刻を記録
+                existingSession.endedAt = Date()
+                existingSession.totalWorkSec = Int32(state.totalWorkTime)
+                existingSession.totalRestSec = Int32(state.totalRestTime)
+                dataController.save()
+                print("SessionManager: ✅ Marked interrupted session as ended")
+            }
+        }
+
+        clearSavedSessionState()
+        WidgetStateStore.shared.clearWorkoutState()
+
+        // SessionManagerの状態を完全にリセット（重要！）
+        resetSession()
+        print("SessionManager: ✅ Session state fully reset")
     }
 }

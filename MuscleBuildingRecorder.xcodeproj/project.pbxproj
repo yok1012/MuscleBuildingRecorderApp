@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		BE2D1B872E91F5B200E741F8 /* MuscleBuildingRecorderWatchTrue Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = BE2D1B672E91F5B100E741F8 /* MuscleBuildingRecorderWatchTrue Watch App.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		BEE35FB62F02674100A7AA69 /* GoogleMobileAds in Frameworks */ = {isa = PBXBuildFile; productRef = BEE35FB52F02674100A7AA69 /* GoogleMobileAds */; };
+		BEWIDGET012F16000000E741 /* WorkoutWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = BEWIDGET002F16000000E741 /* WorkoutWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -47,6 +48,13 @@
 			remoteGlobalIDString = BE2D1B662E91F5B100E741F8;
 			remoteInfo = "MuscleBuildingRecorderWatchTrue Watch App";
 		};
+		BEWIDGET022F16000000E741 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = BE2D19452E8D3F2300E741F8 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = BEWIDGET032F16000000E741;
+			remoteInfo = WorkoutWidgetExtension;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -61,6 +69,17 @@
 			name = "Embed Watch Content";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		BEWIDGET042F16000000E741 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				BEWIDGET012F16000000E741 /* WorkoutWidgetExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
@@ -70,6 +89,7 @@
 		BE2D1B672E91F5B100E741F8 /* MuscleBuildingRecorderWatchTrue Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "MuscleBuildingRecorderWatchTrue Watch App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		BE2D1B732E91F5B200E741F8 /* MuscleBuildingRecorderWatchTrue Watch AppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "MuscleBuildingRecorderWatchTrue Watch AppTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		BE2D1B7D2E91F5B200E741F8 /* MuscleBuildingRecorderWatchTrue Watch AppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "MuscleBuildingRecorderWatchTrue Watch AppUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		BEWIDGET002F16000000E741 /* WorkoutWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = WorkoutWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -95,6 +115,13 @@
 				"MuscleBuildingRecorderWatchTrue Watch AppUITests/MuscleBuildingRecorderWatchTrue_Watch_AppUITestsLaunchTests.swift",
 			);
 			target = BE2D1B7C2E91F5B200E741F8 /* MuscleBuildingRecorderWatchTrue Watch AppUITests */;
+		};
+		BEWIDGET052F16000000E741 /* Exceptions for "WorkoutWidget" folder in "WorkoutWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = BEWIDGET032F16000000E741 /* WorkoutWidgetExtension */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
@@ -134,6 +161,14 @@
 				BEE35FC32F09383200A7AA69 /* Exceptions for "MuscleBuildingRecorderWatchTrue Watch AppTests" folder in "MuscleBuildingRecorderWatchTrue Watch AppUITests" target */,
 			);
 			path = "MuscleBuildingRecorderWatchTrue Watch AppTests";
+			sourceTree = "<group>";
+		};
+		BEWIDGET062F16000000E741 /* WorkoutWidget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				BEWIDGET052F16000000E741 /* Exceptions for "WorkoutWidget" folder in "WorkoutWidgetExtension" target */,
+			);
+			path = WorkoutWidget;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -182,6 +217,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		BEWIDGET072F16000000E741 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -194,6 +236,7 @@
 				BE2D1B592E91E05700E741F8 /* MuscleBuildingRecorderWatch */,
 				BE2D1B682E91F5B100E741F8 /* MuscleBuildingRecorderWatchTrue Watch App */,
 				BE2D1B762E91F5B200E741F8 /* MuscleBuildingRecorderWatchTrue Watch AppTests */,
+				BEWIDGET062F16000000E741 /* WorkoutWidget */,
 				BE2D194E2E8D3F2300E741F8 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -207,6 +250,7 @@
 				BE2D1B672E91F5B100E741F8 /* MuscleBuildingRecorderWatchTrue Watch App.app */,
 				BE2D1B732E91F5B200E741F8 /* MuscleBuildingRecorderWatchTrue Watch AppTests.xctest */,
 				BE2D1B7D2E91F5B200E741F8 /* MuscleBuildingRecorderWatchTrue Watch AppUITests.xctest */,
+				BEWIDGET002F16000000E741 /* WorkoutWidgetExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -222,11 +266,13 @@
 				BE2D194A2E8D3F2300E741F8 /* Frameworks */,
 				BE2D194B2E8D3F2300E741F8 /* Resources */,
 				BE2D1B8B2E91F5B200E741F8 /* Embed Watch Content */,
+				BEWIDGET042F16000000E741 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 				BE2D1B862E91F5B200E741F8 /* PBXTargetDependency */,
+				BEWIDGET082F16000000E741 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				BE2D194F2E8D3F2300E741F8 /* MuscleBuildingRecorder */,
@@ -350,6 +396,28 @@
 			productReference = BE2D1B7D2E91F5B200E741F8 /* MuscleBuildingRecorderWatchTrue Watch AppUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		BEWIDGET032F16000000E741 /* WorkoutWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BEWIDGET092F16000000E741 /* Build configuration list for PBXNativeTarget "WorkoutWidgetExtension" */;
+			buildPhases = (
+				BEWIDGET0A2F16000000E741 /* Sources */,
+				BEWIDGET072F16000000E741 /* Frameworks */,
+				BEWIDGET0B2F16000000E741 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				BEWIDGET062F16000000E741 /* WorkoutWidget */,
+			);
+			name = WorkoutWidgetExtension;
+			packageProductDependencies = (
+			);
+			productName = WorkoutWidgetExtension;
+			productReference = BEWIDGET002F16000000E741 /* WorkoutWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -382,6 +450,9 @@
 						CreatedOnToolsVersion = 26.0.1;
 						TestTargetID = BE2D1B662E91F5B100E741F8;
 					};
+					BEWIDGET032F16000000E741 = {
+						CreatedOnToolsVersion = 26.0.1;
+					};
 				};
 			};
 			buildConfigurationList = BE2D19482E8D3F2300E741F8 /* Build configuration list for PBXProject "MuscleBuildingRecorder" */;
@@ -407,6 +478,7 @@
 				BE2D1B662E91F5B100E741F8 /* MuscleBuildingRecorderWatchTrue Watch App */,
 				BE2D1B722E91F5B200E741F8 /* MuscleBuildingRecorderWatchTrue Watch AppTests */,
 				BE2D1B7C2E91F5B200E741F8 /* MuscleBuildingRecorderWatchTrue Watch AppUITests */,
+				BEWIDGET032F16000000E741 /* WorkoutWidgetExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -448,6 +520,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		BE2D1B7B2E91F5B200E741F8 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BEWIDGET0B2F16000000E741 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -499,6 +578,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		BEWIDGET0A2F16000000E741 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -526,6 +612,11 @@
 			isa = PBXTargetDependency;
 			target = BE2D1B662E91F5B100E741F8 /* MuscleBuildingRecorderWatchTrue Watch App */;
 			targetProxy = BE2D1B852E91F5B200E741F8 /* PBXContainerItemProxy */;
+		};
+		BEWIDGET082F16000000E741 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = BEWIDGET032F16000000E741 /* WorkoutWidgetExtension */;
+			targetProxy = BEWIDGET022F16000000E741 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -678,7 +769,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = yokAppDev.MuscleBuildingRecorder;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -718,7 +809,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = yokAppDev.MuscleBuildingRecorder;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -981,6 +1072,68 @@
 			};
 			name = Release;
 		};
+		BEWIDGET0C2F16000000E741 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = WorkoutWidget/WorkoutWidgetExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = MFQB3583D6;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = WorkoutWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = WorkoutWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.1;
+				PRODUCT_BUNDLE_IDENTIFIER = yokAppDev.MuscleBuildingRecorder.WorkoutWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		BEWIDGET0D2F16000000E741 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = WorkoutWidget/WorkoutWidgetExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = MFQB3583D6;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = WorkoutWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = WorkoutWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.1;
+				PRODUCT_BUNDLE_IDENTIFIER = yokAppDev.MuscleBuildingRecorder.WorkoutWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -1043,6 +1196,15 @@
 			buildConfigurations = (
 				BE2D1B902E91F5B200E741F8 /* Debug */,
 				BE2D1B912E91F5B200E741F8 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		BEWIDGET092F16000000E741 /* Build configuration list for PBXNativeTarget "WorkoutWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BEWIDGET0C2F16000000E741 /* Debug */,
+				BEWIDGET0D2F16000000E741 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

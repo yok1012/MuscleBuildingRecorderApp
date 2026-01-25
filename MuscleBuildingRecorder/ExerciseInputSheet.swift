@@ -55,14 +55,12 @@ struct ExerciseInputSheet: View {
                         // インクリメンタルボタン（減少）
                         HStack(spacing: 6) {
                             incrementButton(value: -5, color: .red, for: "load")
-                            incrementButton(value: -2.5, color: .orange, for: "load")
-                            incrementButton(value: -1, color: .yellow.opacity(0.8), for: "load")
+                            incrementButton(value: -1, color: .orange, for: "load")
                         }
 
                         // インクリメンタルボタン（増加）
                         HStack(spacing: 6) {
                             incrementButton(value: +1, color: .green.opacity(0.7), for: "load")
-                            incrementButton(value: +2.5, color: .green.opacity(0.85), for: "load")
                             incrementButton(value: +5, color: .green, for: "load")
                         }
 
@@ -240,7 +238,7 @@ struct ExerciseInputSheet: View {
 
     private func getLoadStep() -> Double {
         switch sessionManager.loadUnit {
-        case "kg": return 2.5
+        case "kg": return 1
         case "W": return 10
         case "レベル": return 1
         default: return 1

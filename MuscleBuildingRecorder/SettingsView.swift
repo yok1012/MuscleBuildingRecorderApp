@@ -27,6 +27,10 @@ struct SettingsView: View {
     @State private var showingMultiDayExport = false
     @State private var exportDateRange: ClosedRange<Date> = Date()...Date()
 
+    // 通知・心拍ゾーン設定
+    @State private var showingRestNotificationSettings = false
+    @State private var showingHeartRateZoneSettings = false
+
     @FetchRequest(
         sortDescriptors: [NSSortDescriptor(keyPath: \Session.startedAt, ascending: false)]
     ) private var sessions: FetchedResults<Session>
@@ -72,6 +76,7 @@ struct SettingsView: View {
             Form {
                 proSection
                 heartRateSection
+                notificationSettingsSection
                 dataExportSection
                 #if DEBUG
                 sensorLogSection
@@ -135,6 +140,12 @@ struct SettingsView: View {
             }
             .sheet(isPresented: $showingPurchaseView) {
                 PurchaseView()
+            }
+            .sheet(isPresented: $showingRestNotificationSettings) {
+                RestNotificationSettingsView()
+            }
+            .sheet(isPresented: $showingHeartRateZoneSettings) {
+                HeartRateZoneSettingsView()
             }
         }
     }
@@ -324,6 +335,51 @@ struct SettingsView: View {
             Text(heartRateManager.activeHeartRateSource)
                 .font(.caption)
                 .foregroundColor(.secondary)
+        }
+    }
+
+    // MARK: - Notification Settings Section
+    private var notificationSettingsSection: some View {
+        Section(header: Text("通知・ゾーン設定")) {
+            // 休憩通知設定
+            Button(action: { showingRestNotificationSettings = true }) {
+                HStack {
+                    Image(systemName: "bell.badge")
+                        .foregroundColor(.orange)
+                        .frame(width: 30)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("休憩通知設定")
+                            .font(.headline)
+                        Text("インターバル終了のリマインダー")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .foregroundColor(.secondary)
+                }
+            }
+            .foregroundColor(.primary)
+
+            // 心拍ゾーン設定
+            Button(action: { showingHeartRateZoneSettings = true }) {
+                HStack {
+                    Image(systemName: "heart.text.square")
+                        .foregroundColor(.red)
+                        .frame(width: 30)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("心拍ゾーン設定")
+                            .font(.headline)
+                        Text("年齢・最大心拍数の設定")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .foregroundColor(.secondary)
+                }
+            }
+            .foregroundColor(.primary)
         }
     }
 

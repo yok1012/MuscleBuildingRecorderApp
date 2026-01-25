@@ -8,6 +8,7 @@
 import SwiftUI
 import CoreData
 import WatchConnectivity
+import WidgetKit
 
 @main
 struct MuscleBuildingRecorderApp: App {
@@ -41,13 +42,69 @@ struct MuscleBuildingRecorderApp: App {
                 }
         }
         .onChange(of: scenePhase) { oldPhase, newPhase in
-            if newPhase == .active && !hasRequestedTracking {
-                // アプリがアクティブになった時にATT/AdMobを初期化
-                print("iPhone App: 📱 Scene became active, requesting tracking authorization...")
-                hasRequestedTracking = true
-                appDelegate.requestTrackingAuthorization()
+            switch newPhase {
+            case .active:
+                if !hasRequestedTracking {
+                    // アプリがアクティブになった時にATT/AdMobを初期化
+                    print("iPhone App: 📱 Scene became active, requesting tracking authorization...")
+                    hasRequestedTracking = true
+                    appDelegate.requestTrackingAuthorization()
+                }
+                // Widgetからのpendingコマンドを処理
+                handlePendingWidgetCommands()
+
+                // 保存されたセッション状態をチェック（初回のみ）
+                if !sessionManager.hasPendingSessionRestore && sessionManager.currentPhase == .idle {
+                    sessionManager.loadSavedSessionState()
+                }
+
+            case .background:
+                // バックグラウンドに移行時にセッション状態を保存
+                print("iPhone App: 📱 Scene entering background, saving session state...")
+                sessionManager.saveSessionState()
+
+            case .inactive:
+                // 非アクティブ時も状態を保存（タスクキルに備えて）
+                sessionManager.saveSessionState()
+
+            @unknown default:
+                break
             }
         }
+    }
+
+    // MARK: - Widget Commands Handling
+
+    /// App Groupに保存されたpendingコマンドを処理
+    private func handlePendingWidgetCommands() {
+        guard let userDefaults = UserDefaults(suiteName: "group.yokAppDev.MuscleBuildingRecorder") else { return }
+
+        // フェーズ切り替え
+        if userDefaults.bool(forKey: "pendingPhaseToggle") {
+            userDefaults.set(false, forKey: "pendingPhaseToggle")
+            print("iPhone App: 📱 Handling pendingPhaseToggle from Widget")
+            sessionManager.togglePhase()
+        }
+
+        // ワークアウト開始
+        if userDefaults.bool(forKey: "pendingStartWorkout") {
+            userDefaults.set(false, forKey: "pendingStartWorkout")
+            print("iPhone App: 📱 Handling pendingStartWorkout from Widget")
+            if sessionManager.currentPhase == .idle {
+                sessionManager.startSession()
+            }
+        }
+
+        // ワークアウト終了
+        if userDefaults.bool(forKey: "pendingEndWorkout") {
+            userDefaults.set(false, forKey: "pendingEndWorkout")
+            print("iPhone App: 📱 Handling pendingEndWorkout from Widget")
+            if sessionManager.currentPhase != .idle {
+                sessionManager.endSession()
+            }
+        }
+
+        userDefaults.synchronize()
     }
 
     private func setupApp() {

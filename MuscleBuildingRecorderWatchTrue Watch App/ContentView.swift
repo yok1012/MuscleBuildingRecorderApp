@@ -9,8 +9,11 @@ struct ContentView: View {
     @StateObject private var backgroundRecorder = BackgroundSensorRecorder.shared
     @State private var currentPhase: WorkoutPhase = .idle
     @State private var currentExercise: (category: String, name: String) = ("胸", "ベンチプレス")
+    @State private var currentReps: Int = 10
+    @State private var currentWeight: Double = 20.0
     @State private var cycleIndex: Int = 0
-    @State private var showingExerciseList = false
+    @State private var showingExerciseInput = false
+    @State private var showingQuickExercise = false
     @State private var elapsedTime: String = "00:00"
     @State private var lastIPhoneSync: Date?
     @State private var showingSensorSettings = false
@@ -108,19 +111,29 @@ struct ContentView: View {
                     .cornerRadius(6)
             }
 
-            // 種目表示（タップで変更）
-            Button(action: { requestExerciseChange() }) {
+            // 種目・回数・重量表示（タップで入力画面を開く）
+            Button(action: { showingExerciseInput = true }) {
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(currentExercise.category)
                             .font(.caption2)
                             .foregroundColor(.secondary)
                         Text(currentExercise.name)
-                            .font(.system(size: 14, weight: .semibold))
+                            .font(.system(size: 13, weight: .semibold))
                             .lineLimit(1)
                     }
 
                     Spacer()
+
+                    // 回数・重量のクイック表示
+                    VStack(alignment: .trailing, spacing: 1) {
+                        Text("\(currentReps)回")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(.blue)
+                        Text(String(format: "%.1fkg", currentWeight))
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(.orange)
+                    }
 
                     Image(systemName: "chevron.right.circle.fill")
                         .font(.caption)
@@ -131,6 +144,22 @@ struct ContentView: View {
                 .cornerRadius(8)
             }
             .buttonStyle(PlainButtonStyle())
+            .sheet(isPresented: $showingExerciseInput) {
+                ExerciseInputView(
+                    currentCategory: currentExercise.category,
+                    currentExercise: currentExercise.name,
+                    currentReps: currentReps,
+                    currentWeight: currentWeight
+                ) { category, exercise, reps, weight in
+                    // 更新を適用
+                    currentExercise = (category: category, name: exercise)
+                    currentReps = reps
+                    currentWeight = weight
+
+                    // iPhoneに変更を送信
+                    sendExerciseUpdateToPhone(category: category, exercise: exercise, reps: reps, weight: weight)
+                }
+            }
             
             // コマンドステータス表示
             if isCommandPending || !commandStatus.isEmpty {
@@ -468,9 +497,56 @@ struct ContentView: View {
         sendCommandToPhone("endSession")
     }
 
-    private func requestExerciseChange() {
-        // iPhoneに種目変更画面の表示を要求
-        sendCommandToPhone("showExerciseSelection")
+    /// Watch側で入力された種目・回数・重量をiPhoneに送信
+    private func sendExerciseUpdateToPhone(category: String, exercise: String, reps: Int, weight: Double) {
+        print("Watch ContentView: 📤 Sending exercise update to iPhone")
+
+        isCommandPending = true
+        commandStatus = "送信中..."
+
+        let message: [String: Any] = [
+            "type": "exerciseUpdate",
+            "category": category,
+            "exercise": exercise,
+            "reps": reps,
+            "weight": weight,
+            "timestamp": Date().timeIntervalSince1970
+        ]
+
+        if WCSession.default.isReachable {
+            WCSession.default.sendMessage(message, replyHandler: { _ in
+                DispatchQueue.main.async {
+                    self.isCommandPending = false
+                    self.commandStatus = "✅ 更新完了"
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                        self.commandStatus = ""
+                    }
+                }
+            }) { error in
+                print("Watch: ❌ Failed to send exercise update: \(error)")
+                DispatchQueue.main.async {
+                    self.isCommandPending = false
+                    self.commandStatus = "📦 保存済み"
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                        self.commandStatus = ""
+                    }
+                }
+                // フォールバック: applicationContextに保存
+                try? WCSession.default.updateApplicationContext(message)
+            }
+        } else {
+            // 到達不可能な場合はapplicationContextに保存
+            try? WCSession.default.updateApplicationContext(message)
+            DispatchQueue.main.async {
+                self.isCommandPending = false
+                self.commandStatus = "📦 保存済み"
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                    self.commandStatus = ""
+                }
+            }
+        }
+
+        lastIPhoneSync = Date()
     }
 
     // MARK: - Watch Connectivity

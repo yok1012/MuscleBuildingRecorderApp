@@ -508,6 +508,10 @@ class WatchConnectivityService: NSObject, ObservableObject, WCSessionDelegate {
                     // Watchからの現在状態同期（スタンドアロンモードからの復帰）
                     self.handleSyncStateFromWatch(payload)
 
+                case "exerciseUpdate":
+                    // Watchから種目・回数・重量の更新を受信
+                    self.handleExerciseUpdateFromWatch(payload)
+
                 case WatchMessageType.command.rawValue:
                     if let command = payload["command"] as? String {
                         // コマンドIDによる重複処理防止
@@ -638,6 +642,58 @@ class WatchConnectivityService: NSObject, ObservableObject, WCSessionDelegate {
         )
         
         watchStatus = "同期完了"
+    }
+
+    /// Watchから種目・回数・重量の更新を受信して処理
+    private func handleExerciseUpdateFromWatch(_ payload: [String: Any]) {
+        guard let category = payload["category"] as? String,
+              let exercise = payload["exercise"] as? String else {
+            print("📱 iPhone: Invalid exerciseUpdate payload - missing category or exercise")
+            return
+        }
+
+        let reps = payload["reps"] as? Int ?? 10
+        let weight = payload["weight"] as? Double ?? 0.0
+
+        #if DEBUG
+        print("📱 iPhone: Received exercise update from Watch")
+        print("📱 iPhone: Category: \(category), Exercise: \(exercise), Reps: \(reps), Weight: \(weight)kg")
+        #endif
+
+        // SessionManagerに通知して現在のセットに反映
+        DispatchQueue.main.async {
+            let sessionManager = SessionManager.shared
+
+            // 現在の種目を更新
+            sessionManager.selectedCategory = category
+            sessionManager.selectedExercise = exercise
+            sessionManager.currentReps = Double(reps)
+            sessionManager.currentLoad = weight
+
+            // 現在のセットレコードがある場合は更新
+            if let currentRecord = sessionManager.currentSetRecord {
+                currentRecord.category = category
+                currentRecord.name = exercise
+                currentRecord.reps = Double(reps)
+                currentRecord.load = weight
+                DataController.shared.save()
+                print("📱 iPhone: Updated current SetRecord with Watch input")
+            }
+
+            // UIに反映するための通知
+            NotificationCenter.default.post(
+                name: NSNotification.Name("ExerciseUpdatedFromWatch"),
+                object: nil,
+                userInfo: [
+                    "category": category,
+                    "exercise": exercise,
+                    "reps": reps,
+                    "weight": weight
+                ]
+            )
+        }
+
+        watchStatus = "種目更新: \(exercise)"
     }
 
     private func processWorkoutStateMessage(_ payload: [String: Any]) {
