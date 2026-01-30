@@ -714,15 +714,11 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
     }
 
     func setPhase(_ phase: String) {
-        // 前のフェーズの時間を合計に加算
-        if let startTime = phaseStartTime {
-            let phaseTime = Date().timeIntervalSince(startTime)
-            if currentPhase == "work" {
-                totalWorkTime += phaseTime
-            } else if currentPhase == "rest" {
-                totalRestTime += phaseTime
-            }
-        }
+        // Watch側では時間の加算を行わない（iPhone側が時間の真の所有者）
+        // iPhone→Watchの通知時に正確な時間データが送られてくるため、
+        // Watch側での独自計算は二重加算の原因となる
+
+        print("Watch WorkoutManager: 🔄 setPhase(\(phase)) - previous: \(currentPhase)")
 
         // 新しいフェーズを設定
         currentPhase = phase
@@ -731,6 +727,8 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
 
         // 注意: iPhoneへの通知はContentViewが責任を持つ（重複送信を避けるため）
         // notifyPhoneOfWorkout/sendWorkoutCommandToPhoneはここでは呼ばない
+
+        print("Watch WorkoutManager: ✅ Phase set to \(phase) - totalWork: \(Int(totalWorkTime))s, totalRest: \(Int(totalRestTime))s")
     }
 
     func applyPhaseChangeFromPhone(
@@ -742,8 +740,13 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
         previousPhase _: String?,
         previousPhaseDuration _: TimeInterval?
     ) {
+        print("Watch WorkoutManager: 📥 applyPhaseChangeFromPhone() - phase: \(phase)")
+        print("Watch WorkoutManager: Received - Work: \(totalWorkTime ?? -1)s, Rest: \(totalRestTime ?? -1)s")
+
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
+
+            print("Watch WorkoutManager: Before sync - Work: \(Int(self.totalWorkTime))s, Rest: \(Int(self.totalRestTime))s")
 
             if let totalWorkTime {
                 self.totalWorkTime = totalWorkTime
@@ -751,6 +754,8 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
             if let totalRestTime {
                 self.totalRestTime = totalRestTime
             }
+
+            print("Watch WorkoutManager: After sync - Work: \(Int(self.totalWorkTime))s, Rest: \(Int(self.totalRestTime))s")
 
             let aggregateElapsed: TimeInterval?
             if let elapsedTime {

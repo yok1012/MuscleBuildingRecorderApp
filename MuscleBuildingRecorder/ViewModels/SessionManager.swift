@@ -164,15 +164,23 @@ class SessionManager: ObservableObject {
         // Clear previous session result when starting new session
         lastCompletedSession = nil
 
-        currentSession = dataController.createSession()
-        currentPhase = .work
-        phaseStartTime = Date()
-        sessionStartTime = Date()
-        cycleIndex = 0
+        // 全ての時間変数を厳密に0で初期化（Watch同期の影響を受けないように）
+        let now = Date()
+        sessionStartTime = now
+        phaseStartTime = now
         totalWorkTime = 0
         totalRestTime = 0
         elapsedTime = 0
+        workTimeAccumulated = 0
+        restTimeAccumulated = 0
+        elapsedTimeString = "00:00"
+
+        currentSession = dataController.createSession()
+        currentPhase = .work
+        cycleIndex = 0
         startTimer()
+
+        print("SessionManager: 📊 Initial state - Work: \(totalWorkTime)s, Rest: \(totalRestTime)s, Accumulated: W=\(workTimeAccumulated)s R=\(restTimeAccumulated)s")
 
         // 心拍数ログの記録を開始
         heartRateLogManager.startNewSession()
@@ -200,7 +208,7 @@ class SessionManager: ObservableObject {
         }
     }
 
-    // Watchからの時間同期付きセッション開始
+    // Watchからの時間同期付きセッション開始（Watch先行開始時のみ使用）
     func startSessionWithTimeSync(totalWorkTime: TimeInterval, totalRestTime: TimeInterval) {
         print("SessionManager: 🎬 startSessionWithTimeSync() called")
         print("SessionManager: Synced times - Work: \(totalWorkTime)s, Rest: \(totalRestTime)s")
@@ -211,15 +219,26 @@ class SessionManager: ObservableObject {
             return
         }
 
+        // Watch先行開始時のみ有効なデータかチェック（0より大きい値がある場合のみ同期）
+        let hasValidWatchData = totalWorkTime > 0 || totalRestTime > 0
+
+        if !hasValidWatchData {
+            print("SessionManager: ⚠️ Watch data is zero - using normal startSession instead")
+            startSession()
+            return
+        }
+
         // 通常のセッション開始処理
         startSession()
 
-        // Watchからの時間データで上書き
+        // Watchからの時間データで上書き（Watch先行開始の場合のみ）
         self.totalWorkTime = totalWorkTime
         self.totalRestTime = totalRestTime
         self.elapsedTime = totalWorkTime + totalRestTime
+        self.workTimeAccumulated = totalWorkTime
+        self.restTimeAccumulated = totalRestTime
 
-        print("SessionManager: ✅ Session started with Watch time sync")
+        print("SessionManager: ✅ Session started with Watch time sync (Watch-initiated)")
     }
 
     // Watchからの時間データ同期
@@ -239,6 +258,14 @@ class SessionManager: ObservableObject {
         }
         if let completedPhaseIdentifier {
             print("SessionManager: Watch previous phase identifier: \(completedPhaseIdentifier)")
+        }
+
+        // セッション開始直後（5秒以内）の同期は無視（iPhone起動時の誤同期を防ぐ）
+        if let sessionStart = sessionStartTime,
+           Date().timeIntervalSince(sessionStart) < 5.0,
+           totalWorkTime == 0 && totalRestTime == 0 {
+            print("SessionManager: ⚠️ Ignoring zero sync shortly after session start (preventing false initialization)")
+            return
         }
 
         // Watchの時間データで更新
@@ -563,14 +590,16 @@ class SessionManager: ObservableObject {
         record.hrMin = hrStats.min
         record.hrSlopeAvg = heartRateManager.heartRateSlope
 
+        // 現在のフェーズ時間を累積変数に加算（フェーズ終了時のみ）
+        // 注意: updateElapsedTime()での毎秒計算とは別に、フェーズ完了時に確定値として保存
         if let startTime = phaseStartTime {
             let elapsed = Date().timeIntervalSince(startTime)
             if currentPhase == .work {
                 workTimeAccumulated += elapsed
-                totalWorkTime = workTimeAccumulated
+                print("SessionManager: 💾 Work phase completed - adding \(Int(elapsed))s to accumulated (total: \(Int(workTimeAccumulated))s)")
             } else {
                 restTimeAccumulated += elapsed
-                totalRestTime = restTimeAccumulated
+                print("SessionManager: 💾 Rest phase completed - adding \(Int(elapsed))s to accumulated (total: \(Int(restTimeAccumulated))s)")
             }
         }
 
