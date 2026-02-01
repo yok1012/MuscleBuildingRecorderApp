@@ -241,6 +241,23 @@ class SessionManager: ObservableObject {
             print("SessionManager: Watch previous phase identifier: \(completedPhaseIdentifier)")
         }
 
+        // 時間の競合解決: 経過時間が長い方を優先する
+        // Watchアプリ起動時などに、一時的に0秒や古い時間が送られてくる場合があるため、
+        // iPhone側が進んでいる場合はWatchからの同期を無視する
+        let incomingTotalTime = totalWorkTime + totalRestTime
+        let localTotalTime = self.totalWorkTime + self.totalRestTime
+        
+        // 許容する誤差（秒）
+        let tolerance: TimeInterval = 2.0
+        
+        if self.currentPhase != .idle && incomingTotalTime < (localTotalTime - tolerance) {
+            print("SessionManager: ⚠️ Ignoring time sync from Watch - Incoming (\(Int(incomingTotalTime))s) < Local (\(Int(localTotalTime))s)")
+            // ここでreturnすると、正当な時間リセット（もしあれば）も無視してしまうが、
+            // ワークアウト中は基本的に時間は増える一方なので、このロジックで安全。
+            // 完全にリセットしたい場合は endSession() 等を経由するはず。
+            return
+        }
+
         // Watchの時間データで更新
         self.totalWorkTime = totalWorkTime
         self.totalRestTime = totalRestTime
