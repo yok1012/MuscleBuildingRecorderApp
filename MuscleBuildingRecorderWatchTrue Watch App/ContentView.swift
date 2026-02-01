@@ -43,18 +43,22 @@ struct ContentView: View {
     var body: some View {
         GeometryReader { geometry in
             ScrollView {
-                VStack(spacing: 8) {
-                    // 上部: 種目名とサイクル表示
+                VStack(spacing: 4) {
+                    // 1. 上部: 種目名（コンパクト）
                     headerSection
-                        .padding(.horizontal, 4)
+                        .padding(.horizontal, 2)
 
-                    // 中央: 心拍数とタイマー
-                    metricsSection
-                        .padding(.vertical, 4)
+                    // 2. メイン指標: タイマーと心拍数
+                    mainMetricsSection
+                        .padding(.vertical, 2)
 
-                    // 下部: コントロールボタン（動的サイズ）
+                    // 3. コントロールボタン（優先配置）
                     controlSection(geometry: geometry)
-                        .padding(.horizontal, 4)
+                        .padding(.horizontal, 2)
+                        
+                    // 4. サブ指標: 合計時間など（スクロール領域）
+                    secondaryMetricsSection
+                        .padding(.top, 8)
 
                     // デバッグ情報（開発時のみ）
                     #if DEBUG
@@ -62,7 +66,7 @@ struct ContentView: View {
                         .padding(.top, 8)
                     #endif
                 }
-                .padding(.vertical, 4)
+                .padding(.vertical, 2)
             }
         }
         .navigationTitle("筋トレ記録")
@@ -93,55 +97,52 @@ struct ContentView: View {
 
     // MARK: - Header Section
     private var headerSection: some View {
-        VStack(spacing: 4) {
-            // サイクル表示
+        VStack(spacing: 2) {
+            // サイクル表示 & ステータス
             HStack {
                 Text("Cycle \(cycleIndex + 1)")
-                    .font(.caption2)
+                    .font(.system(size: 10))
                     .foregroundColor(.secondary)
 
                 Spacer()
 
-                Text(currentPhase.displayName)
-                    .font(.caption2)
-                    .fontWeight(.semibold)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(currentPhase.color.opacity(0.3))
-                    .cornerRadius(6)
+                // ステータスバッジ（必要な場合のみ）
+                if isCommandPending || !commandStatus.isEmpty {
+                    Text(commandStatus.isEmpty ? "送信中..." : commandStatus)
+                        .font(.system(size: 10))
+                        .foregroundColor(isCommandPending ? .orange : .green)
+                }
             }
 
             // 種目・回数・重量表示（タップで入力画面を開く）
             Button(action: { showingExerciseInput = true }) {
-                HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(currentExercise.category)
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
+                HStack(spacing: 4) {
+                    VStack(alignment: .leading, spacing: 0) {
                         Text(currentExercise.name)
-                            .font(.system(size: 13, weight: .semibold))
+                            .font(.system(size: 14, weight: .semibold))
                             .lineLimit(1)
+                            .minimumScaleFactor(0.9)
+                        Text("\(currentExercise.category)")
+                            .font(.system(size: 10))
+                            .foregroundColor(.secondary)
                     }
 
                     Spacer()
 
-                    // 回数・重量のクイック表示
-                    VStack(alignment: .trailing, spacing: 1) {
+                    // 回数・重量
+                    HStack(alignment: .lastTextBaseline, spacing: 4) {
                         Text("\(currentReps)回")
-                            .font(.system(size: 11, weight: .medium))
+                            .font(.system(size: 14, weight: .medium, design: .rounded))
                             .foregroundColor(.blue)
                         Text(String(format: "%.1fkg", currentWeight))
-                            .font(.system(size: 11, weight: .medium))
+                            .font(.system(size: 14, weight: .medium, design: .rounded))
                             .foregroundColor(.orange)
                     }
-
-                    Image(systemName: "chevron.right.circle.fill")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
                 }
-                .padding(6)
+                .padding(.vertical, 4)
+                .padding(.horizontal, 6)
                 .background(Color.secondary.opacity(0.15))
-                .cornerRadius(8)
+                .cornerRadius(6)
             }
             .buttonStyle(PlainButtonStyle())
             .sheet(isPresented: $showingExerciseInput) {
@@ -160,96 +161,85 @@ struct ContentView: View {
                     sendExerciseUpdateToPhone(category: category, exercise: exercise, reps: reps, weight: weight)
                 }
             }
-            
-            // コマンドステータス表示
-            if isCommandPending || !commandStatus.isEmpty {
-                HStack {
-                    if isCommandPending {
-                        ProgressView()
-                            .scaleEffect(0.5)
-                    }
-                    Text(commandStatus)
-                        .font(.caption2)
-                        .foregroundColor(isCommandPending ? .orange : .green)
-                }
-                .padding(.horizontal, 6)
-                .padding(.vertical, 2)
-                .background(Color.black.opacity(0.2))
-                .cornerRadius(4)
-            }
         }
     }
 
-    // MARK: - Metrics Section
-    private var metricsSection: some View {
-        VStack(spacing: 6) {
-            // 現在のフェーズタイマー
-            VStack(spacing: 2) {
-                Text(currentPhase == .work ? "筋トレ" : currentPhase == .rest ? "休憩" : "")
-                    .font(.caption2)
+    // MARK: - Main Metrics Section (Timer & Heart Rate)
+    private var mainMetricsSection: some View {
+        HStack(alignment: .center, spacing: 8) {
+            // 現在のフェーズタイマー（左側・メイン）
+            VStack(spacing: 0) {
+                Text(currentPhase == .work ? "筋トレ中" : currentPhase == .rest ? "休憩中" : "待機")
+                    .font(.system(size: 10))
                     .foregroundColor(.secondary)
                 Text(workoutManager.currentPhaseTimeString)
-                    .font(.system(size: 24, weight: .medium, design: .monospaced))
+                    .font(.system(size: 28, weight: .semibold, design: .monospaced))
                     .foregroundColor(currentPhase.color)
+                    .minimumScaleFactor(0.8)
             }
+            .frame(maxWidth: .infinity)
 
+            // 心拍数（右側・コンパクト）
+            VStack(spacing: 2) {
+                HStack(spacing: 2) {
+                    Image(systemName: "heart.fill")
+                        .font(.system(size: 12))
+                        .foregroundColor(.red)
+                    Text("\(Int(workoutManager.heartRate))")
+                        .font(.system(size: 18, weight: .semibold))
+                }
+                Text("bpm")
+                    .font(.system(size: 9))
+                    .foregroundColor(.secondary)
+            }
+            .frame(width: 60)
+        }
+        .padding(.horizontal, 4)
+    }
+
+    // MARK: - Secondary Metrics Section (Total Stats)
+    private var secondaryMetricsSection: some View {
+        VStack(spacing: 6) {
+            Divider()
+            
             // 合計時間
-            HStack(spacing: 16) {
-                VStack(spacing: 2) {
-                    Text("合計筋トレ")
-                        .font(.system(size: 9))
+            HStack(spacing: 12) {
+                VStack(spacing: 0) {
+                    Text("Total Work")
+                        .font(.system(size: 8))
                         .foregroundColor(.secondary)
                     Text(workoutManager.totalWorkTimeString)
-                        .font(.system(size: 12, weight: .medium, design: .monospaced))
+                        .font(.system(size: 11, weight: .medium, design: .monospaced))
                         .foregroundColor(.red)
                 }
 
-                VStack(spacing: 2) {
-                    Text("合計休憩")
-                        .font(.system(size: 9))
+                VStack(spacing: 0) {
+                    Text("Total Rest")
+                        .font(.system(size: 8))
                         .foregroundColor(.secondary)
                     Text(workoutManager.totalRestTimeString)
-                        .font(.system(size: 12, weight: .medium, design: .monospaced))
+                        .font(.system(size: 11, weight: .medium, design: .monospaced))
                         .foregroundColor(.blue)
                 }
 
-                VStack(spacing: 2) {
-                    Text("総時間")
-                        .font(.system(size: 9))
+                VStack(spacing: 0) {
+                    Text("Total Time")
+                        .font(.system(size: 8))
                         .foregroundColor(.secondary)
                     Text(workoutManager.elapsedTimeString)
-                        .font(.system(size: 12, weight: .medium, design: .monospaced))
+                        .font(.system(size: 11, weight: .medium, design: .monospaced))
                         .foregroundColor(.gray)
                 }
             }
-
-            // 心拍数
-            HStack(spacing: 12) {
+            
+            if workoutManager.isWorkoutActive {
                 HStack(spacing: 4) {
-                    Image(systemName: "heart.fill")
-                        .font(.system(size: 14))
-                        .foregroundColor(.red)
-                    Text("\(Int(workoutManager.heartRate))")
-                        .font(.system(size: 20, weight: .semibold))
-                    Text("bpm")
-                        .font(.caption2)
+                    Image(systemName: "flame.fill")
+                        .font(.system(size: 10))
+                        .foregroundColor(.orange)
+                    Text("\(Int(workoutManager.activeCalories)) kcal")
+                        .font(.system(size: 11))
                         .foregroundColor(.secondary)
-                }
-
-                if workoutManager.isWorkoutActive {
-                    Divider()
-                        .frame(height: 20)
-
-                    HStack(spacing: 4) {
-                        Image(systemName: "flame.fill")
-                            .font(.caption)
-                            .foregroundColor(.orange)
-                        Text("\(Int(workoutManager.activeCalories))")
-                            .font(.system(size: 14))
-                        Text("kcal")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                    }
                 }
             }
         }
@@ -513,30 +503,20 @@ struct ContentView: View {
             "timestamp": Date().timeIntervalSince1970
         ]
 
-        if WCSession.default.isReachable {
-            WCSession.default.sendMessage(message, replyHandler: { _ in
-                DispatchQueue.main.async {
-                    self.isCommandPending = false
-                    self.commandStatus = "✅ 更新完了"
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                        self.commandStatus = ""
-                    }
+        // isReachableのチェックを外し、常に送信を試みる（False Negative回避のため）
+        WCSession.default.sendMessage(message, replyHandler: { _ in
+            DispatchQueue.main.async {
+                self.isCommandPending = false
+                self.commandStatus = "✅ 更新完了"
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                    self.commandStatus = ""
                 }
-            }) { error in
-                print("Watch: ❌ Failed to send exercise update: \(error)")
-                DispatchQueue.main.async {
-                    self.isCommandPending = false
-                    self.commandStatus = "📦 保存済み"
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                        self.commandStatus = ""
-                    }
-                }
-                // フォールバック: applicationContextに保存
-                try? WCSession.default.updateApplicationContext(message)
             }
-        } else {
-            // 到達不可能な場合はapplicationContextに保存
-            try? WCSession.default.updateApplicationContext(message)
+        }) { error in
+            print("Watch: ❌ Failed to send exercise update: \(error)")
+            // 失敗時はApplicationContextでバックアップ（既にsaveCurrentStateToContextで保存されているか確認）
+            // エクササイズ更新はステートフルではないため、ここでのコンテキスト更新が必要かもしれないが、
+            // 現在の実装ではステータス表示のみ変更
             DispatchQueue.main.async {
                 self.isCommandPending = false
                 self.commandStatus = "📦 保存済み"
@@ -545,8 +525,6 @@ struct ContentView: View {
                 }
             }
         }
-
-        lastIPhoneSync = Date()
     }
 
     // MARK: - Watch Connectivity

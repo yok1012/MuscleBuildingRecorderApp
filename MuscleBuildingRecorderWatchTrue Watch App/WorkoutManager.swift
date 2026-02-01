@@ -452,19 +452,18 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
             message["previousPhaseDuration"] = previousPhaseDuration
         }
 
-        // applicationContextを更新（バックアップとして）
+        // applicationContextを更新（バックアップとして常に更新）
         updateApplicationContextWithMessage(message)
 
-        // 重要なコマンドの場合はsendMessageを使用
-        if session.isReachable && (command == "startSession" || command == "endSession" || command == "togglePhase" || command == "showExerciseSelection") {
+        // 重要なコマンドの場合は常にsendMessageを試みる
+        // isReachableがfalseでも、バックグラウンド起動の可能性があるため試行する（False Negative対策）
+        if (command == "startSession" || command == "endSession" || command == "togglePhase" || command == "showExerciseSelection") {
             session.sendMessage(message, replyHandler: { response in
                 print("Watch WorkoutManager: ✅ Command '\(command)' acknowledged by iPhone")
             }, errorHandler: { error in
                 print("Watch WorkoutManager: ❌ Failed to send command '\(command)': \(error.localizedDescription)")
-                // エラー時はapplicationContextで再試行（既に更新済み）
+                // エラー時はapplicationContextがバックアップとして機能する
             })
-        } else {
-            print("Watch WorkoutManager: 📦 iPhone not reachable, using applicationContext only")
         }
     }
 

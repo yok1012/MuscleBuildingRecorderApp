@@ -141,11 +141,6 @@
 			path = MuscleBuildingRecorderUITests;
 			sourceTree = "<group>";
 		};
-		BE2D1B592E91E05700E741F8 /* MuscleBuildingRecorderWatch */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = MuscleBuildingRecorderWatch;
-			sourceTree = "<group>";
-		};
 		BE2D1B682E91F5B100E741F8 /* MuscleBuildingRecorderWatchTrue Watch App */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
@@ -233,7 +228,6 @@
 				BE2D194F2E8D3F2300E741F8 /* MuscleBuildingRecorder */,
 				BE2D195D2E8D3F2400E741F8 /* MuscleBuildingRecorderTests */,
 				BE2D19672E8D3F2400E741F8 /* MuscleBuildingRecorderUITests */,
-				BE2D1B592E91E05700E741F8 /* MuscleBuildingRecorderWatch */,
 				BE2D1B682E91F5B100E741F8 /* MuscleBuildingRecorderWatchTrue Watch App */,
 				BE2D1B762E91F5B200E741F8 /* MuscleBuildingRecorderWatchTrue Watch AppTests */,
 				BEWIDGET062F16000000E741 /* WorkoutWidget */,
