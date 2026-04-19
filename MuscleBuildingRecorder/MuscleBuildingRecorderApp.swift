@@ -50,12 +50,18 @@ struct MuscleBuildingRecorderApp: App {
                     hasRequestedTracking = true
                     appDelegate.requestTrackingAuthorization()
                 }
-                // Widgetからのpendingコマンドを処理
-                handlePendingWidgetCommands()
-
                 // 保存されたセッション状態をチェック（初回のみ）
                 if !sessionManager.hasPendingSessionRestore && sessionManager.currentPhase == .idle {
                     sessionManager.loadSavedSessionState()
+                }
+
+                // スクリーンタイム制限の整合性チェック
+                // （セッション idle なのに shield が残っている矛盾状態を強制解除）
+                if #available(iOS 16.0, *) {
+                    ScreenTimeManager.shared.refreshAuthorizationStatus()
+                    ScreenTimeManager.shared.safetyCheckIfIdle(
+                        sessionActive: sessionManager.currentPhase != .idle
+                    )
                 }
 
             case .background:
@@ -73,42 +79,17 @@ struct MuscleBuildingRecorderApp: App {
         }
     }
 
-    // MARK: - Widget Commands Handling
-
-    /// App Groupに保存されたpendingコマンドを処理
-    private func handlePendingWidgetCommands() {
-        guard let userDefaults = UserDefaults(suiteName: "group.yokAppDev.MuscleBuildingRecorder") else { return }
-
-        // フェーズ切り替え
-        if userDefaults.bool(forKey: "pendingPhaseToggle") {
-            userDefaults.set(false, forKey: "pendingPhaseToggle")
-            print("iPhone App: 📱 Handling pendingPhaseToggle from Widget")
-            sessionManager.togglePhase()
-        }
-
-        // ワークアウト開始
-        if userDefaults.bool(forKey: "pendingStartWorkout") {
-            userDefaults.set(false, forKey: "pendingStartWorkout")
-            print("iPhone App: 📱 Handling pendingStartWorkout from Widget")
-            if sessionManager.currentPhase == .idle {
-                sessionManager.startSession()
-            }
-        }
-
-        // ワークアウト終了
-        if userDefaults.bool(forKey: "pendingEndWorkout") {
-            userDefaults.set(false, forKey: "pendingEndWorkout")
-            print("iPhone App: 📱 Handling pendingEndWorkout from Widget")
-            if sessionManager.currentPhase != .idle {
-                sessionManager.endSession()
-            }
-        }
-
-        userDefaults.synchronize()
-    }
-
     private func setupApp() {
         print("iPhone App: 🚀 Starting app setup...")
+
+        // スクリーンタイム制限の起動時 safety check
+        // （前回起動時に shield を張ったままクラッシュした等の場合、ここでクリアする）
+        if #available(iOS 16.0, *) {
+            ScreenTimeManager.shared.refreshAuthorizationStatus()
+            ScreenTimeManager.shared.safetyCheckIfIdle(
+                sessionActive: sessionManager.currentPhase != .idle
+            )
+        }
 
         // WatchConnectivityの初期化（重要！最初に実行）
         let watchService = WatchConnectivityService.shared

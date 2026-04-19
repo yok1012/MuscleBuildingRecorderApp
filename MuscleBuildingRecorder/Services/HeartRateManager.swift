@@ -39,6 +39,10 @@ class HeartRateManager: ObservableObject {
     private var lastWatchHeartRateTime: Date?
     private var watchHeartRateTimeoutTimer: Timer?
     private let watchHeartRateTimeoutInterval: TimeInterval = 10.0  // 10秒間Watch HRがなければフォールバック
+
+    /// Watch心拍数の重複排除用（sendMessageとupdateApplicationContextの両方から届く可能性がある）
+    private var lastWatchHRValue: Double = 0
+    private var lastWatchHRTime: Date?
     
     /// ローカルHealthKit監視が有効かどうか
     private var isLocalHealthKitActive: Bool = false
@@ -61,7 +65,15 @@ class HeartRateManager: ObservableObject {
             guard let self = self,
                   let heartRate = notification.userInfo?["heartRate"] as? Double,
                   heartRate > 0 else { return }
-            
+
+            // 重複排除: sendMessageとupdateApplicationContextの両方から同じ値が届く場合、1秒以内の同値は無視
+            if let t = self.lastWatchHRTime, Date().timeIntervalSince(t) < 1.0,
+               abs(heartRate - self.lastWatchHRValue) < 0.5 {
+                return
+            }
+            self.lastWatchHRValue = heartRate
+            self.lastWatchHRTime = Date()
+
             // Watchからの心拍数を受信
             self.lastWatchHeartRateTime = Date()
             self.isUsingWatchHeartRate = true

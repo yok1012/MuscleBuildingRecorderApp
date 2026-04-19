@@ -173,6 +173,7 @@ class WatchConnectivityService: NSObject, ObservableObject, WCSessionDelegate {
     func sendPhaseChange(phase: String, cycleIndex: Int,
                          totalWorkTime: TimeInterval, totalRestTime: TimeInterval,
                          elapsedTime: TimeInterval, currentPhaseTime: TimeInterval,
+                         phaseStartDate: Date?,
                          previousPhase: String?, previousPhaseDuration: TimeInterval?) {
         guard let session = session else { return }
 
@@ -187,6 +188,10 @@ class WatchConnectivityService: NSObject, ObservableObject, WCSessionDelegate {
             "timestamp": Date().timeIntervalSince1970
         ]
 
+        if let startDate = phaseStartDate {
+            message["phaseStartDate"] = startDate.timeIntervalSince1970
+        }
+
         if let previousPhase = previousPhase {
             message["previousPhase"] = previousPhase
         }
@@ -194,10 +199,75 @@ class WatchConnectivityService: NSObject, ObservableObject, WCSessionDelegate {
             message["previousPhaseDuration"] = previousPhaseDuration
         }
 
-        // reachableな場合のみ送信（過剰な通信を防ぐ）
+        // applicationContext をフォールバックとして常に更新
+        // （Watch unreachable 時にもフェーズ変更が届くようにする）
+        do {
+            try session.updateApplicationContext(message)
+        } catch {
+            print("iPhone: Failed to update phase change context: \(error)")
+        }
+
+        // reachable な場合は即座に送信
         if session.isReachable {
             session.sendMessage(message, replyHandler: nil, errorHandler: nil)
         }
+    }
+
+    /// iPhoneでセッション中なら、Watchに現在の状態をプッシュ
+    /// Watch後追い起動時に状態を同期するために使用
+    func pushCurrentStateToWatchIfNeeded() {
+        guard let session = session, session.isReachable else { return }
+
+        let sessionManager = SessionManager.shared
+        guard sessionManager.currentPhase != .idle else {
+            print("iPhone: No active session to push to Watch")
+            return
+        }
+
+        // 現在のフェーズ時間を計算
+        let currentPhaseTime: TimeInterval
+        if let phaseStart = sessionManager.phaseStartTime {
+            currentPhaseTime = Date().timeIntervalSince(phaseStart)
+        } else {
+            currentPhaseTime = 0
+        }
+
+        var message: [String: Any] = [
+            "type": WatchMessageType.phaseChange.rawValue,
+            "phase": sessionManager.currentPhase.rawValue,
+            "cycleIndex": sessionManager.cycleIndex,
+            "totalWorkTime": sessionManager.totalWorkTime,
+            "totalRestTime": sessionManager.totalRestTime,
+            "elapsedTime": sessionManager.elapsedTime,
+            "currentPhaseTime": currentPhaseTime,
+            "timestamp": Date().timeIntervalSince1970,
+            "isFullStateSync": true  // Watch側で完全同期と判別するためのフラグ
+        ]
+
+        if let phaseStart = sessionManager.phaseStartTime {
+            message["phaseStartDate"] = phaseStart.timeIntervalSince1970
+        }
+
+        // sendMessage で即座に送信
+        session.sendMessage(message, replyHandler: { _ in
+            print("iPhone: ✅ Pushed current state to Watch")
+        }, errorHandler: { error in
+            print("iPhone: ❌ Failed to push state to Watch: \(error.localizedDescription)")
+        })
+
+        // 種目情報も送信
+        sendExerciseChange(
+            category: sessionManager.selectedCategory,
+            exercise: sessionManager.selectedExercise
+        )
+
+        print("iPhone: 📤 Pushed session state to Watch - phase: \(sessionManager.currentPhase.rawValue), work: \(Int(sessionManager.totalWorkTime))s, rest: \(Int(sessionManager.totalRestTime))s")
+    }
+
+    /// Watchからの状態リクエストに応答
+    private func handleStateRequestFromWatch() {
+        print("iPhone: 📥 State request received from Watch")
+        pushCurrentStateToWatchIfNeeded()
     }
 
     func checkWatchAvailability(completion: @escaping (Bool) -> Void) {
@@ -274,13 +344,18 @@ class WatchConnectivityService: NSObject, ObservableObject, WCSessionDelegate {
             let isReachable = session.isReachable
             self?.isWatchConnected = isReachable
             self?.watchStatus = isReachable ? "接続済み" : "待機中"
-            
+
             // HeartRateManagerにWatch接続状態の変化を通知
             NotificationCenter.default.post(
                 name: NSNotification.Name("WatchReachabilityChanged"),
                 object: nil,
                 userInfo: ["isReachable": isReachable]
             )
+
+            // Watchが接続されたら、iPhoneの現在のセッション状態をプッシュ
+            if isReachable {
+                self?.pushCurrentStateToWatchIfNeeded()
+            }
         }
     }
 
@@ -362,6 +437,7 @@ class WatchConnectivityService: NSObject, ObservableObject, WCSessionDelegate {
                 let totalRestTime = context["totalRestTime"] as? TimeInterval ?? 0
                 let currentPhase = context["currentPhase"] as? String ?? "idle"
                 let currentPhaseTime = context["currentPhaseTime"] as? TimeInterval
+                let phaseStartDate = context["phaseStartDate"] as? TimeInterval
                 let previousPhase = context["previousPhase"] as? String
                 let previousPhaseDuration = context["previousPhaseDuration"] as? TimeInterval
 
@@ -372,6 +448,7 @@ class WatchConnectivityService: NSObject, ObservableObject, WCSessionDelegate {
                         totalRestTime: totalRestTime,
                         currentPhase: currentPhase,
                         currentPhaseTime: currentPhaseTime,
+                        phaseStartDate: phaseStartDate,
                         previousPhase: previousPhase,
                         previousPhaseDuration: previousPhaseDuration
                     )
@@ -396,19 +473,31 @@ class WatchConnectivityService: NSObject, ObservableObject, WCSessionDelegate {
             // フェーズは同期しない（currentPhaseIdentifier: nil）
             // 時間データのみ同期する
             let currentPhaseTime = context["currentPhaseTime"] as? TimeInterval
+            let watchCurrentPhase = context["currentPhase"] as? String
 
             DispatchQueue.main.async {
                 SessionManager.shared.syncTimeFromWatch(
                     totalWorkTime: totalWorkTime,
                     totalRestTime: totalRestTime,
                     currentPhaseIdentifier: nil,  // フェーズは変更しない
-                    currentPhaseTime: currentPhaseTime
+                    currentPhaseTime: currentPhaseTime,
+                    watchCurrentPhase: watchCurrentPhase
                 )
             }
         }
 
-        // Note: 心拍数はiPhone側でHealthKitから直接取得するため、
-        // Watch経由の心拍データは処理しない（安定性向上のため）
+        // 心拍データの処理（updateApplicationContext経由でも心拍を受信）
+        if let heartRate = context["heartRate"] as? Double, heartRate > 0 {
+            DispatchQueue.main.async { [weak self] in
+                self?.watchHeartRate = heartRate
+                self?.watchStatus = "\(Int(heartRate)) BPM"
+                NotificationCenter.default.post(
+                    name: WatchConnectivityService.heartRateDidUpdateNotification,
+                    object: nil,
+                    userInfo: ["heartRate": heartRate]
+                )
+            }
+        }
 
         // 経過時間の処理
         if let elapsedTime = context["elapsedTime"] as? TimeInterval {
@@ -508,6 +597,10 @@ class WatchConnectivityService: NSObject, ObservableObject, WCSessionDelegate {
                     // Watchからの現在状態同期（スタンドアロンモードからの復帰）
                     self.handleSyncStateFromWatch(payload)
 
+                case "requestState":
+                    // Watchからの状態リクエスト（後追い起動時）
+                    self.handleStateRequestFromWatch()
+
                 case "exerciseUpdate":
                     // Watchから種目・回数・重量の更新を受信
                     self.handleExerciseUpdateFromWatch(payload)
@@ -541,6 +634,7 @@ class WatchConnectivityService: NSObject, ObservableObject, WCSessionDelegate {
                         let totalRestTime = payload["totalRestTime"] as? TimeInterval ?? 0
                         let currentPhase = payload["currentPhase"] as? String ?? "idle"
                         let currentPhaseTime = payload["currentPhaseTime"] as? TimeInterval
+                        let phaseStartDate = payload["phaseStartDate"] as? TimeInterval
                         let previousPhase = payload["previousPhase"] as? String
                         let previousPhaseDuration = payload["previousPhaseDuration"] as? TimeInterval
 
@@ -550,6 +644,7 @@ class WatchConnectivityService: NSObject, ObservableObject, WCSessionDelegate {
                             totalRestTime: totalRestTime,
                             currentPhase: currentPhase,
                             currentPhaseTime: currentPhaseTime,
+                            phaseStartDate: phaseStartDate,
                             previousPhase: previousPhase,
                             previousPhaseDuration: previousPhaseDuration
                         )
@@ -717,7 +812,8 @@ class WatchConnectivityService: NSObject, ObservableObject, WCSessionDelegate {
                 currentPhaseIdentifier: nil,  // フェーズは変更しない
                 currentPhaseTime: payload["currentPhaseTime"] as? TimeInterval,
                 completedPhaseIdentifier: nil,
-                completedPhaseDuration: nil
+                completedPhaseDuration: nil,
+                watchCurrentPhase: payload["currentPhase"] as? String
             )
         }
 
@@ -727,8 +823,16 @@ class WatchConnectivityService: NSObject, ObservableObject, WCSessionDelegate {
             watchElapsedTimeString = formatTime(elapsedTime)
         }
 
-        // Note: 心拍数はiPhone側でHealthKitから直接取得するため、
-        // Watch経由の心拍データは処理しない（安定性向上のため）
+        // 心拍データの処理（updateApplicationContext経由でも心拍を受信）
+        if let heartRate = payload["heartRate"] as? Double, heartRate > 0 {
+            self.watchHeartRate = heartRate
+            self.watchStatus = "\(Int(heartRate)) BPM"
+            NotificationCenter.default.post(
+                name: WatchConnectivityService.heartRateDidUpdateNotification,
+                object: nil,
+                userInfo: ["heartRate": heartRate]
+            )
+        }
     }
 
     /// コマンド確認応答をWatchに送信
@@ -745,8 +849,16 @@ class WatchConnectivityService: NSObject, ObservableObject, WCSessionDelegate {
     }
 
     private func processLegacyMessage(_ payload: [String: Any]) {
-        // Note: 心拍数はiPhone側でHealthKitから直接取得するため、
-        // Watch経由の心拍データは処理しない（安定性向上のため）
+        // 心拍データの処理（updateApplicationContext経由でも心拍を受信）
+        if let heartRate = payload["heartRate"] as? Double, heartRate > 0 {
+            self.watchHeartRate = heartRate
+            self.watchStatus = "\(Int(heartRate)) BPM"
+            NotificationCenter.default.post(
+                name: WatchConnectivityService.heartRateDidUpdateNotification,
+                object: nil,
+                userInfo: ["heartRate": heartRate]
+            )
+        }
 
         // 経過時間の処理
         if let elapsedTime = payload["elapsedTime"] as? TimeInterval {
@@ -762,7 +874,8 @@ class WatchConnectivityService: NSObject, ObservableObject, WCSessionDelegate {
                 totalWorkTime: totalWorkTime,
                 totalRestTime: totalRestTime,
                 currentPhaseIdentifier: nil,  // フェーズは変更しない
-                currentPhaseTime: payload["currentPhaseTime"] as? TimeInterval
+                currentPhaseTime: payload["currentPhaseTime"] as? TimeInterval,
+                watchCurrentPhase: payload["currentPhase"] as? String
             )
         }
 
@@ -794,6 +907,7 @@ class WatchConnectivityService: NSObject, ObservableObject, WCSessionDelegate {
                                                 totalRestTime: TimeInterval,
                                                 currentPhase: String,
                                                 currentPhaseTime: TimeInterval?,
+                                                phaseStartDate: TimeInterval?,
                                                 previousPhase: String?,
                                                 previousPhaseDuration: TimeInterval?) {
         let sessionManager = SessionManager.shared
@@ -822,8 +936,9 @@ class WatchConnectivityService: NSObject, ObservableObject, WCSessionDelegate {
         case "endSession":
             if sessionManager.currentPhase != .idle {
                 sessionManager.endSession()
+                sessionManager.sessionEndedFromWatch = true
                 #if DEBUG
-                print("📱 iPhone: Ended session")
+                print("📱 iPhone: Ended session from Watch")
                 #endif
             }
 
@@ -834,6 +949,7 @@ class WatchConnectivityService: NSObject, ObservableObject, WCSessionDelegate {
                 totalRestTime: totalRestTime,
                 currentPhaseIdentifier: nil,  // フェーズは下で適用するので、ここでは設定しない
                 currentPhaseTime: currentPhaseTime,
+                phaseStartDate: phaseStartDate,
                 completedPhaseIdentifier: previousPhase,
                 completedPhaseDuration: previousPhaseDuration
             )

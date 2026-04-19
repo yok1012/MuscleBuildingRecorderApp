@@ -1,22 +1,14 @@
+//
+//  WorkoutLiveActivityWidget.swift
+//  WorkoutWidget
+//
+//  Dynamic Island / ロック画面 Live Activity の UI 構成。
+//  ActivityAttributes 本体の定義は WorkoutAttributes.swift に切り出し済み。
+//
+
 import ActivityKit
 import WidgetKit
 import SwiftUI
-
-// MARK: - Workout Attributes (Live Activity用)
-struct WorkoutAttributes: ActivityAttributes {
-    public struct ContentState: Codable, Hashable {
-        var phase: String  // "Work" or "Rest"
-        var elapsedTime: String
-        var heartRate: Int
-        var cycleIndex: Int
-        var exercise: String
-        var category: String
-        var load: Double
-        var reps: Double
-    }
-
-    var exerciseName: String
-}
 
 // MARK: - Live Activity Widget
 struct WorkoutLiveActivity: Widget {
@@ -24,14 +16,14 @@ struct WorkoutLiveActivity: Widget {
         ActivityConfiguration(for: WorkoutAttributes.self) { context in
             // Lock Screen / Banner UI
             LockScreenLiveActivityView(context: context)
-                .activityBackgroundTint(Color.black.opacity(0.8))
+                .activityBackgroundTint(Color.black.opacity(0.85))
                 .activitySystemActionForegroundColor(Color.white)
 
         } dynamicIsland: { context in
             DynamicIsland {
-                // Expanded UI
+                // Expanded
                 DynamicIslandExpandedRegion(.leading) {
-                    HStack {
+                    HStack(spacing: 6) {
                         Image(systemName: context.state.phase == "Work" ? "dumbbell.fill" : "pause.circle.fill")
                             .foregroundColor(context.state.phase == "Work" ? .red : .blue)
                         Text(context.state.phase == "Work" ? "筋トレ" : "休憩")
@@ -41,8 +33,8 @@ struct WorkoutLiveActivity: Widget {
                 }
 
                 DynamicIslandExpandedRegion(.trailing) {
-                    VStack(alignment: .trailing) {
-                        HStack {
+                    VStack(alignment: .trailing, spacing: 2) {
+                        HStack(spacing: 2) {
                             Image(systemName: "heart.fill")
                                 .font(.caption2)
                                 .foregroundColor(.red)
@@ -57,20 +49,20 @@ struct WorkoutLiveActivity: Widget {
                 }
 
                 DynamicIslandExpandedRegion(.center) {
-                    VStack {
-                        Text(context.state.elapsedTime)
+                    VStack(spacing: 2) {
+                        liveTimer(context: context)
                             .font(.title2)
-                            .fontWeight(.medium)
+                            .fontWeight(.semibold)
                             .monospacedDigit()
-                        Text("\(context.state.category) - \(context.state.exercise)")
-                            .font(.caption)
+                        Text("\(context.state.category) / \(context.state.exercise)")
+                            .font(.caption2)
                             .opacity(0.8)
+                            .lineLimit(1)
                     }
                 }
 
                 DynamicIslandExpandedRegion(.bottom) {
                     HStack {
-                        // 重量と回数
                         if context.state.load > 0 {
                             Text("\(Int(context.state.load))kg × \(Int(context.state.reps))回")
                                 .font(.caption2)
@@ -83,34 +75,32 @@ struct WorkoutLiveActivity: Widget {
                     }
                 }
             } compactLeading: {
-                // Compact leading
-                HStack {
-                    Image(systemName: context.state.phase == "Work" ? "dumbbell.fill" : "pause.circle.fill")
-                        .font(.caption)
-                        .foregroundColor(context.state.phase == "Work" ? .red : .blue)
-                    Text(context.state.elapsedTime)
-                        .font(.caption2)
-                        .fontWeight(.medium)
-                        .monospacedDigit()
-                }
+                Image(systemName: context.state.phase == "Work" ? "dumbbell.fill" : "pause.circle.fill")
+                    .font(.caption)
+                    .foregroundColor(context.state.phase == "Work" ? .red : .blue)
             } compactTrailing: {
-                // Compact trailing
-                HStack {
-                    Image(systemName: "heart.fill")
-                        .font(.caption2)
-                        .foregroundColor(.red)
-                    Text("\(context.state.heartRate)")
-                        .font(.caption2)
-                        .fontWeight(.medium)
-                }
+                liveTimer(context: context)
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .monospacedDigit()
+                    .frame(minWidth: 44, alignment: .trailing)
             } minimal: {
-                // Minimal
                 Image(systemName: context.state.phase == "Work" ? "dumbbell.fill" : "pause.circle.fill")
                     .font(.caption)
                     .foregroundColor(context.state.phase == "Work" ? .red : .blue)
             }
             .widgetURL(URL(string: "workoutapp://timer"))
             .keylineTint(context.state.phase == "Work" ? .red : .blue)
+        }
+    }
+
+    /// フェーズ開始時刻が来ていれば OS ネイティブのライブタイマーを使い、秒単位で自動更新する。
+    @ViewBuilder
+    private func liveTimer(context: ActivityViewContext<WorkoutAttributes>) -> some View {
+        if let start = context.state.phaseStartTime {
+            Text(start, style: .timer)
+        } else {
+            Text(context.state.elapsedTime)
         }
     }
 }
@@ -120,53 +110,55 @@ struct LockScreenLiveActivityView: View {
     let context: ActivityViewContext<WorkoutAttributes>
 
     var body: some View {
-        VStack {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack {
-                        Image(systemName: context.state.phase == "Work" ? "dumbbell.fill" : "pause.circle.fill")
-                            .foregroundColor(context.state.phase == "Work" ? .red : .blue)
-                        Text(context.state.phase == "Work" ? "筋トレ中" : "休憩中")
-                            .font(.headline)
-                            .fontWeight(.bold)
-                    }
-
-                    Text("\(context.state.category) - \(context.state.exercise)")
-                        .font(.subheadline)
-                        .opacity(0.8)
-
-                    if context.state.load > 0 {
-                        Text("\(Int(context.state.load))kg × \(Int(context.state.reps))回")
-                            .font(.caption)
-                            .opacity(0.7)
-                    }
-
-                    Text("セット \(context.state.cycleIndex + 1)")
-                        .font(.caption)
-                        .opacity(0.6)
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 6) {
+                    Image(systemName: context.state.phase == "Work" ? "dumbbell.fill" : "pause.circle.fill")
+                        .foregroundColor(context.state.phase == "Work" ? .red : .blue)
+                    Text(context.state.phase == "Work" ? "筋トレ中" : "休憩中")
+                        .font(.headline)
+                        .fontWeight(.bold)
                 }
+                Text("\(context.state.category) / \(context.state.exercise)")
+                    .font(.subheadline)
+                    .opacity(0.85)
+                    .lineLimit(1)
+                if context.state.load > 0 {
+                    Text("\(Int(context.state.load))kg × \(Int(context.state.reps))回")
+                        .font(.caption)
+                        .opacity(0.75)
+                }
+                Text("セット \(context.state.cycleIndex + 1)")
+                    .font(.caption)
+                    .opacity(0.6)
+            }
 
-                Spacer()
+            Spacer()
 
-                VStack(alignment: .trailing, spacing: 4) {
+            VStack(alignment: .trailing, spacing: 4) {
+                if let start = context.state.phaseStartTime {
+                    Text(start, style: .timer)
+                        .font(.title)
+                        .fontWeight(.semibold)
+                        .monospacedDigit()
+                } else {
                     Text(context.state.elapsedTime)
                         .font(.title)
                         .fontWeight(.semibold)
                         .monospacedDigit()
-
-                    HStack {
-                        Image(systemName: "heart.fill")
-                            .font(.caption)
-                            .foregroundColor(.red)
-                        Text("\(context.state.heartRate) bpm")
-                            .font(.caption)
-                            .fontWeight(.medium)
-                    }
+                }
+                HStack(spacing: 4) {
+                    Image(systemName: "heart.fill")
+                        .font(.caption)
+                        .foregroundColor(.red)
+                    Text("\(context.state.heartRate) bpm")
+                        .font(.caption)
+                        .fontWeight(.medium)
                 }
             }
-            .padding()
         }
+        .padding()
         .activitySystemActionForegroundColor(.white)
-        .activityBackgroundTint(context.state.phase == "Work" ? Color.red.opacity(0.3) : Color.blue.opacity(0.3))
+        .activityBackgroundTint(context.state.phase == "Work" ? Color.red.opacity(0.25) : Color.blue.opacity(0.25))
     }
 }

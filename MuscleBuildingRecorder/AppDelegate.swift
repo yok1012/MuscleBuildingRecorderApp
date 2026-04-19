@@ -34,11 +34,6 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         return true
     }
 
-    func applicationDidBecomeActive(_ application: UIApplication) {
-        // ATTリクエストはアプリがアクティブになった後に行う必要がある
-        requestTrackingAuthorization()
-    }
-
     /// App Tracking Transparency (ATT) 許可リクエスト
     /// SwiftUI ScenePhaseから呼び出し可能
     func requestTrackingAuthorization() {

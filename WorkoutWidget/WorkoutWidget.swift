@@ -17,8 +17,9 @@ struct WorkoutTimelineProvider: TimelineProvider {
         let state = WidgetStateStore.loadStateFromAppGroup()
         let entry = WorkoutEntry(date: Date(), state: state)
 
-        // 次の更新は30秒後
-        let nextUpdate = Calendar.current.date(byAdding: .second, value: 30, to: Date())!
+        // アクティブ時は15秒後、アイドル時は5分後に次回更新
+        let updateInterval: Int = state.isActive ? 15 : 300
+        let nextUpdate = Calendar.current.date(byAdding: .second, value: updateInterval, to: Date())!
         let timeline = Timeline(entries: [entry], policy: .after(nextUpdate))
         completion(timeline)
     }
@@ -34,6 +35,32 @@ struct WorkoutEntry: TimelineEntry {
 struct WorkoutWidgetEntryView: View {
     var entry: WorkoutTimelineProvider.Entry
     @Environment(\.widgetFamily) var family
+
+    // フェーズ開始時刻を逆算（timestamp - currentPhaseTime）
+    private var phaseStartDate: Date {
+        entry.state.timestamp.addingTimeInterval(-Double(entry.state.currentPhaseTime))
+    }
+
+    // セッション開始時刻を逆算（totalWork + totalRest の合計を引く）
+    private var sessionStartDate: Date {
+        let totalElapsed = entry.state.totalWorkTime + entry.state.totalRestTime
+        return entry.state.timestamp.addingTimeInterval(-Double(totalElapsed))
+    }
+
+    // 休憩終了予定時刻（countdown用）
+    private var restEndDate: Date? {
+        guard entry.state.phase == "rest",
+              let target = entry.state.targetRestTime else { return nil }
+        let remaining = target - entry.state.currentPhaseTime
+        return entry.state.timestamp.addingTimeInterval(Double(remaining))
+    }
+
+    // 休憩超過フラグ（スナップショット時点で超過しているか）
+    private var isRestExceeded: Bool {
+        guard entry.state.phase == "rest",
+              let target = entry.state.targetRestTime else { return false }
+        return entry.state.currentPhaseTime >= target
+    }
 
     var body: some View {
         switch family {
@@ -54,10 +81,20 @@ struct WorkoutWidgetEntryView: View {
         }
     }
 
+    // MARK: - Live Timer View（アクティブ時はOSが管理するライブタイマー）
+    @ViewBuilder
+    private var liveTimerText: some View {
+        if entry.state.isActive {
+            Text(phaseStartDate, style: .timer)
+        } else {
+            Text("00:00")
+        }
+    }
+
     // MARK: - Small Widget
     private var smallWidgetView: some View {
         VStack(spacing: 8) {
-            // Phase indicator
+            // フェーズ表示（表示専用。切替は本体アプリで行う）
             HStack {
                 Circle()
                     .fill(phaseColor)
@@ -68,8 +105,8 @@ struct WorkoutWidgetEntryView: View {
                 Spacer()
             }
 
-            // Timer
-            Text(entry.state.elapsedTimeString)
+            // Timer（アクティブ時はライブ更新）
+            liveTimerText
                 .font(.system(size: 32, weight: .bold, design: .monospaced))
                 .minimumScaleFactor(0.7)
 
@@ -105,6 +142,7 @@ struct WorkoutWidgetEntryView: View {
         HStack(spacing: 16) {
             // Left: Timer and Phase
             VStack(alignment: .leading, spacing: 8) {
+                // フェーズ表示（表示専用。切替は本体アプリで行う）
                 HStack {
                     Circle()
                         .fill(phaseColor)
@@ -114,14 +152,21 @@ struct WorkoutWidgetEntryView: View {
                         .fontWeight(.bold)
                 }
 
-                Text(entry.state.elapsedTimeString)
+                // Timer（アクティブ時はライブ更新）
+                liveTimerText
                     .font(.system(size: 36, weight: .bold, design: .monospaced))
                     .minimumScaleFactor(0.7)
 
-                if entry.state.phase == "rest", let remaining = entry.state.restRemainingTime {
-                    Text("残り \(formatTime(remaining))")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                // 休憩残り時間（ライブカウントダウン）
+                if let restEnd = restEndDate {
+                    HStack(spacing: 4) {
+                        Text(isRestExceeded ? "超過" : "残り")
+                            .font(.caption)
+                            .foregroundColor(isRestExceeded ? .orange : .secondary)
+                        Text(restEnd, style: .timer)
+                            .font(.caption)
+                            .foregroundColor(isRestExceeded ? .orange : .secondary)
+                    }
                 }
             }
 
@@ -192,14 +237,20 @@ struct WorkoutWidgetEntryView: View {
                     .foregroundColor(.secondary)
             }
 
-            // Timer
-            Text(entry.state.elapsedTimeString)
+            // Timer（アクティブ時はライブ更新）
+            liveTimerText
                 .font(.system(size: 56, weight: .bold, design: .monospaced))
 
-            if entry.state.phase == "rest", let remaining = entry.state.restRemainingTime {
-                Text("残り \(formatTime(remaining))")
-                    .font(.headline)
-                    .foregroundColor(.orange)
+            // 休憩残り時間（ライブカウントダウン）
+            if let restEnd = restEndDate {
+                HStack(spacing: 4) {
+                    Text(isRestExceeded ? "超過" : "残り")
+                        .font(.headline)
+                        .foregroundColor(isRestExceeded ? .orange : .secondary)
+                    Text(restEnd, style: .timer)
+                        .font(.headline)
+                        .foregroundColor(isRestExceeded ? .orange : .secondary)
+                }
             }
 
             Divider()
@@ -248,9 +299,15 @@ struct WorkoutWidgetEntryView: View {
             VStack(spacing: 2) {
                 Image(systemName: entry.state.phase == "work" ? "flame.fill" : "bed.double.fill")
                     .font(.title3)
-                Text(entry.state.elapsedTimeString)
-                    .font(.caption2)
-                    .fontWeight(.bold)
+                if entry.state.isActive {
+                    Text(phaseStartDate, style: .timer)
+                        .font(.caption2)
+                        .fontWeight(.bold)
+                } else {
+                    Text("00:00")
+                        .font(.caption2)
+                        .fontWeight(.bold)
+                }
             }
         }
     }
@@ -262,9 +319,15 @@ struct WorkoutWidgetEntryView: View {
                 Text(entry.state.phaseDisplayName)
                     .fontWeight(.semibold)
             }
-            Text(entry.state.elapsedTimeString)
-                .font(.title2)
-                .fontWeight(.bold)
+            if entry.state.isActive {
+                Text(phaseStartDate, style: .timer)
+                    .font(.title2)
+                    .fontWeight(.bold)
+            } else {
+                Text("00:00")
+                    .font(.title2)
+                    .fontWeight(.bold)
+            }
             if entry.state.heartRate > 0 {
                 Text("\(entry.state.heartRate) bpm")
                     .font(.caption)
@@ -275,7 +338,12 @@ struct WorkoutWidgetEntryView: View {
     private var accessoryInlineView: some View {
         HStack(spacing: 4) {
             Image(systemName: entry.state.phase == "work" ? "flame.fill" : "bed.double.fill")
-            Text("\(entry.state.phaseDisplayName) \(entry.state.elapsedTimeString)")
+            Text(entry.state.phaseDisplayName)
+            if entry.state.isActive {
+                Text(phaseStartDate, style: .timer)
+            } else {
+                Text("00:00")
+            }
         }
     }
 

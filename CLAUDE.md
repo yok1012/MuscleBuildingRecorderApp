@@ -135,6 +135,24 @@ swift build --package-path . -c debug --target WorkoutTimerCore
 - Provides logs by cycle/phase for analysis
 - Property access: `currentSessionLogs` (not `getLogs()`)
 
+**HeartRateCSVLogger** (`/Services/HeartRateCSVLogger.swift`)
+- Records heart rate time-series to CSV with phase/exercise info
+- Appends exercise metadata retroactively at phase transitions
+- Writes to `Documents/SensorLogs/heartrate_yyyyMMdd.csv`
+- CSV fields: timestamp_ms, datetime, heartRate, phase, cycleIndex, category, exercise, reps, load, note
+
+**RestNotificationScheduler** (`/Services/RestNotificationScheduler.swift`)
+- Schedules UNUserNotification alerts during rest phases
+- Supports configurable multi-interval notifications (e.g., at 30s, 60s)
+- Cross-platform: `#if os(iOS)` / `#if os(watchOS)` conditionals
+- Authorization check via `checkAuthorizationStatus()`, request via `requestAuthorization()`
+
+**WidgetStateStore** (`/Services/WidgetStateStore.swift`)
+- Bridges workout state to home screen widget and Live Activity
+- Persists `WorkoutStateSnapshot` via App Group UserDefaults
+- Throttles widget refreshes (minimum 30s interval) via `updateApplicationContext`
+- Widget reads state via static `loadStateFromAppGroup()` method
+
 ### Watch App Architecture
 
 **WorkoutManager** (`MuscleBuildingRecorderWatchTrue Watch App/WorkoutManager.swift`)
@@ -159,6 +177,11 @@ swift build --package-path . -c debug --target WorkoutTimerCore
 - Continues sensor collection when backgrounded
 - Requires `import Combine` for @Published properties
 - Automatic cleanup on session end
+
+**WatchLocalStorage** (`MuscleBuildingRecorderWatchTrue Watch App/WatchLocalStorage.swift`)
+- Local Watch-only session persistence (for standalone workouts without iPhone)
+- Stores `WorkoutSessionData` (phases, heart rate samples, sensor samples) to JSON
+- Enables Watch to operate fully offline and sync later
 
 ### Data Model (Core Data)
 
@@ -213,6 +236,10 @@ All implement `HeartRateSource` protocol with `PassthroughSubject<Double, Never>
 - Sensor timestamps in milliseconds since epoch
 - WatchDebugView available in DEBUG builds only
 - Live Activities throttled to 1Hz for battery
+- Session state persisted to UserDefaults as `SessionPersistenceState` for recovery after app kill
+- Auto phase detection: `autoPhaseDetectionEnabled` compares HR against `heartRateBaseline` and suggests phase changes via `suggestedPhase`
+- Rest time limit: `restTimeLimit` (seconds); `isRestTimeExceeded` flag triggers UI alerts and notifications
+- App Group identifier: `group.yokAppDev.MuscleBuildingRecorder` (shared between main app, widget, and Watch)
 
 ### Critical Property Access
 - SensorLogManager: `logDirectory` must be internal/public (not private)
@@ -256,20 +283,31 @@ All implement `HeartRateSource` protocol with `PassthroughSubject<Double, Never>
 
 ```
 MuscleBuildingRecorder/
-├── MuscleBuildingRecorder/          # iOS app
-│   ├── Models/                      # Data models & HeartRateLog
+├── MuscleBuildingRecorder/          # iOS app (primary active target)
+│   ├── Models/                      # Data models, SharedModels, HeartRateLog
 │   ├── ViewModels/                  # SessionManager
-│   ├── Views/                       # UI components & MultiDayExportView
-│   ├── Services/                    # Heart rate & sensor services
-│   ├── Utils/                       # CSV/JSON exporters
+│   ├── Views/                       # UI components, MultiDayExportView, PurchaseView
+│   ├── Services/                    # HeartRateManager, WatchConnectivity, SensorLogManager,
+│   │                                #   HeartRateCSVLogger, RestNotificationScheduler,
+│   │                                #   WidgetStateStore, ProUserManager, RewardedAdManager
+│   ├── Utils/                       # CSV/JSON exporters, ShareSheet, ViewExtensions
 │   └── Data/                        # Core Data controller
-├── MuscleBuildingRecorderWatchTrue Watch App/  # Watch app
+├── MuscleBuildingRecorderWatchTrue Watch App/  # Watch app (primary active target)
 │   ├── WorkoutManager.swift         # HK workout session
 │   ├── WatchMotionStreamer.swift    # Sensor collection
-│   └── BackgroundSensorRecorder.swift # Background execution
-├── Shared/                           # SPM shared code (WorkoutTimerCore)
-└── Package.swift                     # SPM configuration
+│   ├── BackgroundSensorRecorder.swift # Background execution
+│   └── WatchLocalStorage.swift     # Standalone Watch session persistence
+├── WorkoutWidget/                   # Home screen widget extension
+│   ├── WorkoutWidget.swift          # WidgetKit timeline & views
+│   ├── WorkoutWidgetBundle.swift    # Widget bundle entry point
+│   ├── WorkoutLiveActivityWidget.swift # Live Activity widget layout
+│   ├── WorkoutIntents.swift         # App Intents for widget actions
+│   └── SharedModels.swift           # Widget-side model access
+├── Shared/                          # SPM package (WorkoutTimerCore) - experimental
+└── Package.swift                    # SPM configuration
 ```
+
+**Note:** `Shared/Sources/`, `iOS/Sources/`, `watchOS/Sources/` contain an experimental SPM-based reorganization. The active Xcode targets use the `MuscleBuildingRecorder/` and `MuscleBuildingRecorderWatchTrue Watch App/` directories. Do not confuse these two structures.
 
 File system uses synchronized groups (objectVersion 77 in .pbxproj).
 
@@ -286,7 +324,7 @@ File system uses synchronized groups (objectVersion 77 in .pbxproj).
 **iOS App:**
 - HealthKit (read HR, write workouts)
 - Background Modes: Bluetooth LE, Background processing
-- App Groups: group.com.yourcompany.workouttracker
+- App Groups: `group.yokAppDev.MuscleBuildingRecorder`
 - Live Activities: NSSupportsLiveActivities
 
 **Watch App:**
@@ -377,24 +415,9 @@ File system uses synchronized groups (objectVersion 77 in .pbxproj).
 - Optimized communication throttling
 - Production HealthKit data
 
-## Recent Updates
+## Operational Notes
 
-### v2 Branch (2025-11)
-- Bidirectional time synchronization between Watch and iPhone
-- Automatic app launch functionality when workout starts
-- Session-based sensor data storage
-- Timestamp-based state sync for reliability
-
-### Stability Fix (2025-11-25)
-- Fixed crashes from excessive debug logging blocking main thread
-- Fixed Watch→iPhone reception (WCSessionDelegate must be in class declaration, not extension)
-- Removed verification/heartbeat timers causing memory leaks
-- Reduced communication volume 80% via throttling
-- Application now production-ready
-
-### Pro Mode Implementation (2026-01)
-- StoreKit 2 integration with monthly and lifetime purchase options
-- AdMob rewarded ads with auto-switching between test/production
-- Pro users skip ads; non-Pro users see ads after workout completion
-- UI improvements: Enhanced time display, direct number input for exercise parameters
-- DEBUG/RELEASE separation: Sensor logs and debug controls hidden in production
+- **Before starting a task**, check `APP_STATUS.md` for known bugs and recent stability fixes.
+- **Do not rewrite** `HeartRateManager`, `WatchConnectivityService`, or `WorkoutManager` (Watch) logic without deep understanding; these are critical and fragile paths.
+- Use `[weak self]` in all closures involving `Timer`, `WCSession` delegates, and Combine sinks.
+- New files must be added to the correct Xcode target membership (iOS app, Watch app, Widget, or Shared).

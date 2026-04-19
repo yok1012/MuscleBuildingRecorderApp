@@ -10,6 +10,7 @@ struct MainTimerView: View {
     @EnvironmentObject var proUserManager: ProUserManager
     @ObservedObject private var watchConnectivity = WatchConnectivityService.shared
     @ObservedObject private var adManager = RewardedAdManager.shared
+    @ObservedObject private var noteLogger = WorkoutNoteLogger.shared
     @State private var showingInputSheet = false
     @State private var showingSummary = false
     @State private var showingExerciseSelection = false
@@ -19,6 +20,7 @@ struct MainTimerView: View {
     @State private var exerciseSwipeOffset: CGFloat = 0
     @State private var showingFinishConfirmation = false
     @State private var showingRestSettings = false
+    @State private var showingNoteSheet = false
 
     // インライン編集モード
     enum InlineEditMode: Equatable {
@@ -65,6 +67,10 @@ struct MainTimerView: View {
                 mainActionSection(geometry: geometry)
                     .frame(height: geometry.size.height * 0.32)
 
+                // 緊急解除バー（スクリーンタイム制限適用中のみ表示）
+                screenTimeUnlockBar
+                    .frame(maxWidth: maxContentWidth)
+
                 // 下部: 完了ボタンと状態表示
                 secondaryControlsSection
                     .frame(height: geometry.size.height * 0.14)
@@ -86,6 +92,10 @@ struct MainTimerView: View {
             RestTimeSettingsSheet()
                 .environmentObject(sessionManager)
         }
+        .sheet(isPresented: $showingNoteSheet) {
+            WorkoutNoteSheet()
+                .environmentObject(sessionManager)
+        }
         .fullScreenCover(isPresented: $showingSummary) {
             SessionSummaryView()
                 .environmentObject(sessionManager)
@@ -105,6 +115,12 @@ struct MainTimerView: View {
                 showingExerciseSelection = true
                 // フラグをリセット
                 watchConnectivity.showExerciseSelectionRequested = false
+            }
+        }
+        .onChange(of: sessionManager.sessionEndedFromWatch) { ended in
+            if ended {
+                sessionManager.sessionEndedFromWatch = false
+                handleSessionEndedFromWatch()
             }
         }
         .onAppear {
@@ -748,10 +764,76 @@ struct MainTimerView: View {
         .animation(.spring(response: 0.4, dampingFraction: 0.7), value: sessionManager.currentPhase)
     }
 
+    // MARK: - Screen Time Unlock Bar (緊急解除: 常時表示・セッション中のみ)
+    @ViewBuilder
+    private var screenTimeUnlockBar: some View {
+        if #available(iOS 16.0, *),
+           sessionManager.currentPhase != .idle,
+           ScreenTimeManager.shared.hasActiveShield {
+            Button(action: emergencyUnlockScreenTime) {
+                HStack(spacing: 8) {
+                    Image(systemName: "lock.open.fill")
+                        .font(.callout)
+                    Text("制限を即時解除")
+                        .font(.callout)
+                        .fontWeight(.bold)
+                    Spacer()
+                    Image(systemName: "hand.raised.fill")
+                        .font(.caption)
+                        .opacity(0.8)
+                }
+                .foregroundColor(.white)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(
+                    LinearGradient(colors: [Color.red, Color.orange], startPoint: .leading, endPoint: .trailing)
+                )
+                .cornerRadius(12)
+                .shadow(color: .red.opacity(0.4), radius: 6, x: 0, y: 2)
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal)
+            .padding(.top, 4)
+        }
+    }
+
+    @available(iOS 16.0, *)
+    private func emergencyUnlockScreenTime() {
+        let impact = UINotificationFeedbackGenerator()
+        impact.notificationOccurred(.warning)
+        ScreenTimeManager.shared.removeShield()
+    }
+
     // MARK: - Secondary Controls Section
     private var secondaryControlsSection: some View {
-        HStack(spacing: 20) {
+        HStack(spacing: 12) {
             if sessionManager.currentPhase != .idle {
+                // メモボタン（筋トレ中・休憩中いつでも押せる）
+                Button(action: { showingNoteSheet = true }) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "note.text.badge.plus")
+                            .font(.callout)
+                        Text("メモ")
+                            .font(.callout)
+                        if !noteLogger.currentSessionNotes.isEmpty {
+                            Text("\(noteLogger.currentSessionNotes.count)")
+                                .font(.caption2)
+                                .fontWeight(.bold)
+                                .foregroundColor(.black)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Color.yellow)
+                                .clipShape(Capsule())
+                        }
+                    }
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(Color.indigo.opacity(0.75))
+                    .cornerRadius(12)
+                }
+                .disabled(isShowingAd)
+
                 // 完了ボタン
                 Button(action: {
                     showingFinishConfirmation = true
@@ -775,7 +857,7 @@ struct MainTimerView: View {
                             .font(.caption2)
                     }
                     .foregroundColor(.green)
-                    .padding(.horizontal, 12)
+                    .padding(.horizontal, 10)
                     .padding(.vertical, 8)
                     .background(Color.white.opacity(0.1))
                     .cornerRadius(8)
@@ -880,6 +962,7 @@ struct MainTimerView: View {
                 totalRestTime: sessionManager.totalRestTime,
                 elapsedTime: sessionManager.elapsedTime,
                 currentPhaseTime: 0,
+                phaseStartDate: nil,
                 previousPhase: nil,
                 previousPhaseDuration: nil
             )
@@ -911,8 +994,9 @@ struct MainTimerView: View {
     /// トレーニング完了時の広告ゲート処理
     /// 1. まずセッションを保存（広告表示中の中断でもデータを失わない）
     /// 2. Proユーザーなら即リザルト表示
-    /// 3. 非Proユーザーは広告表示後にリザルト表示
-    /// 4. 広告失敗時は即リザルト表示（フォールバック）
+    /// 3. 広告が準備済みなら表示してリザルトへ
+    /// 4. 広告ロード中なら最大5秒待機してから表示（レースコンディション対策）
+    /// 5. 広告失敗時は即リザルト表示（フォールバック）
     private func finishWorkoutWithAdGate() {
         print("MainTimerView: finishWorkoutWithAdGate called")
 
@@ -927,25 +1011,91 @@ struct MainTimerView: View {
             return
         }
 
-        // 3. 広告が準備できていない場合は即リザルト（フォールバック）
         print("MainTimerView: Ad state = \(adManager.state), isAdReady = \(adManager.isAdReady)")
-        guard adManager.isAdReady else {
-            print("MainTimerView: Ad not ready, showing summary directly (fallback)")
-            showingSummary = true
-            // 次回のために広告を読み込み
-            adManager.preloadAd()
+
+        // 3. 広告が準備済みなら即表示
+        if adManager.isAdReady {
+            presentAd()
             return
         }
 
-        // 4. 広告を表示
-        print("MainTimerView: Showing rewarded ad...")
+        // 4. 広告がロード中の場合は最大5秒待機（アプリ起動直後のレースコンディション対策）
+        if case .loading = adManager.state {
+            print("MainTimerView: Ad is loading, waiting up to 5s...")
+            waitForAdThenShow(elapsed: 0)
+            return
+        }
+
+        // 5. 広告が準備できていない場合は即リザルト（フォールバック）
+        print("MainTimerView: Ad not ready (\(adManager.state)), showing summary directly (fallback)")
+        showingSummary = true
+        adManager.preloadAd()
+    }
+
+    /// Watch経由でセッションが終了された場合のリザルト表示処理
+    /// endSession()は既にWatchConnectivityServiceで呼び出し済み
+    private func handleSessionEndedFromWatch() {
+        print("MainTimerView: handleSessionEndedFromWatch called")
+
+        // 既にリザルト表示中の場合は何もしない
+        guard !showingSummary else { return }
+
+        // Proユーザーは広告をスキップ
+        if proUserManager.isPro {
+            print("MainTimerView: Pro user detected, skipping ad")
+            showingSummary = true
+            return
+        }
+
+        print("MainTimerView: Ad state = \(adManager.state), isAdReady = \(adManager.isAdReady)")
+
+        if adManager.isAdReady {
+            presentAd()
+            return
+        }
+
+        if case .loading = adManager.state {
+            print("MainTimerView: Ad is loading, waiting up to 5s...")
+            waitForAdThenShow(elapsed: 0)
+            return
+        }
+
+        print("MainTimerView: Ad not ready, showing summary")
+        showingSummary = true
+        adManager.preloadAd()
+    }
+
+    /// 広告をすぐに表示（isAdReady == true のときのみ呼ぶ）
+    private func presentAd() {
+        print("MainTimerView: Presenting rewarded ad...")
         isShowingAd = true
         showRewardedAd { success in
             DispatchQueue.main.async {
                 print("MainTimerView: Ad completed with success=\(success)")
                 self.isShowingAd = false
-                // 広告の成否に関わらずリザルト画面へ
                 self.showingSummary = true
+            }
+        }
+    }
+
+    /// 広告がロード中の場合に最大5秒ポーリングし、準備できたら表示する
+    private func waitForAdThenShow(elapsed: Double) {
+        // リザルトが既に表示されている場合はキャンセル
+        guard !showingSummary else { return }
+
+        let maxWait = 5.0
+        let interval = 0.3
+
+        if adManager.isAdReady {
+            print("MainTimerView: Ad became ready after \(String(format: "%.1f", elapsed))s")
+            presentAd()
+        } else if elapsed >= maxWait {
+            print("MainTimerView: Ad wait timed out after \(String(format: "%.1f", elapsed))s, showing summary")
+            showingSummary = true
+            adManager.preloadAd()
+        } else {
+            DispatchQueue.main.asyncAfter(deadline: .now() + interval) {
+                self.waitForAdThenShow(elapsed: elapsed + interval)
             }
         }
     }
@@ -954,7 +1104,7 @@ struct MainTimerView: View {
     private func showRewardedAd(completion: @escaping (Bool) -> Void) {
         // rootViewControllerを取得
         guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-              let rootViewController = windowScene.windows.first?.rootViewController else {
+              let rootViewController = windowScene.keyWindow?.rootViewController else {
             print("MainTimerView: Could not find root view controller")
             completion(false)
             return
@@ -1343,5 +1493,409 @@ struct RestTimeSettingsSheet: View {
         } else {
             return "\(secs)秒"
         }
+    }
+}
+
+// MARK: - Workout Note Sheet (メモ入力画面)
+struct WorkoutNoteSheet: View {
+    @EnvironmentObject var sessionManager: SessionManager
+    @EnvironmentObject var heartRateManager: HeartRateManager
+    @ObservedObject private var noteLogger = WorkoutNoteLogger.shared
+    @Environment(\.dismiss) var dismiss
+
+    @State private var noteText: String = ""
+    @State private var showingExercisePicker = false
+    @State private var showingDetailInput = false
+    @FocusState private var isTextEditorFocused: Bool
+
+    private let presets: [String] = [
+        "フォームが崩れた",
+        "重量を上げたい",
+        "限界近い",
+        "呼吸が乱れた",
+        "調子が良い"
+    ]
+
+    private let timeFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "HH:mm:ss"
+        f.timeZone = TimeZone.current
+        return f
+    }()
+
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(spacing: 12) {
+                    currentStatusHeader
+                    exerciseEditSection
+                    noteInputSection
+                    presetSection
+                    historySection
+                }
+                .padding(.horizontal)
+                .padding(.vertical, 8)
+            }
+            .scrollDismissesKeyboard(.interactively)
+            .navigationTitle("メモを残す")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("キャンセル") { dismiss() }
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: save) {
+                        Text("保存")
+                            .fontWeight(.bold)
+                    }
+                    .disabled(noteText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            }
+            .onAppear {
+                // シート表示直後にキーボードを出す
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                    isTextEditorFocused = true
+                }
+            }
+            .sheet(isPresented: $showingExercisePicker) {
+                ExerciseSelectionSheet()
+                    .environmentObject(sessionManager)
+            }
+            .sheet(isPresented: $showingDetailInput) {
+                ExerciseInputSheet()
+                    .environmentObject(sessionManager)
+            }
+        }
+    }
+
+    // MARK: - Subviews
+    private var currentStatusHeader: some View {
+        HStack(spacing: 12) {
+            Image(systemName: phaseIcon)
+                .font(.title2)
+                .foregroundColor(phaseColor)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(phaseLabel)
+                    .font(.headline)
+                if sessionManager.currentPhase != .idle {
+                    Text("Cycle \(sessionManager.cycleIndex + 1)")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+            }
+
+            Spacer()
+
+            HStack(spacing: 4) {
+                Image(systemName: "heart.fill")
+                    .font(.caption)
+                    .foregroundColor(.red)
+                Text("\(Int(heartRateManager.currentHeartRate))")
+                    .font(.system(.body, design: .monospaced))
+                    .fontWeight(.semibold)
+                Text("bpm")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(Color.red.opacity(0.1))
+            .cornerRadius(10)
+        }
+        .padding(.vertical, 10)
+        .padding(.horizontal, 12)
+        .background(Color(.tertiarySystemBackground))
+        .cornerRadius(12)
+    }
+
+    // MARK: - Exercise Edit Section (種目・回数・重量の編集)
+    private var exerciseEditSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("目標を調整")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Spacer()
+                Button(action: { showingDetailInput = true }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "slider.horizontal.3")
+                        Text("詳細入力")
+                    }
+                    .font(.caption)
+                    .foregroundColor(.blue)
+                }
+            }
+
+            // 種目ボタン（カテゴリー/種目をタップで変更）
+            Button(action: { showingExercisePicker = true }) {
+                HStack(spacing: 10) {
+                    Image(systemName: "figure.strengthtraining.traditional")
+                        .font(.title3)
+                        .foregroundColor(.orange)
+                        .frame(width: 28)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(sessionManager.selectedCategory)
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                        Text(sessionManager.selectedExercise)
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.primary)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .background(Color(.secondarySystemBackground))
+                .cornerRadius(10)
+            }
+            .buttonStyle(.plain)
+
+            // 回数 / 重量 の ±1 / ±5 行
+            HStack(spacing: 8) {
+                counterRow(
+                    label: "回数",
+                    valueText: "\(Int(sessionManager.currentReps))\(sessionManager.repsUnit)",
+                    color: .green,
+                    onAdjust: { delta in adjustReps(delta) }
+                )
+                counterRow(
+                    label: "重量",
+                    valueText: "\(String(format: "%.1f", sessionManager.currentLoad))\(sessionManager.loadUnit)",
+                    color: .blue,
+                    onAdjust: { delta in adjustLoad(delta) }
+                )
+            }
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color(.tertiarySystemBackground))
+        )
+    }
+
+    private func counterRow(
+        label: String,
+        valueText: String,
+        color: Color,
+        onAdjust: @escaping (Double) -> Void
+    ) -> some View {
+        VStack(spacing: 6) {
+            HStack(spacing: 4) {
+                Text(label)
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                Spacer()
+                Text(valueText)
+                    .font(.headline)
+                    .fontWeight(.bold)
+                    .foregroundColor(color)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            }
+            HStack(spacing: 4) {
+                counterButton("-5", color: .red) { onAdjust(-5) }
+                counterButton("-1", color: .orange) { onAdjust(-1) }
+                counterButton("+1", color: .green.opacity(0.75)) { onAdjust(1) }
+                counterButton("+5", color: .green) { onAdjust(5) }
+            }
+        }
+        .padding(8)
+        .background(Color(.secondarySystemBackground))
+        .cornerRadius(10)
+    }
+
+    private func counterButton(_ label: String, color: Color, action: @escaping () -> Void) -> some View {
+        Button(action: {
+            let impact = UIImpactFeedbackGenerator(style: .light)
+            impact.impactOccurred()
+            action()
+        }) {
+            Text(label)
+                .font(.system(size: 12, weight: .bold))
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 8)
+                .background(color)
+                .cornerRadius(6)
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Note Input Section
+    private var noteInputSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("メモ")
+                .font(.caption)
+                .foregroundColor(.secondary)
+
+            ZStack(alignment: .topLeading) {
+                TextEditor(text: $noteText)
+                    .focused($isTextEditorFocused)
+                    .frame(minHeight: 100, maxHeight: 160)
+                    .padding(8)
+                    .background(Color(.secondarySystemBackground))
+                    .cornerRadius(10)
+
+                if noteText.isEmpty {
+                    Text("例: フォームが崩れた / 調子が良い")
+                        .foregroundColor(.secondary.opacity(0.6))
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 16)
+                        .allowsHitTesting(false)
+                }
+            }
+        }
+    }
+
+    // MARK: - Preset Section
+    private var presetSection: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(presets, id: \.self) { preset in
+                    Button(action: {
+                        if noteText.isEmpty {
+                            noteText = preset
+                        } else {
+                            noteText += (noteText.hasSuffix("\n") ? "" : "\n") + preset
+                        }
+                    }) {
+                        Text(preset)
+                            .font(.caption)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(Color.blue.opacity(0.15))
+                            .foregroundColor(.blue)
+                            .cornerRadius(16)
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - History Section
+    private var historySection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text("このセッションのメモ")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Spacer()
+                Text("\(noteLogger.currentSessionNotes.count)件")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+            .padding(.top, 4)
+
+            if noteLogger.currentSessionNotes.isEmpty {
+                HStack {
+                    Spacer()
+                    Text("まだメモはありません")
+                        .font(.caption)
+                        .foregroundColor(.secondary.opacity(0.7))
+                        .padding(.vertical, 16)
+                    Spacer()
+                }
+                .background(Color(.secondarySystemBackground))
+                .cornerRadius(10)
+            } else {
+                LazyVStack(spacing: 6) {
+                    ForEach(noteLogger.currentSessionNotes.reversed()) { entry in
+                        noteRow(entry)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 8)
+                            .background(Color(.secondarySystemBackground))
+                            .cornerRadius(10)
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func noteRow(_ entry: WorkoutNoteEntry) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 8) {
+                Text(timeFormatter.string(from: entry.timestamp))
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                Text(entry.phase == "work" ? "筋トレ" : entry.phase == "rest" ? "休憩" : entry.phase)
+                    .font(.caption2)
+                    .fontWeight(.semibold)
+                    .foregroundColor(entry.phase == "work" ? .red : .blue)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background((entry.phase == "work" ? Color.red : Color.blue).opacity(0.12))
+                    .cornerRadius(4)
+                if entry.heartRate > 0 {
+                    HStack(spacing: 2) {
+                        Image(systemName: "heart.fill")
+                            .font(.system(size: 9))
+                            .foregroundColor(.red)
+                        Text("\(Int(entry.heartRate))")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                Spacer()
+            }
+            Text(entry.text)
+                .font(.subheadline)
+        }
+    }
+
+    // MARK: - Helpers
+    private var phaseLabel: String {
+        switch sessionManager.currentPhase {
+        case .idle: return "待機中"
+        case .work: return "筋トレ中"
+        case .rest: return "休憩中"
+        }
+    }
+
+    private var phaseIcon: String {
+        switch sessionManager.currentPhase {
+        case .idle: return "house.fill"
+        case .work: return "figure.strengthtraining.traditional"
+        case .rest: return "cup.and.saucer.fill"
+        }
+    }
+
+    private var phaseColor: Color {
+        switch sessionManager.currentPhase {
+        case .idle: return .gray
+        case .work: return .red
+        case .rest: return .blue
+        }
+    }
+
+    private func adjustReps(_ delta: Double) {
+        let newValue = max(1, sessionManager.currentReps + delta)
+        sessionManager.currentReps = newValue
+        // 進行中の SetRecord にも即時反映（フェーズ終了時の補完データを正しく保つ）
+        if let record = sessionManager.currentSetRecord {
+            record.reps = newValue
+        }
+    }
+
+    private func adjustLoad(_ delta: Double) {
+        let newValue = max(0, sessionManager.currentLoad + delta)
+        sessionManager.currentLoad = newValue
+        if let record = sessionManager.currentSetRecord {
+            record.load = newValue
+        }
+    }
+
+    private func save() {
+        let trimmed = noteText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        _ = sessionManager.addQuickNote(trimmed)
+        noteText = ""
+        dismiss()
     }
 }

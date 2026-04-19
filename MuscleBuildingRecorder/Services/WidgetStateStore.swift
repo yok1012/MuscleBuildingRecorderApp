@@ -17,7 +17,10 @@ final class WidgetStateStore: ObservableObject {
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
     private var lastWidgetUpdate: Date = .distantPast
-    private let minimumWidgetUpdateInterval: TimeInterval = 30  // 30秒間隔
+    // Widget UI で非ライブ項目（心拍数/重量/種目など）を素早く反映するため短めに。
+    // フェーズ経過時間は Widget 側が Text(…, style: .timer) で OS ネイティブに秒単位更新するため、
+    // ここで頻繁に reloadTimelines しなくても時計表示は動く。
+    private let minimumWidgetUpdateInterval: TimeInterval = 3
 
     // MARK: - Initialization
     private init() {

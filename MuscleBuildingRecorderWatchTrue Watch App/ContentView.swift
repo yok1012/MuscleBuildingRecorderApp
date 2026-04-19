@@ -7,7 +7,6 @@ struct ContentView: View {
     @EnvironmentObject var workoutManager: WorkoutManager
     @EnvironmentObject var motionStreamer: WatchMotionStreamer
     @StateObject private var backgroundRecorder = BackgroundSensorRecorder.shared
-    @State private var currentPhase: WorkoutPhase = .idle
     @State private var currentExercise: (category: String, name: String) = ("胸", "ベンチプレス")
     @State private var currentReps: Int = 10
     @State private var currentWeight: Double = 20.0
@@ -20,7 +19,7 @@ struct ContentView: View {
     @State private var commandStatus: String = ""
     @State private var isCommandPending = false
 
-    enum WorkoutPhase {
+    enum WorkoutPhase: Equatable {
         case idle, work, rest
 
         var displayName: String {
@@ -37,6 +36,15 @@ struct ContentView: View {
             case .work: return .red
             case .rest: return .blue
             }
+        }
+    }
+
+    /// WorkoutManager.currentPhase から導出（single source of truth）
+    private var currentPhase: WorkoutPhase {
+        switch workoutManager.currentPhase.lowercased() {
+        case "work": return .work
+        case "rest": return .rest
+        default: return .idle
         }
     }
 
@@ -75,22 +83,58 @@ struct ContentView: View {
             setupWatchConnectivity()
             workoutManager.requestAuthorization()
         }
-        .onReceive(NotificationCenter.default.publisher(for: .init("PhaseChanged"))) { notification in
-            if let phase = notification.object as? String {
-                updatePhase(from: phase)
-            }
-        }
         .onReceive(NotificationCenter.default.publisher(for: .init("WakeUp"))) { _ in
             handleWakeUpRequest()
         }
-        // WorkoutManagerのcurrentPhaseを監視してUIを同期
-        .onReceive(workoutManager.$currentPhase) { phase in
-            updatePhase(from: phase)
+        // WorkoutManagerの種目更新を監視
+        .onReceive(workoutManager.$receivedExercise) { exercise in
+            if let exercise {
+                currentExercise = exercise
+            }
         }
-        // WorkoutManagerのisWorkoutActiveを監視
-        .onReceive(workoutManager.$isWorkoutActive) { isActive in
-            if !isActive && currentPhase != .idle {
-                currentPhase = .idle
+        // WorkoutManagerのサイクルインデックスを監視
+        .onReceive(workoutManager.$receivedCycleIndex) { index in
+            if let index {
+                cycleIndex = index
+            }
+        }
+        // WorkoutManagerのコマンドACKを監視
+        .onReceive(workoutManager.$lastCommandAck) { ack in
+            if let ack, ack.success {
+                commandStatus = "✅ \(ack.command) 完了"
+                isCommandPending = false
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                    commandStatus = ""
+                }
+                lastIPhoneSync = Date()
+            }
+        }
+        // WorkoutManagerのコマンドステータスを監視
+        .onReceive(workoutManager.$lastCommandStatus) { status in
+            switch status {
+            case .success:
+                isCommandPending = false
+                commandStatus = "✅ 送信完了"
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                    commandStatus = ""
+                }
+            case .savedToContext:
+                isCommandPending = false
+                commandStatus = "📦 保存済み"
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                    commandStatus = ""
+                }
+            case .failed:
+                isCommandPending = false
+                commandStatus = "❌ 送信失敗"
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                    commandStatus = ""
+                }
+            case .sending:
+                isCommandPending = true
+                commandStatus = "送信中..."
+            case .idle:
+                break
             }
         }
     }
@@ -321,7 +365,7 @@ struct ContentView: View {
                 .buttonStyle(PlainButtonStyle())
             }
         }
-        .animation(.easeInOut(duration: 0.3), value: currentPhase)
+        .animation(.easeInOut(duration: 0.3), value: workoutManager.currentPhase)
     }
 
     // MARK: - Debug Section
@@ -430,15 +474,12 @@ struct ContentView: View {
         }
 
         // WorkoutManagerでワークアウトを開始（フェーズ設定も含む）
+        // iPhoneへの通知はWorkoutManager.markWorkoutActive()が担当
         workoutManager.startWorkout()
         workoutManager.setPhase("work")
 
-        // ローカルUI状態を更新
-        currentPhase = .work
+        // ローカルUI状態を更新（currentPhaseはcomputed propertyなので自動反映）
         cycleIndex = 0
-
-        // iPhoneに開始を通知
-        sendCommandToPhone("startSession")
     }
 
     private func togglePhase(to newPhase: WorkoutPhase) {
@@ -456,12 +497,9 @@ struct ContentView: View {
             cycleIndex += 1
         }
 
-        // WorkoutManagerにフェーズを設定（これが状態の source of truth）
+        // WorkoutManagerにフェーズを設定（currentPhaseはcomputed propertyで自動反映）
         let newPhaseString = newPhase == .work ? "work" : newPhase == .rest ? "rest" : "idle"
         workoutManager.setPhase(newPhaseString)
-
-        // ローカルUI状態を更新
-        currentPhase = newPhase
 
         // iPhoneに位相変更を通知（Watch側の最新時間を付与）
         sendCommandToPhone(
@@ -475,16 +513,13 @@ struct ContentView: View {
         // ワークアウトがアクティブでない場合でも終了処理を実行（確実にクリーンアップ）
         print("Watch ContentView: Ending workout")
 
-        // WorkoutManagerでワークアウトを終了
+        // WorkoutManagerでワークアウトを終了（currentPhaseはcomputed propertyで自動反映）
+        // iPhoneへの通知はWorkoutManager.endWorkout()が担当
         workoutManager.endWorkout()
 
         // ローカルUI状態を更新
-        currentPhase = .idle
         cycleIndex = 0
         elapsedTime = "00:00"
-
-        // iPhoneに終了を通知
-        sendCommandToPhone("endSession")
     }
 
     /// Watch側で入力された種目・回数・重量をiPhoneに送信
@@ -530,25 +565,23 @@ struct ContentView: View {
     // MARK: - Watch Connectivity
 
     private func setupWatchConnectivity() {
-        if WCSession.isSupported() {
-            // ContentView用のdelegateを設定（iPhone→Watchのメッセージを受信）
-            let delegate = WatchConnectivityDelegate.shared
-            delegate.onMessageReceived = { message in
-                self.handleMessageFromPhone(message)
-            }
-
-            // 起動時に現在の状態を保存（iPhone側で復元可能にする）
-            if workoutManager.isWorkoutActive {
-                saveCurrentStateToContext()
-                print("Watch: 🔄 Saved current workout state to applicationContext on startup")
-            }
+        // 起動時に現在の状態を保存（iPhone側で復元可能にする）
+        if workoutManager.isWorkoutActive {
+            saveCurrentStateToContext()
+            print("Watch: 🔄 Saved current workout state to applicationContext on startup")
         }
     }
 
     private func saveCurrentStateToContext() {
         do {
+            let phaseString: String
+            switch currentPhase {
+            case .work: phaseString = "work"
+            case .rest: phaseString = "rest"
+            case .idle: phaseString = "idle"
+            }
             let context: [String: Any] = [
-                "workoutState": currentPhase == .work ? "work" : currentPhase == .rest ? "rest" : "idle",
+                "workoutState": phaseString,
                 "isActive": workoutManager.isWorkoutActive,
                 "cycleIndex": cycleIndex,
                 "timestamp": Date().timeIntervalSince1970
@@ -570,9 +603,10 @@ struct ContentView: View {
         // コマンド送信状態を表示
         isCommandPending = true
         commandStatus = "送信中..."
+        workoutManager.lastCommandStatus = .sending
 
         // WorkoutManagerを通じて送信（applicationContextの更新も内部で行われる）
-        // 注意: previousPhase情報を含めるため、拡張されたメソッドを使用
+        // 結果は workoutManager.lastCommandStatus に反映される
         workoutManager.sendWorkoutCommandToPhoneWithContext(
             command,
             previousPhase: previousPhaseIdentifier,
@@ -582,20 +616,6 @@ struct ContentView: View {
         // startSessionの場合はiPhoneアプリの起動も試みる
         if command == "startSession" {
             wakeUpIPhone()
-        }
-
-        // 状態更新
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            self.isCommandPending = false
-            if WCSession.default.isReachable {
-                self.commandStatus = "✅ 送信完了"
-            } else {
-                self.commandStatus = "📦 保存済み"
-            }
-
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                self.commandStatus = ""
-            }
         }
 
         lastIPhoneSync = Date()
@@ -623,144 +643,6 @@ struct ContentView: View {
         #endif
     }
 
-    private func handleMessageFromPhone(_ message: [String: Any]) {
-        DispatchQueue.main.async {
-            if let type = message["type"] as? String {
-                switch type {
-                case "wakeUp":
-                    // iPhoneからの起動要求
-                    if !self.workoutManager.isWorkoutActive {
-                        self.workoutManager.startWorkout()
-                        self.currentPhase = .work
-                    }
-
-                case "exerciseChange":
-                    // 種目変更通知
-                    if let category = message["category"] as? String,
-                       let exercise = message["exercise"] as? String {
-                        self.currentExercise = (category: category, name: exercise)
-                    }
-
-                case "phaseChange":
-                    // 位相変更通知
-                    let phaseString = (message["phase"] as? String) ?? (message["currentPhase"] as? String)
-                    let totalWork = message["totalWorkTime"] as? TimeInterval
-                    let totalRest = message["totalRestTime"] as? TimeInterval
-                    let elapsed = message["elapsedTime"] as? TimeInterval
-                    let currentPhaseTime = message["currentPhaseTime"] as? TimeInterval
-                    let previousPhase = message["previousPhase"] as? String
-                    let previousDuration = message["previousPhaseDuration"] as? TimeInterval
-
-                    if let phaseString {
-                        self.workoutManager.applyPhaseChangeFromPhone(
-                            phase: phaseString,
-                            totalWorkTime: totalWork,
-                            totalRestTime: totalRest,
-                            elapsedTime: elapsed,
-                            currentPhaseTime: currentPhaseTime,
-                            previousPhase: previousPhase,
-                            previousPhaseDuration: previousDuration
-                        )
-                        self.updatePhase(from: phaseString)
-                    }
-
-                    if let index = message["cycleIndex"] as? Int {
-                        self.cycleIndex = index
-                    }
-
-                case "command":
-                    // コマンド処理
-                    if let command = message["command"] as? String {
-                        self.handleCommand(command)
-                    }
-                    
-                case "commandAck":
-                    // iPhoneからのコマンド確認応答
-                    if let command = message["command"] as? String,
-                       let success = message["success"] as? Bool {
-                        if success {
-                            self.commandStatus = "✅ \(command) 完了"
-                            self.isCommandPending = false
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                                self.commandStatus = ""
-                            }
-                        }
-                    }
-
-                default:
-                    break
-                }
-            }
-
-            self.lastIPhoneSync = Date()
-        }
-    }
-
-    private func handleCommand(_ command: String) {
-        switch command {
-        case "start", "startSession":
-            if !workoutManager.isWorkoutActive {
-                workoutManager.startWorkout()
-                currentPhase = .work
-            }
-        case "stop", "endSession":
-            workoutManager.endWorkout()
-            currentPhase = .idle
-        case "pause":
-            if !workoutManager.isPaused {
-                workoutManager.togglePause()
-                currentPhase = .rest
-            }
-        case "resume":
-            if workoutManager.isPaused {
-                workoutManager.togglePause()
-                currentPhase = .work
-            }
-        case "togglePhase":
-            if currentPhase == .work {
-                workoutManager.applyPhaseChangeFromPhone(
-                    phase: "rest",
-                    totalWorkTime: nil,
-                    totalRestTime: nil,
-                    elapsedTime: nil,
-                    currentPhaseTime: 0,
-                    previousPhase: "work",
-                    previousPhaseDuration: nil
-                )
-                currentPhase = .rest
-            } else if currentPhase == .rest {
-                workoutManager.applyPhaseChangeFromPhone(
-                    phase: "work",
-                    totalWorkTime: nil,
-                    totalRestTime: nil,
-                    elapsedTime: nil,
-                    currentPhaseTime: 0,
-                    previousPhase: "rest",
-                    previousPhaseDuration: nil
-                )
-                currentPhase = .work
-            } else {
-                workoutManager.startWorkout()
-                currentPhase = .work
-            }
-        default:
-            break
-        }
-    }
-
-    private func updatePhase(from phaseString: String) {
-        switch phaseString.lowercased() {
-        case "work", "筋トレ":
-            currentPhase = .work
-        case "rest", "休憩":
-            currentPhase = .rest
-        case "idle", "待機中":
-            currentPhase = .idle
-        default:
-            break
-        }
-    }
-
     private func currentPhaseString() -> String {
         switch currentPhase {
         case .work: return "work"
@@ -775,89 +657,6 @@ struct ContentView: View {
             sendCommandToPhone("startSession")
         } else {
             startWorkout()
-        }
-    }
-}
-
-// MARK: - WatchConnectivity Delegate
-class WatchConnectivityDelegate: NSObject, WCSessionDelegate {
-    static let shared = WatchConnectivityDelegate()
-    var onMessageReceived: (([String: Any]) -> Void)?
-
-    func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
-        if let error = error {
-            print("Watch: WCSession activation failed: \(error)")
-        } else {
-            print("Watch: WCSession activated")
-
-            // 既存のアプリケーションコンテキストを確認
-            let context = session.applicationContext
-            if let category = context["currentCategory"] as? String,
-               let exercise = context["currentExercise"] as? String {
-                DispatchQueue.main.async {
-                    // 種目情報を更新
-                    NotificationCenter.default.post(
-                        name: .init("UpdateExercise"),
-                        object: ["category": category, "exercise": exercise]
-                    )
-                }
-            }
-        }
-    }
-
-    func session(_ session: WCSession, didReceiveMessage message: [String : Any]) {
-        print("Watch: Received message from iPhone: \(message)")
-        onMessageReceived?(message)
-    }
-
-    func session(_ session: WCSession, didReceiveMessage message: [String : Any], replyHandler: @escaping ([String : Any]) -> Void) {
-        print("Watch: Received message with reply handler")
-
-        // pingへの応答
-        if let type = message["type"] as? String, type == "ping" {
-            replyHandler(["type": "pong", "timestamp": Date().timeIntervalSince1970])
-            return
-        }
-
-        onMessageReceived?(message)
-        replyHandler(["received": true])
-    }
-
-    func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String : Any]) {
-        print("Watch: Received application context: \(applicationContext)")
-
-        // wakeUpフラグをチェック
-        if applicationContext["wakeUp"] as? Bool == true {
-            let wakePayload: [String: Any] = [
-                "type": "wakeUp",
-                "timestamp": Date().timeIntervalSince1970
-            ]
-            DispatchQueue.main.async {
-                NotificationCenter.default.post(name: .init("WakeUp"), object: nil)
-                self.onMessageReceived?(wakePayload)
-            }
-        }
-
-        // 種目情報をチェック
-        if let category = applicationContext["currentCategory"] as? String,
-           let exercise = applicationContext["currentExercise"] as? String {
-            DispatchQueue.main.async {
-                NotificationCenter.default.post(
-                    name: .init("UpdateExercise"),
-                    object: ["category": category, "exercise": exercise]
-                )
-            }
-        }
-
-        // コマンドやフェーズ更新を反映
-        if applicationContext["type"] != nil {
-            DispatchQueue.main.async { [weak self] in
-                self?.onMessageReceived?(applicationContext)
-            }
-        } else if let command = applicationContext["lastCommand"] as? String {
-            DispatchQueue.main.async { [weak self] in
-                self?.onMessageReceived?(["type": "command", "command": command])
-            }
         }
     }
 }

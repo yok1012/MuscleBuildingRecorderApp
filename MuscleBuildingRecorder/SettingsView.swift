@@ -75,6 +75,7 @@ struct SettingsView: View {
         NavigationView {
             Form {
                 proSection
+                screenTimeSection
                 heartRateSection
                 notificationSettingsSection
                 dataExportSection
@@ -697,6 +698,30 @@ struct SettingsView: View {
                 Spacer()
                 Text("2024.1")
                     .foregroundColor(.secondary)
+            }
+        }
+    }
+
+    // MARK: - Screen Time Section
+    @ViewBuilder
+    private var screenTimeSection: some View {
+        if #available(iOS 16.0, *) {
+            Section(header: Text("スクリーンタイム制限")) {
+                NavigationLink(destination: ScreenTimeSettingsView()
+                    .environmentObject(proUserManager)) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "lock.shield.fill")
+                            .foregroundColor(.red)
+                            .font(.title2)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("筋トレ中の他アプリ制限")
+                                .font(.headline)
+                            Text("セッション中は他アプリを自動でシールド。Proで選択や休憩解除が可能")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
             }
         }
     }

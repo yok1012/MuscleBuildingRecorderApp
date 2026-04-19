@@ -18,6 +18,8 @@ class SessionManager: ObservableObject {
     @Published var currentSetRecord: SetRecord?
     @Published var lastCompletedSession: Session?
     @Published var cycleIndex: Int = 0
+    /// Watch経由でセッションが終了された場合にtrueになるフラグ（MainTimerViewが.onChangeで監視）
+    @Published var sessionEndedFromWatch: Bool = false
 
     @Published var selectedCategory: String = "胸"
     @Published var selectedExercise: String = "ベンチプレス"
@@ -43,6 +45,18 @@ class SessionManager: ObservableObject {
     private var restTimeAccumulated: TimeInterval = 0
     private var sessionStartTime: Date?
 
+    // MARK: - Watch Authority Timer
+    /// Watchがタイマーの権威ソースかどうか
+    private var isWatchTimeAuthority: Bool = false
+    /// Watch基準の筋トレ時間
+    private var watchBaseWorkTime: TimeInterval = 0
+    /// Watch基準の休憩時間
+    private var watchBaseRestTime: TimeInterval = 0
+    /// Watch基準値を受信した時刻
+    private var watchBaseReceivedAt: Date?
+    /// Watch基準値受信時のフェーズ
+    private var watchBasePhase: WorkoutPhase?
+
     // Widget/Live Activity更新の頻度制限
     private var lastWidgetUpdateTime: Date = .distantPast
     private let widgetUpdateInterval: TimeInterval = 1.0  // 1秒間隔
@@ -53,6 +67,7 @@ class SessionManager: ObservableObject {
     private let heartRateLogManager = HeartRateLogManager.shared
     private let sensorLogManager = SensorLogManager.shared
     private let heartRateCSVLogger = HeartRateCSVLogger.shared  // 心拍数CSVログ
+    private let noteLogger = WorkoutNoteLogger.shared           // タイムスタンプ付きメモログ
     private var heartRateCancellable: AnyCancellable?
     private var sessionSensorData: [[String: Any]] = []  // セッション中のセンサーデータ
 
@@ -173,6 +188,7 @@ class SessionManager: ObservableObject {
         totalRestTime = 0
         elapsedTime = 0
         startTimer()
+        setupLiveActivity()
 
         // 心拍数ログの記録を開始
         heartRateLogManager.startNewSession()
@@ -181,6 +197,14 @@ class SessionManager: ObservableObject {
         heartRateCSVLogger.startSession()
         heartRateCSVLogger.setPhase("work", cycleIndex: cycleIndex)
         currentPhaseStartTimestamp = Int64(Date().timeIntervalSince1970 * 1000)
+
+        // メモログの記録を開始
+        noteLogger.startSession()
+
+        // スクリーンタイム制限を適用（機能 ON かつ認可済みのときのみ）
+        if #available(iOS 16.0, *) {
+            ScreenTimeManager.shared.applyShield()
+        }
 
         // センサーデータをクリア
         sessionSensorData.removeAll()
@@ -228,8 +252,10 @@ class SessionManager: ObservableObject {
         totalRestTime: TimeInterval,
         currentPhaseIdentifier: String? = nil,
         currentPhaseTime: TimeInterval? = nil,
+        phaseStartDate: TimeInterval? = nil,
         completedPhaseIdentifier: String? = nil,
-        completedPhaseDuration: TimeInterval? = nil
+        completedPhaseDuration: TimeInterval? = nil,
+        watchCurrentPhase: String? = nil
     ) {
         print("SessionManager: 🔄 syncTimeFromWatch() called")
         print("SessionManager: Current - Work: \(self.totalWorkTime)s, Rest: \(self.totalRestTime)s")
@@ -246,27 +272,38 @@ class SessionManager: ObservableObject {
         // iPhone側が進んでいる場合はWatchからの同期を無視する
         let incomingTotalTime = totalWorkTime + totalRestTime
         let localTotalTime = self.totalWorkTime + self.totalRestTime
-        
-        // 許容する誤差（秒）
-        let tolerance: TimeInterval = 2.0
-        
+
+        // 許容する誤差（秒）- Watch起動時のゼロ値対策のため余裕を持たせる
+        let tolerance: TimeInterval = 5.0
+
         if self.currentPhase != .idle && incomingTotalTime < (localTotalTime - tolerance) {
             print("SessionManager: ⚠️ Ignoring time sync from Watch - Incoming (\(Int(incomingTotalTime))s) < Local (\(Int(localTotalTime))s)")
-            // ここでreturnすると、正当な時間リセット（もしあれば）も無視してしまうが、
-            // ワークアウト中は基本的に時間は増える一方なので、このロジックで安全。
-            // 完全にリセットしたい場合は endSession() 等を経由するはず。
             return
         }
 
-        // Watchの時間データで更新
-        self.totalWorkTime = totalWorkTime
-        self.totalRestTime = totalRestTime
-        self.elapsedTime = totalWorkTime + totalRestTime
-        self.sessionStartTime = Date().addingTimeInterval(-(totalWorkTime + totalRestTime))
+        // Watch権威タイマー: 直接上書きではなく基準値を更新し、補間で表示
+        watchBaseWorkTime = totalWorkTime
+        watchBaseRestTime = totalRestTime
+        watchBaseReceivedAt = Date()
+        isWatchTimeAuthority = true
 
-        // 標準ではwatchから送られた累積値と一致させる
+        // watchCurrentPhaseを記録（補間時にどのフェーズの時間を増やすか判定するため）
+        if let watchPhaseStr = watchCurrentPhase, let wp = phase(from: watchPhaseStr) {
+            watchBasePhase = wp
+        } else if let currentPhaseId = currentPhaseIdentifier, let wp = phase(from: currentPhaseId) {
+            watchBasePhase = wp
+        } else {
+            watchBasePhase = currentPhase != .idle ? currentPhase : nil
+        }
+
+        // completeCurrentSetRecord()用にaccumulated値をWatch値から逆算
         self.workTimeAccumulated = totalWorkTime
         self.restTimeAccumulated = totalRestTime
+
+        // 初回同期時はセッション開始時刻も設定
+        if self.sessionStartTime == nil {
+            self.sessionStartTime = Date().addingTimeInterval(-(totalWorkTime + totalRestTime))
+        }
 
         let normalizedCompletedPhase = completedPhaseIdentifier.flatMap { phase(from: $0) }
         let normalizedCurrentPhase = currentPhaseIdentifier.flatMap { phase(from: $0) }
@@ -282,7 +319,10 @@ class SessionManager: ObservableObject {
             case .idle:
                 break
             }
-            self.phaseStartTime = Date().addingTimeInterval(-completedDuration)
+            // phaseStartTime を現在時刻にリセット
+            // syncTimeFromWatch が累積時間を確定済みなので、
+            // 後続の completeCurrentSetRecord() で二重加算しないようにする
+            self.phaseStartTime = Date()
         } else if normalizedCompletedPhase != nil {
             // フェーズ情報は届いたが時間が不明な場合は二重加算を避けるため直近時刻でリセット
             self.phaseStartTime = Date()
@@ -299,10 +339,22 @@ class SessionManager: ObservableObject {
             self.currentPhase = phase
         }
 
-        // 表示用文字列も更新
-        updateElapsedTimeString()
+        // タイムスタンプベースの正確な同期（優先）
+        if let startDate = phaseStartDate, startDate > 0 {
+            let start = Date(timeIntervalSince1970: startDate)
+            self.phaseStartTime = start
+            print("SessionManager: ⏱️ Synced phase start time from timestamp: \(start)")
+        }
 
-        print("SessionManager: ✅ Times synced from Watch")
+        // 基準値から現在の表示値を更新
+        self.totalWorkTime = totalWorkTime
+        self.totalRestTime = totalRestTime
+        self.elapsedTime = totalWorkTime + totalRestTime
+
+        // 表示用文字列も更新（フェーズ経過時間を正しく計算）
+        updateElapsedTime()
+
+        print("SessionManager: ✅ Times synced from Watch (authority mode)")
 
         // セッションやIDが欠落している場合は補完する（Watchのみで開始されたケースを考慮）
         let shouldEnsureSession = currentPhase != .idle || totalWorkTime > 0 || totalRestTime > 0
@@ -416,6 +468,14 @@ class SessionManager: ObservableObject {
         currentPhase = newPhase
         phaseStartTime = now
 
+        // Watch権威タイマーの基準値を更新（フェーズ遷移時にリセット）
+        if isWatchTimeAuthority {
+            watchBaseWorkTime = totalWorkTime
+            watchBaseRestTime = totalRestTime
+            watchBaseReceivedAt = now
+            watchBasePhase = newPhase
+        }
+
         // 心拍数CSVログの新しいフェーズを開始
         currentPhaseStartTimestamp = Int64(now.timeIntervalSince1970 * 1000)
         heartRateCSVLogger.setPhase(newPhase.rawValue, cycleIndex: cycleIndex)
@@ -441,6 +501,7 @@ class SessionManager: ObservableObject {
                 totalRestTime: totalRestTime,
                 elapsedTime: elapsedTime,
                 currentPhaseTime: 0,
+                phaseStartDate: phaseStartTime,
                 previousPhase: previousPhase.rawValue,
                 previousPhaseDuration: completedPhaseDuration
             )
@@ -470,9 +531,22 @@ class SessionManager: ObservableObject {
             cancelRestNotifications()
         }
 
+        // スクリーンタイム制限の一時解除／再ロック（Pro 機能）
+        if #available(iOS 16.0, *) {
+            let manager = ScreenTimeManager.shared
+            if newPhase == .rest {
+                // 休憩入り: Pro なら N 秒解除ウィンドウを開始
+                manager.startRestPhaseUnlock(isPro: ProUserManager.shared.isPro)
+            } else if newPhase == .work {
+                // 筋トレ復帰: 解除ウィンドウをキャンセルして即再ロック
+                manager.cancelRestUnlockAndReapply()
+            }
+        }
+
         // Widget/Live Activityを強制更新（フェーズ変更時は即座に更新）
         WidgetStateStore.shared.forceWidgetUpdate()
         syncToWidgetState()
+        setupLiveActivity()
 
         print("SessionManager: ✅ Phase changed to \(newPhase.rawValue), notifyWatch: \(notifyWatch)")
     }
@@ -527,6 +601,14 @@ class SessionManager: ObservableObject {
         heartRateCSVLogger.endSession()
         currentPhaseStartTimestamp = 0
 
+        // メモログを終了
+        noteLogger.endSession()
+
+        // スクリーンタイム制限を解除
+        if #available(iOS 16.0, *) {
+            ScreenTimeManager.shared.removeShield()
+        }
+
         if currentSetRecord != nil {
             completeCurrentSetRecord()
         }
@@ -556,6 +638,10 @@ class SessionManager: ObservableObject {
 
         // iPhone側のWatch状態をリセット（前回セッションの時間表示を防ぐ）
         watchConnectivity.resetWatchState()
+
+        // Watch権威タイマー状態をリセット
+        isWatchTimeAuthority = false
+        watchBaseReceivedAt = nil
 
         // 休憩通知をキャンセル
         cancelRestNotifications()
@@ -640,14 +726,31 @@ class SessionManager: ObservableObject {
         let seconds = Int(phaseElapsed) % 60
         elapsedTimeString = String(format: "%02d:%02d", minutes, seconds)
 
-        // フェーズ別の合計時間を更新
-        if currentPhase == .work {
-            totalWorkTime = workTimeAccumulated + phaseElapsed
-        } else if currentPhase == .rest {
-            totalRestTime = restTimeAccumulated + phaseElapsed
+        if isWatchTimeAuthority, let receivedAt = watchBaseReceivedAt {
+            // Watch権威モード: Watch基準値からの補間で計算（直接上書きによるジャンプを防ぐ）
+            let timeSinceSync = max(Date().timeIntervalSince(receivedAt), 0)
+            let activePhase = watchBasePhase ?? currentPhase
 
-            // 休憩時間超過チェック
-            checkRestTimeExceeded(phaseElapsed: phaseElapsed)
+            if activePhase == .work {
+                totalWorkTime = watchBaseWorkTime + timeSinceSync
+                totalRestTime = watchBaseRestTime
+            } else if activePhase == .rest {
+                totalWorkTime = watchBaseWorkTime
+                totalRestTime = watchBaseRestTime + timeSinceSync
+
+                // 休憩時間超過チェック
+                checkRestTimeExceeded(phaseElapsed: phaseElapsed)
+            }
+        } else {
+            // iPhoneスタンドアロンモード: 既存のローカルタイマーロジック
+            if currentPhase == .work {
+                totalWorkTime = workTimeAccumulated + phaseElapsed
+            } else if currentPhase == .rest {
+                totalRestTime = restTimeAccumulated + phaseElapsed
+
+                // 休憩時間超過チェック
+                checkRestTimeExceeded(phaseElapsed: phaseElapsed)
+            }
         }
 
         // 総経過時間は常にwork+restの合計として計算（統一）
@@ -711,14 +814,6 @@ class SessionManager: ObservableObject {
         isRestTimeExceeded = false
     }
 
-    // 経過時間の表示文字列を更新
-    private func updateElapsedTimeString() {
-        let totalSeconds = Int(elapsedTime)
-        let minutes = totalSeconds / 60
-        let seconds = totalSeconds % 60
-        elapsedTimeString = String(format: "%02d:%02d", minutes, seconds)
-    }
-
     private func resetSession() {
         currentPhase = .idle
         phaseStartTime = nil
@@ -732,6 +827,13 @@ class SessionManager: ObservableObject {
         cycleIndex = 0
         workTimeAccumulated = 0
         restTimeAccumulated = 0
+
+        // Watch権威タイマーをリセット
+        isWatchTimeAuthority = false
+        watchBaseWorkTime = 0
+        watchBaseRestTime = 0
+        watchBaseReceivedAt = nil
+        watchBasePhase = nil
 
         // メモリクリーンアップ
         sessionSensorData.removeAll()
@@ -918,6 +1020,57 @@ class SessionManager: ObservableObject {
             print("Failed to serialize sensor data: \(error)")
             return "[]"
         }
+    }
+
+    // MARK: - Quick Note Entry
+
+    /// 筋トレ中・休憩中の任意タイミングでメモを残す。
+    /// - メモ自体は `WorkoutNoteLogger` で時系列保存（メモリ + notes_yyyyMMdd.csv）
+    /// - 同タイミングの心拍数行として `HeartRateCSVLogger` にも記録し、心拍データと結合可能にする
+    /// - `currentSetRecord.note` にも「改行区切りで追記」するので Core Data の履歴にも反映
+    /// - Parameter text: 入力されたメモ本文（空や空白のみは無視）
+    /// - Returns: 記録された Entry（空入力時は nil）
+    @discardableResult
+    func addQuickNote(_ text: String) -> WorkoutNoteEntry? {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        guard currentPhase != .idle else {
+            print("SessionManager: ⚠️ addQuickNote ignored - session is idle")
+            return nil
+        }
+
+        let hr = heartRateManager.currentHeartRate
+
+        // 1. 時系列メモログへ
+        let entry = noteLogger.addNote(
+            text: trimmed,
+            phase: currentPhase.rawValue,
+            cycleIndex: cycleIndex,
+            heartRate: hr
+        )
+
+        // 2. 心拍数CSVにも note 付き行として書き込み（行単位で心拍データと結合できる）
+        heartRateCSVLogger.recordInstantNote(text: trimmed, heartRate: hr)
+
+        // 3. 現在の SetRecord.note にも追記（既存の履歴UI向け、改行区切り）
+        if let record = currentSetRecord {
+            let existing = (record.note ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            if existing.isEmpty {
+                record.note = trimmed
+            } else {
+                record.note = existing + "\n" + trimmed
+            }
+            // currentNote も追記して次のフェーズ遷移時の補完に反映
+            currentNote = record.note ?? trimmed
+            dataController.save()
+        } else {
+            // SetRecord がまだ無い場合（異常系）は少なくとも currentNote に保持
+            let existing = currentNote.trimmingCharacters(in: .whitespacesAndNewlines)
+            currentNote = existing.isEmpty ? trimmed : existing + "\n" + trimmed
+        }
+
+        print("SessionManager: 📝 Note added - phase: \(currentPhase.rawValue), hr: \(Int(hr)), text: \(trimmed)")
+        return entry
     }
 
     // MARK: - Session Persistence (タスクキル対応)

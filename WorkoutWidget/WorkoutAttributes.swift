@@ -1,14 +1,13 @@
 //
 //  WorkoutAttributes.swift
-//  MuscleBuildingRecorder
+//  WorkoutWidget
 //
 //  Live Activity（Dynamic Island / ロック画面）用の共有 ActivityAttributes。
 //  ── 重要 ──
-//  この定義は iOS アプリ（本ファイル）と Widget Extension（WorkoutWidget/WorkoutAttributes.swift）で
-//  完全に同一である必要がある。ActivityKit は Codable で ContentState / attributes を
-//  JSON エンコードし Widget Extension プロセスに渡すため、フィールド構成がずれると
-//  Widget 側でデコードに失敗し Dynamic Island が何も描画されない。
-//  どちらか片方を変更したら必ず両方を同期させること。
+//  この定義は iOS アプリ（MuscleBuildingRecorder/WorkoutAttributes.swift）と完全に
+//  同一である必要がある。片方を変更したら必ず両方を同期させること。
+//  （synchronized-groups では単一ファイルを複数ターゲットに所属させられないため、
+//   同一内容の定義を両方のターゲットに置いている）
 //
 
 import ActivityKit

@@ -97,6 +97,32 @@ final class HeartRateCSVLogger: ObservableObject {
         }
     }
 
+    /// 任意タイミングのメモを1行として記録する（行単位で心拍数と紐付け）
+    /// - 既存の心拍数行と同じフォーマットで書き込み、note 列に本文を入れる
+    /// - category / exercise / reps / load は空のまま。ただし note が埋まっているため
+    ///   `supplementPhaseData` の補完対象外になる（フェーズ情報で上書きされない）
+    func recordInstantNote(text: String, heartRate: Double) {
+        guard isLogging else { return }
+        guard currentPhase != "idle" else { return }
+
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        let now = Date()
+        let timestamp = Int64(now.timeIntervalSince1970 * 1000)
+        let datetime = isoDateFormatter.string(from: now)
+        let escapedNote = escapeCSV(trimmed)
+
+        // 心拍数が未取得（0）の場合はそのまま 0 として記録
+        let line = "\(timestamp),\(datetime),\(heartRate),\(currentPhase),\(currentCycleIndex),,,,,\(escapedNote)\n"
+
+        writeToCSV(line: line)
+
+        DispatchQueue.main.async {
+            self.logCount += 1
+        }
+    }
+
     /// フェーズ終了時に種目情報を補完
     /// - Parameters:
     ///   - phaseStartTimestamp: フェーズ開始時のタイムスタンプ（ミリ秒）
@@ -147,8 +173,9 @@ final class HeartRateCSVLogger: ObservableObject {
 
                 // タイムスタンプが範囲内かチェック
                 if timestamp >= phaseStartTimestamp && timestamp <= phaseEndTimestamp {
-                    // 種目情報が空の場合のみ補完
-                    if columns[5].isEmpty {
+                    // 種目情報が空、かつメモも空の場合のみ補完
+                    // （recordInstantNote で書かれた行は note が埋まっているため上書きされない）
+                    if columns[5].isEmpty && columns[9].isEmpty {
                         // 新しい行を構築
                         var newColumns = columns
                         newColumns[5] = escapedCategory

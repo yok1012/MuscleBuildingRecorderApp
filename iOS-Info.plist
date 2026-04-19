@@ -2,6 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+    <!-- App Tracking Transparency -->
+    <key>NSUserTrackingUsageDescription</key>
+    <string>このアプリでは、パーソナライズされた広告を表示するために、あなたのアクティビティを追跡する許可を求めています。トラッキングを許可すると、より関連性の高い広告が表示されます。</string>
+
     <!-- AdMob App ID -->
     <key>GADApplicationIdentifier</key>
     <string>ca-app-pub-9111455054322479~2367556652</string>

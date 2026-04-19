@@ -6,7 +6,13 @@ final class LiveActivityManager {
 
     private var currentActivity: Activity<WorkoutAttributes>?
 
-    private init() {}
+    private init() {
+        // アプリ再起動直後に既存の Activity を拾い直す（currentActivity は memory-only なので
+        // kill 後は nil から始まる。OS 側に残っている Activity と二重登録しないようここで接続）
+        restoreExistingActivityIfNeeded()
+    }
+
+    // MARK: - Lifecycle
 
     func startLiveActivity(
         phase: WorkoutPhase,
@@ -14,10 +20,33 @@ final class LiveActivityManager {
         heartRate: Int,
         exercise: String,
         category: String,
-        cycleIndex: Int
+        cycleIndex: Int,
+        load: Double,
+        reps: Double,
+        phaseStartTime: Date?
     ) {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else {
-            print("Live Activities are not enabled")
+            print("LiveActivityManager: ⚠️ Live Activities are not enabled")
+            return
+        }
+
+        // 既存の Activity があれば起動しない（ダブり防止）
+        if currentActivity == nil {
+            restoreExistingActivityIfNeeded()
+        }
+        if currentActivity != nil {
+            // 既存を update 側に回す
+            updateLiveActivity(
+                phase: phase,
+                elapsedTime: elapsedTime,
+                heartRate: heartRate,
+                exercise: exercise,
+                category: category,
+                cycleIndex: cycleIndex,
+                load: load,
+                reps: reps,
+                phaseStartTime: phaseStartTime
+            )
             return
         }
 
@@ -28,7 +57,10 @@ final class LiveActivityManager {
             heartRate: heartRate,
             exercise: exercise,
             category: category,
-            cycleIndex: cycleIndex
+            cycleIndex: cycleIndex,
+            load: load,
+            reps: reps,
+            phaseStartTime: phaseStartTime
         )
 
         do {
@@ -37,9 +69,9 @@ final class LiveActivityManager {
                 contentState: contentState,
                 pushType: nil
             )
-            print("Live Activity started: \(currentActivity?.id ?? "")")
+            print("LiveActivityManager: ✅ Live Activity started id=\(currentActivity?.id ?? "-")")
         } catch {
-            print("Failed to start Live Activity: \(error)")
+            print("LiveActivityManager: ❌ Failed to start Live Activity: \(error)")
         }
     }
 
@@ -49,7 +81,10 @@ final class LiveActivityManager {
         heartRate: Int,
         exercise: String,
         category: String,
-        cycleIndex: Int
+        cycleIndex: Int,
+        load: Double,
+        reps: Double,
+        phaseStartTime: Date?
     ) {
         guard let activity = currentActivity else { return }
 
@@ -59,7 +94,10 @@ final class LiveActivityManager {
             heartRate: heartRate,
             exercise: exercise,
             category: category,
-            cycleIndex: cycleIndex
+            cycleIndex: cycleIndex,
+            load: load,
+            reps: reps,
+            phaseStartTime: phaseStartTime
         )
 
         Task {
@@ -68,7 +106,10 @@ final class LiveActivityManager {
     }
 
     func endLiveActivity() {
-        guard let activity = currentActivity else { return }
+        let activity = currentActivity
+        currentActivity = nil
+
+        guard let activity else { return }
 
         Task {
             await activity.end(
@@ -76,43 +117,57 @@ final class LiveActivityManager {
                 dismissalPolicy: .immediate
             )
         }
-
-        currentActivity = nil
     }
 
     func isLiveActivityActive() -> Bool {
-        return currentActivity != nil
+        currentActivity != nil
+    }
+
+    // MARK: - Private
+    private func restoreExistingActivityIfNeeded() {
+        // OS に残っている同 Attributes 型の Activity を拾う
+        if let existing = Activity<WorkoutAttributes>.activities.first {
+            currentActivity = existing
+            print("LiveActivityManager: 🔄 Restored existing activity id=\(existing.id)")
+        }
     }
 }
 
+// MARK: - SessionManager Integration
 extension SessionManager {
     func setupLiveActivity() {
-        guard currentPhase != .idle else { return }
-
-        let liveActivityManager = LiveActivityManager.shared
-
-        if !liveActivityManager.isLiveActivityActive() {
-            liveActivityManager.startLiveActivity(
-                phase: currentPhase,
-                elapsedTime: elapsedTimeString,
-                heartRate: Int(HeartRateManager.shared.currentHeartRate),
-                exercise: selectedExercise,
-                category: selectedCategory,
-                cycleIndex: cycleIndex
-            )
-        } else {
-            liveActivityManager.updateLiveActivity(
-                phase: currentPhase,
-                elapsedTime: elapsedTimeString,
-                heartRate: Int(HeartRateManager.shared.currentHeartRate),
-                exercise: selectedExercise,
-                category: selectedCategory,
-                cycleIndex: cycleIndex
-            )
+        guard currentPhase != .idle else {
+            LiveActivityManager.shared.endLiveActivity()
+            return
         }
 
-        if currentPhase == .idle {
-            liveActivityManager.endLiveActivity()
+        let manager = LiveActivityManager.shared
+        let heartRate = Int(HeartRateManager.shared.currentHeartRate)
+
+        if manager.isLiveActivityActive() {
+            manager.updateLiveActivity(
+                phase: currentPhase,
+                elapsedTime: elapsedTimeString,
+                heartRate: heartRate,
+                exercise: selectedExercise,
+                category: selectedCategory,
+                cycleIndex: cycleIndex,
+                load: currentLoad,
+                reps: currentReps,
+                phaseStartTime: phaseStartTime
+            )
+        } else {
+            manager.startLiveActivity(
+                phase: currentPhase,
+                elapsedTime: elapsedTimeString,
+                heartRate: heartRate,
+                exercise: selectedExercise,
+                category: selectedCategory,
+                cycleIndex: cycleIndex,
+                load: currentLoad,
+                reps: currentReps,
+                phaseStartTime: phaseStartTime
+            )
         }
     }
 }
