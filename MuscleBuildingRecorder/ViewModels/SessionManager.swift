@@ -29,6 +29,13 @@ class SessionManager: ObservableObject {
     @Published var loadUnit: String = "kg"
     @Published var repsUnit: String = "回"
 
+    // ドメイン（筋トレ / 勉強 / 仕事）。idle 中に切替可能。
+    @Published var activeDomain: ActivityDomain = .workout
+    // 勉強・仕事ドメインの入力項目（workout では未使用）
+    @Published var currentTaskName: String = ""
+    @Published var currentSubject: String = ""   // study 用
+    @Published var currentProject: String = ""   // work 用
+
     // 休憩時間管理
     @Published var restTimeLimit: TimeInterval = 60  // 休憩時間の上限（秒）
     @Published var isRestTimeExceeded: Bool = false   // 休憩時間超過フラグ
@@ -112,6 +119,12 @@ class SessionManager: ObservableObject {
             return
         }
 
+        // 自動判別は筋トレドメインでのみ機能（study/work では HR が必須でない）
+        guard activeDomain == .workout else {
+            suggestedPhase = nil
+            return
+        }
+
         // 3秒ごとに分析
         let now = Date()
         guard now.timeIntervalSince(lastHeartRateAnalysisTime) >= heartRateAnalysisInterval else {
@@ -179,7 +192,26 @@ class SessionManager: ObservableObject {
         // Clear previous session result when starting new session
         lastCompletedSession = nil
 
-        currentSession = dataController.createSession()
+        // ドメイン別の Session メタデータを構築
+        let sessionTitle: String?
+        let sessionSubjectOrProject: String?
+        switch activeDomain {
+        case .workout:
+            sessionTitle = nil
+            sessionSubjectOrProject = nil
+        case .study:
+            sessionTitle = currentTaskName.isEmpty ? nil : currentTaskName
+            sessionSubjectOrProject = currentSubject.isEmpty ? nil : currentSubject
+        case .work:
+            sessionTitle = currentTaskName.isEmpty ? nil : currentTaskName
+            sessionSubjectOrProject = currentProject.isEmpty ? nil : currentProject
+        }
+
+        currentSession = dataController.createSession(
+            domain: activeDomain,
+            title: sessionTitle,
+            subjectOrProject: sessionSubjectOrProject
+        )
         currentPhase = .work
         phaseStartTime = Date()
         sessionStartTime = Date()
@@ -518,6 +550,8 @@ class SessionManager: ObservableObject {
         record.name = selectedExercise
         record.load = currentLoad
         record.reps = currentReps
+        // V2: ドメイン別タスク名（study/work で利用、workout では空）
+        record.taskName = currentTaskName.isEmpty ? nil : currentTaskName
         // V2: note は SetRecord に書き込まない（メモは WorkoutNoteLogger 側に時系列保存）
         record.session = currentSession
         currentSetRecord = record

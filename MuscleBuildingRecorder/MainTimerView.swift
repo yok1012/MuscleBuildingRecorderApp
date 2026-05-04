@@ -112,8 +112,15 @@ struct MainTimerView: View {
             }
         }
         .sheet(isPresented: $showingInputSheet) {
-            ExerciseInputSheet()
-                .environmentObject(sessionManager)
+            // ドメインに応じて入力シートを切り替え（workout=従来、study/work=タスク入力）
+            switch sessionManager.activeDomain {
+            case .workout:
+                ExerciseInputSheet()
+                    .environmentObject(sessionManager)
+            case .study, .work:
+                TaskInputSheet(domain: sessionManager.activeDomain)
+                    .environmentObject(sessionManager)
+            }
         }
         .sheet(isPresented: $showingExerciseSelection) {
             ExerciseSelectionSheet()
@@ -256,23 +263,29 @@ struct MainTimerView: View {
     private var exerciseSection: some View {
         VStack(spacing: 8) {
             if sessionManager.currentPhase != .idle {
-                // 種目表示エリア（タップで変更可能）
-                Button(action: { showingExerciseSelection = true }) {
+                // 種目／タスク表示エリア（タップで変更可能）
+                // workout: ExerciseSelectionSheet（カテゴリ+種目）
+                // study/work: TaskInputSheet（タスク名+科目/プロジェクト）
+                Button(action: {
+                    if sessionManager.activeDomain == .workout {
+                        showingExerciseSelection = true
+                    } else {
+                        showingInputSheet = true
+                    }
+                }) {
                     HStack {
-                        // 左矢印インジケーター
                         Image(systemName: "chevron.left")
                             .font(.caption)
                             .foregroundColor(.white.opacity(0.4))
 
                         Spacer()
 
-                        // 種目情報
                         VStack(spacing: 4) {
-                            Text(sessionManager.selectedCategory)
+                            Text(exerciseSectionSubtitle)
                                 .font(.caption)
                                 .foregroundColor(.white.opacity(0.7))
 
-                            Text(sessionManager.selectedExercise)
+                            Text(exerciseSectionTitle)
                                 .font(.title3)
                                 .fontWeight(.bold)
                                 .foregroundColor(.white)
@@ -280,7 +293,6 @@ struct MainTimerView: View {
 
                         Spacer()
 
-                        // 右矢印インジケーター
                         Image(systemName: "chevron.right")
                             .font(.caption)
                             .foregroundColor(.white.opacity(0.4))
@@ -295,14 +307,18 @@ struct MainTimerView: View {
                     DragGesture()
                         .onEnded { value in
                             if value.translation.width < -50 || value.translation.width > 50 {
-                                showingExerciseSelection = true
+                                if sessionManager.activeDomain == .workout {
+                                    showingExerciseSelection = true
+                                } else {
+                                    showingInputSheet = true
+                                }
                             }
                         }
                 )
             } else {
                 // 待機中
                 VStack(spacing: 4) {
-                    Text("筋トレ記録")
+                    Text(idleHeadline)
                         .font(.title2)
                         .fontWeight(.bold)
                         .foregroundColor(.white)
@@ -311,6 +327,37 @@ struct MainTimerView: View {
                         .foregroundColor(.white.opacity(0.6))
                 }
             }
+        }
+    }
+
+    /// 運動中の種目エリアの上段（カテゴリ or 科目/プロジェクト）
+    private var exerciseSectionSubtitle: String {
+        switch sessionManager.activeDomain {
+        case .workout:
+            return sessionManager.selectedCategory
+        case .study:
+            return sessionManager.currentSubject.isEmpty ? "科目未設定" : sessionManager.currentSubject
+        case .work:
+            return sessionManager.currentProject.isEmpty ? "プロジェクト未設定" : sessionManager.currentProject
+        }
+    }
+
+    /// 運動中の種目エリアの下段（種目名 or タスク名）
+    private var exerciseSectionTitle: String {
+        switch sessionManager.activeDomain {
+        case .workout:
+            return sessionManager.selectedExercise
+        case .study, .work:
+            return sessionManager.currentTaskName.isEmpty ? "タップしてタスク名を入力" : sessionManager.currentTaskName
+        }
+    }
+
+    /// idle 時のヘッドライン（ドメインによりタイトルを変更）
+    private var idleHeadline: String {
+        switch sessionManager.activeDomain {
+        case .workout: return "筋トレ記録"
+        case .study:   return "勉強記録"
+        case .work:    return "仕事記録"
         }
     }
 
@@ -754,6 +801,9 @@ struct MainTimerView: View {
     private func actionButtonStack(buttonWidth: CGFloat) -> some View {
         VStack(spacing: 16) {
             if sessionManager.currentPhase == .idle {
+                // モード切替（筋トレ / 勉強 / 仕事）
+                domainPicker
+
                 // 待機中: 大きなスタートボタン
                 Button(action: startSessionWithWatchCheck) {
                     VStack(spacing: 16) {
@@ -804,18 +854,18 @@ struct MainTimerView: View {
             } else if sessionManager.currentPhase == .work {
                 // 運動中: 状態表示 + 休憩ボタン
                 VStack(spacing: 12) {
-                    // 現在の状態表示
+                    // 現在の状態表示（ドメインに応じてラベルとアイコンを切替）
                     HStack(spacing: 8) {
-                        Image(systemName: "figure.strengthtraining.traditional")
+                        Image(systemName: workPhaseIcon)
                             .font(.title2)
-                        Text("筋トレ中")
+                        Text(sessionManager.activeDomain.workPhaseLabel + "中")
                             .font(.headline)
                             .fontWeight(.bold)
                     }
                     .foregroundColor(.white)
                     .padding(.horizontal, 24)
                     .padding(.vertical, 10)
-                    .background(Color.red.opacity(0.8))
+                    .background(domainColor(sessionManager.activeDomain))
                     .cornerRadius(20)
 
                     // 休憩ボタン（大）
@@ -931,6 +981,55 @@ struct MainTimerView: View {
                     }
                 }
             }
+        }
+    }
+
+    // MARK: - Domain Picker (idle 時のモード切替)
+    private var domainPicker: some View {
+        HStack(spacing: 8) {
+            ForEach(ActivityDomain.allCases, id: \.self) { domain in
+                Button {
+                    if sessionManager.activeDomain != domain {
+                        sessionManager.activeDomain = domain
+                        let impact = UIImpactFeedbackGenerator(style: .light)
+                        impact.impactOccurred()
+                    }
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: domain.iconName)
+                            .font(.subheadline)
+                        Text(domain.displayName)
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                    }
+                    .foregroundColor(sessionManager.activeDomain == domain ? .white : .white.opacity(0.6))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(sessionManager.activeDomain == domain ? domainColor(domain) : Color.white.opacity(0.1))
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 4)
+    }
+
+    private func domainColor(_ domain: ActivityDomain) -> Color {
+        switch domain {
+        case .workout: return Color.red.opacity(0.8)
+        case .study:   return Color.blue.opacity(0.8)
+        case .work:    return Color.green.opacity(0.8)
+        }
+    }
+
+    /// 運動中ステータス表示のアイコン（ドメイン別）
+    private var workPhaseIcon: String {
+        switch sessionManager.activeDomain {
+        case .workout: return "figure.strengthtraining.traditional"
+        case .study:   return "book.fill"
+        case .work:    return "briefcase.fill"
         }
     }
 
