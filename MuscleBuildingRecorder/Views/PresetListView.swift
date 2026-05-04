@@ -161,11 +161,20 @@ struct PresetListView: View {
         .padding(.vertical, 4)
     }
 
+    private func domainAccentColor(for domain: ActivityDomain) -> Color {
+        switch domain {
+        case .workout: return .red
+        case .study:   return .blue
+        case .work:    return .green
+        }
+    }
+
     @ViewBuilder
     private func presetRow(_ preset: WorkoutPreset, isLocked: Bool) -> some View {
         HStack(spacing: 10) {
-            Image(systemName: isLocked ? "lock.fill" : "list.bullet.rectangle.portrait")
-                .foregroundColor(isLocked ? .gray : .accentColor)
+            // ロック中はロックアイコン、それ以外はドメイン別アイコン
+            Image(systemName: isLocked ? "lock.fill" : preset.domain.iconName)
+                .foregroundColor(isLocked ? .gray : domainAccentColor(for: preset.domain))
                 .frame(width: 24)
             VStack(alignment: .leading, spacing: 2) {
                 Text(preset.title)

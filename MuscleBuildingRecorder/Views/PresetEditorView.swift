@@ -64,9 +64,30 @@ struct PresetEditorView: View {
     private func editorForm(binding: Binding<WorkoutPreset>) -> some View {
         Form {
             titleSection(binding: binding)
+            domainSection(binding: binding)
             executionSection(binding: binding)
             stepsSection(binding: binding)
             runSection(preset: binding.wrappedValue)
+        }
+    }
+
+    @ViewBuilder
+    private func domainSection(binding: Binding<WorkoutPreset>) -> some View {
+        let domainBinding = Binding<ActivityDomain>(
+            get: { binding.wrappedValue.domain },
+            set: { binding.wrappedValue.domain = $0 }
+        )
+        Section(header: Text("モード"), footer: Text("勉強・仕事モードでは、ステップは「タスク」として扱われます。重量・回数の代わりにタスク名・科目・プロジェクトを設定できます。")) {
+            Picker("モード", selection: domainBinding) {
+                ForEach(ActivityDomain.allCases, id: \.self) { domain in
+                    HStack {
+                        Image(systemName: domain.iconName)
+                        Text(domain.displayName)
+                    }
+                    .tag(domain)
+                }
+            }
+            .pickerStyle(.segmented)
         }
     }
 
@@ -89,16 +110,17 @@ struct PresetEditorView: View {
 
     @ViewBuilder
     private func stepsSection(binding: Binding<WorkoutPreset>) -> some View {
+        let domain = binding.wrappedValue.domain
         Section(header: HStack {
-            Text("ステップ")
+            Text(domain == .workout ? "ステップ" : "タスク")
             Spacer()
             Text("\(binding.wrappedValue.steps.count) 件")
                 .font(.caption)
                 .foregroundColor(.secondary)
         }) {
             ForEach(binding.steps) { stepBinding in
-                NavigationLink(destination: PresetStepEditorView(step: stepBinding)) {
-                    stepRow(stepBinding.wrappedValue, index: indexOfStep(id: stepBinding.wrappedValue.id, in: binding.wrappedValue))
+                NavigationLink(destination: PresetStepEditorView(step: stepBinding, domain: domain)) {
+                    stepRow(stepBinding.wrappedValue, index: indexOfStep(id: stepBinding.wrappedValue.id, in: binding.wrappedValue), domain: domain)
                 }
             }
             .onMove { source, dest in
@@ -111,7 +133,7 @@ struct PresetEditorView: View {
             Button {
                 binding.wrappedValue.steps.append(WorkoutPresetStep())
             } label: {
-                Label("ステップを追加", systemImage: "plus.circle.fill")
+                Label(domain == .workout ? "ステップを追加" : "タスクを追加", systemImage: "plus.circle.fill")
             }
         }
     }
@@ -149,14 +171,14 @@ struct PresetEditorView: View {
     }
 
     @ViewBuilder
-    private func stepRow(_ step: WorkoutPresetStep, index: Int) -> some View {
+    private func stepRow(_ step: WorkoutPresetStep, index: Int, domain: ActivityDomain = .workout) -> some View {
         HStack(spacing: 10) {
             Text("\(index + 1)")
                 .font(.headline)
                 .frame(width: 24, height: 24)
                 .background(Circle().fill(Color.accentColor.opacity(0.15)))
             VStack(alignment: .leading, spacing: 2) {
-                Text("\(step.category) ・ \(step.exerciseName)")
+                Text(stepRowTitle(step: step, domain: domain))
                     .font(.subheadline)
                     .lineLimit(1)
                 Text(step.summaryText)
@@ -165,6 +187,21 @@ struct PresetEditorView: View {
             }
         }
         .padding(.vertical, 2)
+    }
+
+    private func stepRowTitle(step: WorkoutPresetStep, domain: ActivityDomain) -> String {
+        switch domain {
+        case .workout:
+            return "\(step.category) ・ \(step.exerciseName)"
+        case .study:
+            let subject = step.subject ?? step.category
+            let task = step.taskName ?? step.exerciseName
+            return subject.isEmpty ? task : "\(subject) ・ \(task)"
+        case .work:
+            let project = step.project ?? step.category
+            let task = step.taskName ?? step.exerciseName
+            return project.isEmpty ? task : "\(project) ・ \(task)"
+        }
     }
 
     // MARK: - Logic
@@ -211,6 +248,7 @@ struct PresetEditorView: View {
 
 struct PresetStepEditorView: View {
     @Binding var step: WorkoutPresetStep
+    var domain: ActivityDomain = .workout
 
     private var availableCategories: [String] {
         let fromMaster = SessionManager.shared.getAvailableCategories()
@@ -226,32 +264,20 @@ struct PresetStepEditorView: View {
 
     var body: some View {
         Form {
-            Section(header: Text("種目")) {
-                Picker("カテゴリー", selection: $step.category) {
-                    ForEach(availableCategories, id: \.self) { cat in
-                        Text(cat).tag(cat)
-                    }
-                }
-                Picker("種目", selection: $step.exerciseName) {
-                    ForEach(availableExercises, id: \.self) { name in
-                        Text(name).tag(name)
-                    }
-                    if availableExercises.isEmpty {
-                        Text("種目がありません").tag(step.exerciseName)
-                    }
-                }
-                .onChange(of: step.category) { _, _ in
-                    if let first = availableExercises.first,
-                       !availableExercises.contains(step.exerciseName) {
-                        step.exerciseName = first
-                    }
-                }
+            // ドメイン別の入力UI
+            switch domain {
+            case .workout:
+                workoutInputSection
+            case .study:
+                studyInputSection
+            case .work:
+                workInputSection
             }
 
             Section(header: Text("時間 / 回数")) {
                 Stepper(value: $step.workSeconds, in: 5...3600, step: 5) {
                     HStack {
-                        Text("筋トレ時間")
+                        Text(domain.workPhaseLabel + "時間")
                         Spacer()
                         Text("\(step.workSeconds) 秒")
                             .foregroundColor(.secondary)
@@ -259,7 +285,7 @@ struct PresetStepEditorView: View {
                 }
                 Stepper(value: $step.restSeconds, in: 5...3600, step: 5) {
                     HStack {
-                        Text("休憩時間")
+                        Text(domain.restPhaseLabel + "時間")
                         Spacer()
                         Text("\(step.restSeconds) 秒")
                             .foregroundColor(.secondary)
@@ -267,36 +293,39 @@ struct PresetStepEditorView: View {
                 }
                 Stepper(value: $step.setCount, in: 1...50, step: 1) {
                     HStack {
-                        Text("セット回数")
+                        Text(domain == .workout ? "セット回数" : "サイクル回数")
                         Spacer()
-                        Text("\(step.setCount) セット")
+                        Text(domain == .workout ? "\(step.setCount) セット" : "\(step.setCount) サイクル")
                             .foregroundColor(.secondary)
                     }
                 }
             }
 
-            Section(header: Text("既定値（任意）"), footer: Text("負荷・回数を指定するとセッション開始時に自動入力されます。")) {
-                HStack {
-                    Text("負荷")
-                    Spacer()
-                    TextField("0", value: Binding(
-                        get: { step.defaultLoad ?? 0 },
-                        set: { step.defaultLoad = $0 == 0 ? nil : $0 }
-                    ), format: .number)
-                    .keyboardType(.decimalPad)
-                    .multilineTextAlignment(.trailing)
-                    .frame(width: 80)
-                }
-                HStack {
-                    Text("回数")
-                    Spacer()
-                    TextField("0", value: Binding(
-                        get: { step.defaultReps ?? 0 },
-                        set: { step.defaultReps = $0 == 0 ? nil : $0 }
-                    ), format: .number)
-                    .keyboardType(.decimalPad)
-                    .multilineTextAlignment(.trailing)
-                    .frame(width: 80)
+            // 既定値（負荷・回数）は workout のみ
+            if domain == .workout {
+                Section(header: Text("既定値（任意）"), footer: Text("負荷・回数を指定するとセッション開始時に自動入力されます。")) {
+                    HStack {
+                        Text("負荷")
+                        Spacer()
+                        TextField("0", value: Binding(
+                            get: { step.defaultLoad ?? 0 },
+                            set: { step.defaultLoad = $0 == 0 ? nil : $0 }
+                        ), format: .number)
+                        .keyboardType(.decimalPad)
+                        .multilineTextAlignment(.trailing)
+                        .frame(width: 80)
+                    }
+                    HStack {
+                        Text("回数")
+                        Spacer()
+                        TextField("0", value: Binding(
+                            get: { step.defaultReps ?? 0 },
+                            set: { step.defaultReps = $0 == 0 ? nil : $0 }
+                        ), format: .number)
+                        .keyboardType(.decimalPad)
+                        .multilineTextAlignment(.trailing)
+                        .frame(width: 80)
+                    }
                 }
             }
 
@@ -308,7 +337,60 @@ struct PresetStepEditorView: View {
                 .lineLimit(3, reservesSpace: true)
             }
         }
-        .navigationTitle("ステップ編集")
+        .navigationTitle(domain == .workout ? "ステップ編集" : "タスク編集")
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    @ViewBuilder
+    private var workoutInputSection: some View {
+        Section(header: Text("種目")) {
+            Picker("カテゴリー", selection: $step.category) {
+                ForEach(availableCategories, id: \.self) { cat in
+                    Text(cat).tag(cat)
+                }
+            }
+            Picker("種目", selection: $step.exerciseName) {
+                ForEach(availableExercises, id: \.self) { name in
+                    Text(name).tag(name)
+                }
+                if availableExercises.isEmpty {
+                    Text("種目がありません").tag(step.exerciseName)
+                }
+            }
+            .onChange(of: step.category) { _, _ in
+                if let first = availableExercises.first,
+                   !availableExercises.contains(step.exerciseName) {
+                    step.exerciseName = first
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var studyInputSection: some View {
+        Section(header: Text("タスク")) {
+            TextField("タスク名（例: 数学 第3章）", text: Binding(
+                get: { step.taskName ?? step.exerciseName },
+                set: { step.taskName = $0; step.exerciseName = $0 }
+            ))
+            TextField("科目（例: 数学）", text: Binding(
+                get: { step.subject ?? step.category },
+                set: { step.subject = $0; step.category = $0 }
+            ))
+        }
+    }
+
+    @ViewBuilder
+    private var workInputSection: some View {
+        Section(header: Text("タスク")) {
+            TextField("タスク名（例: 提案書レビュー）", text: Binding(
+                get: { step.taskName ?? step.exerciseName },
+                set: { step.taskName = $0; step.exerciseName = $0 }
+            ))
+            TextField("プロジェクト（例: ProjectA）", text: Binding(
+                get: { step.project ?? step.category },
+                set: { step.project = $0; step.category = $0 }
+            ))
+        }
     }
 }

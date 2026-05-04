@@ -24,6 +24,11 @@ struct WorkoutPresetStep: Codable, Identifiable, Equatable {
     var defaultReps: Double?
     var note: String?
 
+    // V2: study/work ドメイン用フィールド（workout では未使用）
+    var taskName: String?
+    var subject: String?      // study 用
+    var project: String?      // work 用
+
     init(
         id: UUID = UUID(),
         category: String = "胸",
@@ -33,7 +38,10 @@ struct WorkoutPresetStep: Codable, Identifiable, Equatable {
         setCount: Int = 3,
         defaultLoad: Double? = nil,
         defaultReps: Double? = nil,
-        note: String? = nil
+        note: String? = nil,
+        taskName: String? = nil,
+        subject: String? = nil,
+        project: String? = nil
     ) {
         self.id = id
         self.category = category
@@ -44,6 +52,9 @@ struct WorkoutPresetStep: Codable, Identifiable, Equatable {
         self.defaultLoad = defaultLoad
         self.defaultReps = defaultReps
         self.note = note
+        self.taskName = taskName
+        self.subject = subject
+        self.project = project
     }
 
     var summaryText: String {
@@ -66,6 +77,16 @@ struct WorkoutPreset: Codable, Identifiable, Equatable {
     var iconName: String?
     var colorHex: String?
 
+    /// V2: プリセットのドメイン。Optional + デフォルト workout で旧データ互換。
+    /// rawValue として "workout" / "study" / "work" を保存。
+    var domainRaw: String?
+
+    /// 型安全な domain アクセサ（旧データの nil は workout として扱う）
+    var domain: ActivityDomain {
+        get { ActivityDomain(storedRawValue: domainRaw) }
+        set { domainRaw = newValue.rawValue }
+    }
+
     init(
         id: UUID = UUID(),
         title: String = "新しいプリセット",
@@ -74,7 +95,8 @@ struct WorkoutPreset: Codable, Identifiable, Equatable {
         autoAdvance: Bool = false,
         steps: [WorkoutPresetStep] = [],
         iconName: String? = nil,
-        colorHex: String? = nil
+        colorHex: String? = nil,
+        domain: ActivityDomain = .workout
     ) {
         self.id = id
         self.title = title
@@ -84,21 +106,28 @@ struct WorkoutPreset: Codable, Identifiable, Equatable {
         self.steps = steps
         self.iconName = iconName
         self.colorHex = colorHex
+        self.domainRaw = domain.rawValue
     }
 
     /// 概要表示（例: "3種目 / 計 9セット"）
     var summaryText: String {
         let totalSets = steps.reduce(0) { $0 + $1.setCount }
-        return "\(steps.count)種目 / 計 \(totalSets)セット"
+        switch domain {
+        case .workout:
+            return "\(steps.count)種目 / 計 \(totalSets)セット"
+        case .study, .work:
+            return "\(steps.count)タスク / 計 \(totalSets)サイクル"
+        }
     }
 }
 
 /// プリセット保存ルート。schemaVersion でマイグレーションを管理。
+/// schemaVersion 2: WorkoutPreset.domainRaw / WorkoutPresetStep.taskName/subject/project 追加
 struct WorkoutPresetStore: Codable {
     var schemaVersion: Int
     var presets: [WorkoutPreset]
 
-    static let currentSchemaVersion = 1
+    static let currentSchemaVersion = 2
 
     init(
         schemaVersion: Int = WorkoutPresetStore.currentSchemaVersion,

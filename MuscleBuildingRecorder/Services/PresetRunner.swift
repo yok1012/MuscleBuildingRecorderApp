@@ -149,6 +149,9 @@ final class PresetRunner: ObservableObject {
         currentSetInStep = 1
         lastObservedPhase = .idle
 
+        // V2: プリセットのドメインを SessionManager に反映してから startSession
+        sm.activeDomain = preset.domain
+
         loadCurrentStepIntoSession()
 
         if sm.currentPhase == .idle {
@@ -179,16 +182,26 @@ final class PresetRunner: ObservableObject {
     // MARK: - Step loading
 
     private func loadCurrentStepIntoSession() {
-        guard let step = currentStep else { return }
+        guard let step = currentStep, let preset = activePreset else { return }
         let sm = SessionManager.shared
-        sm.selectedCategory = step.category
-        sm.selectedExercise = step.exerciseName
         sm.restTimeLimit = TimeInterval(step.restSeconds)
-        // ExerciseMaster からデフォルト負荷・回数を取得
-        sm.loadDefaultExerciseValues()
-        // プリセット側で指定があれば上書き
-        if let load = step.defaultLoad { sm.currentLoad = load }
-        if let reps = step.defaultReps { sm.currentReps = reps }
+
+        switch preset.domain {
+        case .workout:
+            sm.selectedCategory = step.category
+            sm.selectedExercise = step.exerciseName
+            // ExerciseMaster からデフォルト負荷・回数を取得
+            sm.loadDefaultExerciseValues()
+            // プリセット側で指定があれば上書き
+            if let load = step.defaultLoad { sm.currentLoad = load }
+            if let reps = step.defaultReps { sm.currentReps = reps }
+        case .study:
+            sm.currentTaskName = step.taskName ?? step.exerciseName
+            sm.currentSubject = step.subject ?? step.category
+        case .work:
+            sm.currentTaskName = step.taskName ?? step.exerciseName
+            sm.currentProject = step.project ?? step.category
+        }
     }
 
     // MARK: - Phase subscription（常時 ON）
