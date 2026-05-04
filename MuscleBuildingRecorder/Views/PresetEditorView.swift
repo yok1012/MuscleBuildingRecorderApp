@@ -73,21 +73,61 @@ struct PresetEditorView: View {
 
     @ViewBuilder
     private func domainSection(binding: Binding<WorkoutPreset>) -> some View {
-        let domainBinding = Binding<ActivityDomain>(
-            get: { binding.wrappedValue.domain },
-            set: { binding.wrappedValue.domain = $0 }
-        )
+        let currentDomain = binding.wrappedValue.domain
         Section(header: Text("モード"), footer: Text("勉強・仕事モードでは、ステップは「タスク」として扱われます。重量・回数の代わりにタスク名・科目・プロジェクトを設定できます。")) {
-            Picker("モード", selection: domainBinding) {
+            // 現在のモードを大きなバッジで明示
+            HStack(spacing: 12) {
+                Image(systemName: currentDomain.iconName)
+                    .font(.title2)
+                    .foregroundColor(.white)
+                    .frame(width: 44, height: 44)
+                    .background(domainAccentColor(for: currentDomain))
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(currentDomain.displayName + "モード")
+                        .font(.headline)
+                    Text(currentDomain == .workout ? "セット・回数で記録" : "タスク・時間で記録")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                Spacer()
+            }
+            .padding(.vertical, 4)
+
+            // モード切替ボタン行（カスタム実装でセグメント描画不具合を回避）
+            HStack(spacing: 8) {
                 ForEach(ActivityDomain.allCases, id: \.self) { domain in
-                    HStack {
-                        Image(systemName: domain.iconName)
-                        Text(domain.displayName)
+                    Button {
+                        guard binding.wrappedValue.domain != domain else { return }
+                        binding.wrappedValue.domain = domain
+                        let impact = UIImpactFeedbackGenerator(style: .medium)
+                        impact.impactOccurred()
+                    } label: {
+                        VStack(spacing: 4) {
+                            Image(systemName: domain.iconName)
+                                .font(.title3)
+                            Text(domain.displayName)
+                                .font(.caption)
+                                .fontWeight(.semibold)
+                        }
+                        .foregroundColor(currentDomain == domain ? .white : .primary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(currentDomain == domain ? domainAccentColor(for: domain) : Color(.systemGray5))
+                        .cornerRadius(10)
                     }
-                    .tag(domain)
+                    .buttonStyle(.plain)
                 }
             }
-            .pickerStyle(.segmented)
+            .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+        }
+    }
+
+    private func domainAccentColor(for domain: ActivityDomain) -> Color {
+        switch domain {
+        case .workout: return .red
+        case .study:   return .blue
+        case .work:    return .green
         }
     }
 
@@ -368,29 +408,46 @@ struct PresetStepEditorView: View {
 
     @ViewBuilder
     private var studyInputSection: some View {
-        Section(header: Text("タスク")) {
+        Section(header: Text("タスク"), footer: Text("勉強モードのタスク名と科目を設定します。")) {
             TextField("タスク名（例: 数学 第3章）", text: Binding(
-                get: { step.taskName ?? step.exerciseName },
-                set: { step.taskName = $0; step.exerciseName = $0 }
+                get: { step.taskName ?? "" },
+                set: { newValue in
+                    step.taskName = newValue.isEmpty ? nil : newValue
+                    // 内部互換のため、exerciseName にも保存しておく（プリセット実行時のフォールバック先）
+                    step.exerciseName = newValue
+                }
             ))
+            .textInputAutocapitalization(.never)
             TextField("科目（例: 数学）", text: Binding(
-                get: { step.subject ?? step.category },
-                set: { step.subject = $0; step.category = $0 }
+                get: { step.subject ?? "" },
+                set: { newValue in
+                    step.subject = newValue.isEmpty ? nil : newValue
+                    step.category = newValue
+                }
             ))
+            .textInputAutocapitalization(.never)
         }
     }
 
     @ViewBuilder
     private var workInputSection: some View {
-        Section(header: Text("タスク")) {
+        Section(header: Text("タスク"), footer: Text("仕事モードのタスク名とプロジェクトを設定します。")) {
             TextField("タスク名（例: 提案書レビュー）", text: Binding(
-                get: { step.taskName ?? step.exerciseName },
-                set: { step.taskName = $0; step.exerciseName = $0 }
+                get: { step.taskName ?? "" },
+                set: { newValue in
+                    step.taskName = newValue.isEmpty ? nil : newValue
+                    step.exerciseName = newValue
+                }
             ))
+            .textInputAutocapitalization(.never)
             TextField("プロジェクト（例: ProjectA）", text: Binding(
-                get: { step.project ?? step.category },
-                set: { step.project = $0; step.category = $0 }
+                get: { step.project ?? "" },
+                set: { newValue in
+                    step.project = newValue.isEmpty ? nil : newValue
+                    step.category = newValue
+                }
             ))
+            .textInputAutocapitalization(.never)
         }
     }
 }

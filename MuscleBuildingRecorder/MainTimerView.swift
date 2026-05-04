@@ -211,35 +211,35 @@ struct MainTimerView: View {
 
             Spacer()
 
-            // 合計時間表示（見やすく改善）
+            // 合計時間表示（ドメインに応じて Work/Rest ラベルとアクセント色を切替）
             if sessionManager.currentPhase != .idle {
                 HStack(spacing: 12) {
-                    // 筋トレ総時間
+                    // 集中・作業・筋トレ 総時間
                     VStack(spacing: 2) {
                         HStack(spacing: 4) {
-                            Image(systemName: "flame.fill")
+                            Image(systemName: workPhaseIcon)
                                 .font(.caption2)
-                                .foregroundColor(.red)
-                            Text("筋トレ")
+                                .foregroundColor(domainColor(sessionManager.activeDomain))
+                            Text(sessionManager.activeDomain.workPhaseLabel)
                                 .font(.system(size: 10))
                                 .foregroundColor(.white.opacity(0.6))
                         }
                         Text(formatTime(sessionManager.totalWorkTime))
                             .font(.system(size: 14, weight: .bold, design: .monospaced))
-                            .foregroundColor(.red)
+                            .foregroundColor(domainColor(sessionManager.activeDomain))
                     }
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
-                    .background(Color.red.opacity(0.2))
+                    .background(domainColor(sessionManager.activeDomain).opacity(0.2))
                     .cornerRadius(8)
 
-                    // 休憩総時間
+                    // 休憩・小休止 総時間
                     VStack(spacing: 2) {
                         HStack(spacing: 4) {
                             Image(systemName: "pause.circle.fill")
                                 .font(.caption2)
                                 .foregroundColor(.cyan)
-                            Text("休憩")
+                            Text(sessionManager.activeDomain.restPhaseLabel)
                                 .font(.system(size: 10))
                                 .foregroundColor(.white.opacity(0.6))
                         }
@@ -373,8 +373,13 @@ struct MainTimerView: View {
     private var phaseStatusText: String {
         switch sessionManager.currentPhase {
         case .idle: return "待機中"
-        case .work: return "セット実行中"
-        case .rest: return "休憩中"
+        case .work:
+            // workout: セット実行中、study: 集中中、work: 作業中
+            return sessionManager.activeDomain == .workout
+                ? "セット実行中"
+                : sessionManager.activeDomain.workPhaseLabel + "中"
+        case .rest:
+            return sessionManager.activeDomain.restPhaseLabel + "中"
         }
     }
 
@@ -388,8 +393,8 @@ struct MainTimerView: View {
                 .shadow(color: .black.opacity(0.3), radius: 10, x: 0, y: 5)
                 .scaleEffect(pulseAnimation && sessionManager.currentPhase == .work ? 1.02 : 1.0)
 
-            // 目標表示（回数 × 重量）- タップで直接編集可能
-            if sessionManager.currentPhase != .idle {
+            // 目標表示（回数 × 重量）- workout モードのみ表示。study/work では非表示。
+            if sessionManager.currentPhase != .idle && sessionManager.activeDomain == .workout {
                 VStack(spacing: 8) {
                     // メイン表示行
                     HStack(spacing: 8) {
@@ -1144,10 +1149,10 @@ struct MainTimerView: View {
             backgroundGradient
                 .ignoresSafeArea()
 
-            // パルスエフェクト（運動中のみ）
+            // パルスエフェクト（運動中のみ。ドメインに応じて色を変更）
             if sessionManager.currentPhase == .work {
                 Circle()
-                    .fill(Color.red.opacity(0.1))
+                    .fill(domainColor(sessionManager.activeDomain).opacity(0.1))
                     .scaleEffect(pulseAnimation ? 2.5 : 1.5)
                     .opacity(pulseAnimation ? 0 : 0.3)
                     .blur(radius: 50)
@@ -1171,8 +1176,18 @@ struct MainTimerView: View {
             case .idle:
                 return [Color(white: 0.12), Color(white: 0.05)]
             case .work:
-                return [Color(red: 0.7, green: 0.15, blue: 0.15),
-                        Color(red: 0.4, green: 0.08, blue: 0.08)]
+                // ドメインに応じて作業中グラデーションを切替
+                switch sessionManager.activeDomain {
+                case .workout:
+                    return [Color(red: 0.7, green: 0.15, blue: 0.15),
+                            Color(red: 0.4, green: 0.08, blue: 0.08)]
+                case .study:
+                    return [Color(red: 0.15, green: 0.25, blue: 0.7),
+                            Color(red: 0.08, green: 0.15, blue: 0.4)]
+                case .work:
+                    return [Color(red: 0.15, green: 0.55, blue: 0.25),
+                            Color(red: 0.08, green: 0.30, blue: 0.15)]
+                }
             case .rest:
                 return [Color(red: 0.1, green: 0.25, blue: 0.5),
                         Color(red: 0.05, green: 0.15, blue: 0.35)]

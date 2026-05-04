@@ -13,6 +13,8 @@
 
 import Foundation
 import Combine
+import UIKit
+import UserNotifications
 
 @MainActor
 final class PresetRunner: ObservableObject {
@@ -196,11 +198,12 @@ final class PresetRunner: ObservableObject {
             if let load = step.defaultLoad { sm.currentLoad = load }
             if let reps = step.defaultReps { sm.currentReps = reps }
         case .study:
-            sm.currentTaskName = step.taskName ?? step.exerciseName
-            sm.currentSubject = step.subject ?? step.category
+            // study 専用フィールドを優先。未設定の場合は空（workout 由来の値はフォールバックしない）
+            sm.currentTaskName = step.taskName ?? ""
+            sm.currentSubject = step.subject ?? ""
         case .work:
-            sm.currentTaskName = step.taskName ?? step.exerciseName
-            sm.currentProject = step.project ?? step.category
+            sm.currentTaskName = step.taskName ?? ""
+            sm.currentProject = step.project ?? ""
         }
     }
 
@@ -235,13 +238,60 @@ final class PresetRunner: ObservableObject {
     private func advanceCounters() {
         guard let preset = activePreset, let step = currentStep else { return }
         if currentSetInStep < step.setCount {
+            // 同じステップ内のセット進行 → 軽いハプティクス
             currentSetInStep += 1
+            let impact = UIImpactFeedbackGenerator(style: .light)
+            impact.impactOccurred()
         } else if currentStepIndex < preset.steps.count - 1 {
+            // ステップ（タスク）切替 → 強めのハプティクス + 通知
             currentStepIndex += 1
             currentSetInStep = 1
             loadCurrentStepIntoSession()
+            notifyTaskTransition(preset: preset)
         }
         // 全ステップ終了済みでさらに work が始まった場合はカウンタ据え置き
+    }
+
+    /// タスク（ステップ）切替時のフィードバック。
+    /// - 触覚: UINotificationFeedbackGenerator(.success) で 2 段階バイブ
+    /// - 通知: UNNotification をフォアグラウンドでも表示（バナー/サウンド）
+    private func notifyTaskTransition(preset: WorkoutPreset) {
+        // 1. ハプティクス（即時）
+        let generator = UINotificationFeedbackGenerator()
+        generator.prepare()
+        generator.notificationOccurred(.success)
+
+        // 2. ローカル通知（バックグラウンドでも気付けるように）
+        guard let nextStep = currentStep else { return }
+        let content = UNMutableNotificationContent()
+        let domainLabel: String
+        switch preset.domain {
+        case .workout: domainLabel = "次の種目"
+        case .study:   domainLabel = "次のタスク"
+        case .work:    domainLabel = "次の作業"
+        }
+        content.title = domainLabel + "に切替"
+        // 表示タイトル: 種目名 or タスク名
+        let nextTitle: String = {
+            switch preset.domain {
+            case .workout: return "\(nextStep.category) ・ \(nextStep.exerciseName)"
+            case .study:   return nextStep.taskName ?? nextStep.exerciseName
+            case .work:    return nextStep.taskName ?? nextStep.exerciseName
+            }
+        }()
+        content.body = nextTitle.isEmpty ? "ステップ \(currentStepIndex + 1)" : nextTitle
+        content.sound = .default
+
+        let request = UNNotificationRequest(
+            identifier: "preset.taskTransition.\(currentStepIndex)",
+            content: content,
+            trigger: nil  // 即時
+        )
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error = error {
+                print("PresetRunner: ⚠️ task transition notification failed: \(error)")
+            }
+        }
     }
 
     // MARK: - 自動進行タイマー

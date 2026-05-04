@@ -15,6 +15,8 @@ struct PresetListView: View {
 
     @State private var showingPurchaseView = false
     @State private var pendingRunPreset: WorkoutPreset?
+    /// 新規作成時にドメイン選択シートを表示するためのフラグ
+    @State private var showingDomainPicker = false
 
     var body: some View {
         Form {
@@ -34,7 +36,7 @@ struct PresetListView: View {
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button {
-                    createNewPreset()
+                    showingDomainPicker = true
                 } label: {
                     Image(systemName: "plus")
                 }
@@ -43,6 +45,16 @@ struct PresetListView: View {
         }
         .sheet(isPresented: $showingPurchaseView) {
             PurchaseView()
+        }
+        .confirmationDialog(
+            "どのモードのプリセットを作成しますか？",
+            isPresented: $showingDomainPicker,
+            titleVisibility: .visible
+        ) {
+            Button("筋トレ") { createNewPreset(domain: .workout) }
+            Button("勉強")   { createNewPreset(domain: .study) }
+            Button("仕事")   { createNewPreset(domain: .work) }
+            Button("キャンセル", role: .cancel) {}
         }
         .alert("セッションが進行中です", isPresented: Binding(
             get: { pendingRunPreset != nil },
@@ -152,7 +164,7 @@ struct PresetListView: View {
             Text("プリセットがまだありません")
                 .font(.subheadline)
             Button {
-                createNewPreset()
+                showingDomainPicker = true
             } label: {
                 Label("新規プリセットを作成", systemImage: "plus.circle.fill")
             }
@@ -206,11 +218,38 @@ struct PresetListView: View {
 
     // MARK: - Actions
 
-    private func createNewPreset() {
+    private func createNewPreset(domain: ActivityDomain = .workout) {
         guard manager.canAddPreset() else { return }
+        let titlePrefix: String
+        let firstStep: WorkoutPresetStep
+        switch domain {
+        case .workout:
+            titlePrefix = "新しいプリセット"
+            firstStep = WorkoutPresetStep()
+        case .study:
+            titlePrefix = "新しい勉強プリセット"
+            // study はカテゴリ/種目を空にしておく（PresetStepEditorView で TextField から入力）
+            firstStep = WorkoutPresetStep(
+                category: "",
+                exerciseName: "",
+                workSeconds: 25 * 60,  // ポモドーロ風: 25分集中
+                restSeconds: 5 * 60,   // 5分休憩
+                setCount: 4
+            )
+        case .work:
+            titlePrefix = "新しい仕事プリセット"
+            firstStep = WorkoutPresetStep(
+                category: "",
+                exerciseName: "",
+                workSeconds: 50 * 60,  // 50分作業
+                restSeconds: 10 * 60,  // 10分休憩
+                setCount: 3
+            )
+        }
         let preset = WorkoutPreset(
-            title: "新しいプリセット",
-            steps: [WorkoutPresetStep()]
+            title: titlePrefix,
+            steps: [firstStep],
+            domain: domain
         )
         manager.add(preset)
     }
