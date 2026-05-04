@@ -10,6 +10,13 @@ final class DataController: ObservableObject {
     private init() {
         container = NSPersistentContainer(name: "WorkoutModel")
 
+        // Lightweight Migration を明示的に有効化（v1 → v2 で domain 等の Optional 属性を追加するため）。
+        // すべての追加属性が Optional のため Mapping Model 不要で自動推論できる。
+        if let storeDescription = container.persistentStoreDescriptions.first {
+            storeDescription.shouldMigrateStoreAutomatically = true
+            storeDescription.shouldInferMappingModelAutomatically = true
+        }
+
         container.loadPersistentStores { description, error in
             if let error = error {
                 print("Core Data failed to load: \(error.localizedDescription)")
@@ -81,7 +88,11 @@ final class DataController: ObservableObject {
         save()
     }
 
-    func createSession() -> Session {
+    func createSession(
+        domain: ActivityDomain = .workout,
+        title: String? = nil,
+        subjectOrProject: String? = nil
+    ) -> Session {
         let context = container.viewContext
         let session = Session(context: context)
         session.id = UUID()
@@ -89,6 +100,9 @@ final class DataController: ObservableObject {
         session.totalWorkSec = 0
         session.totalRestSec = 0
         session.totalVolume = 0
+        session.domain = domain.rawValue
+        session.title = title
+        session.subjectOrProject = subjectOrProject
         return session
     }
 
