@@ -25,6 +25,9 @@ struct WorkoutAttributes: ActivityAttributes {
         var reps: Double
         /// OSネイティブのライブタイマー用。このフェーズが開始された時刻。
         var phaseStartTime: Date?
+        /// V2.1: アクティビティドメイン（"workout" / "study" / "work"）
+        /// 既存 Live Activity との後方互換のため Optional（nil → workout）
+        var domain: String?
     }
 
     /// セッション開始時刻

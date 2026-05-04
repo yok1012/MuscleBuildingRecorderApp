@@ -10,6 +10,61 @@ import ActivityKit
 import WidgetKit
 import SwiftUI
 
+// MARK: - Domain helpers (Widget 側にローカルに定義。本体の ActivityDomain と意味は同じ)
+private enum LiveActivityDomain: String {
+    case workout, study, work
+
+    init(rawString: String?) {
+        switch rawString {
+        case "study": self = .study
+        case "work":  self = .work
+        default:      self = .workout  // nil・不明値は workout（後方互換）
+        }
+    }
+
+    /// 作業中のアイコン（domain と phase の組み合わせで決まる）
+    var workIcon: String {
+        switch self {
+        case .workout: return "dumbbell.fill"
+        case .study:   return "book.fill"
+        case .work:    return "briefcase.fill"
+        }
+    }
+
+    /// 作業中のアクセントカラー
+    var accentColor: Color {
+        switch self {
+        case .workout: return .red
+        case .study:   return .blue
+        case .work:    return .green
+        }
+    }
+
+    /// Work フェーズ中のラベル
+    var workPhaseLabel: String {
+        switch self {
+        case .workout: return "筋トレ"
+        case .study:   return "集中"
+        case .work:    return "作業"
+        }
+    }
+}
+
+private func domainIcon(for state: WorkoutAttributes.ContentState) -> String {
+    let domain = LiveActivityDomain(rawString: state.domain)
+    return state.phase == "Work" ? domain.workIcon : "pause.circle.fill"
+}
+
+private func domainPhaseColor(for state: WorkoutAttributes.ContentState) -> Color {
+    let domain = LiveActivityDomain(rawString: state.domain)
+    return state.phase == "Work" ? domain.accentColor : .blue
+}
+
+private func domainPhaseLabel(for state: WorkoutAttributes.ContentState) -> String {
+    let domain = LiveActivityDomain(rawString: state.domain)
+    return state.phase == "Work" ? domain.workPhaseLabel : "休憩"
+}
+
 // MARK: - Live Activity Widget
 struct WorkoutLiveActivity: Widget {
     var body: some WidgetConfiguration {
@@ -24,9 +79,9 @@ struct WorkoutLiveActivity: Widget {
                 // Expanded
                 DynamicIslandExpandedRegion(.leading) {
                     HStack(spacing: 6) {
-                        Image(systemName: context.state.phase == "Work" ? "dumbbell.fill" : "pause.circle.fill")
-                            .foregroundColor(context.state.phase == "Work" ? .red : .blue)
-                        Text(context.state.phase == "Work" ? "筋トレ" : "休憩")
+                        Image(systemName: domainIcon(for: context.state))
+                            .foregroundColor(domainPhaseColor(for: context.state))
+                        Text(domainPhaseLabel(for: context.state))
                             .font(.caption)
                             .fontWeight(.semibold)
                     }
@@ -75,9 +130,9 @@ struct WorkoutLiveActivity: Widget {
                     }
                 }
             } compactLeading: {
-                Image(systemName: context.state.phase == "Work" ? "dumbbell.fill" : "pause.circle.fill")
+                Image(systemName: domainIcon(for: context.state))
                     .font(.caption)
-                    .foregroundColor(context.state.phase == "Work" ? .red : .blue)
+                    .foregroundColor(domainPhaseColor(for: context.state))
             } compactTrailing: {
                 liveTimer(context: context)
                     .font(.caption)
@@ -85,12 +140,12 @@ struct WorkoutLiveActivity: Widget {
                     .monospacedDigit()
                     .frame(minWidth: 44, alignment: .trailing)
             } minimal: {
-                Image(systemName: context.state.phase == "Work" ? "dumbbell.fill" : "pause.circle.fill")
+                Image(systemName: domainIcon(for: context.state))
                     .font(.caption)
-                    .foregroundColor(context.state.phase == "Work" ? .red : .blue)
+                    .foregroundColor(domainPhaseColor(for: context.state))
             }
             .widgetURL(URL(string: "workoutapp://timer"))
-            .keylineTint(context.state.phase == "Work" ? .red : .blue)
+            .keylineTint(domainPhaseColor(for: context.state))
         }
     }
 
@@ -109,26 +164,34 @@ struct WorkoutLiveActivity: Widget {
 struct LockScreenLiveActivityView: View {
     let context: ActivityViewContext<WorkoutAttributes>
 
+    private var isWorkout: Bool {
+        LiveActivityDomain(rawString: context.state.domain) == .workout
+    }
+
     var body: some View {
         HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 6) {
-                    Image(systemName: context.state.phase == "Work" ? "dumbbell.fill" : "pause.circle.fill")
-                        .foregroundColor(context.state.phase == "Work" ? .red : .blue)
-                    Text(context.state.phase == "Work" ? "筋トレ中" : "休憩中")
+                    Image(systemName: domainIcon(for: context.state))
+                        .foregroundColor(domainPhaseColor(for: context.state))
+                    Text(domainPhaseLabel(for: context.state) + "中")
                         .font(.headline)
                         .fontWeight(.bold)
                 }
-                Text("\(context.state.category) / \(context.state.exercise)")
+                // workout: カテゴリ/種目、study/work: 種目欄をタスク名として表示
+                Text(isWorkout
+                     ? "\(context.state.category) / \(context.state.exercise)"
+                     : (context.state.exercise.isEmpty ? "(タスク未設定)" : context.state.exercise))
                     .font(.subheadline)
                     .opacity(0.85)
                     .lineLimit(1)
-                if context.state.load > 0 {
+                // load×reps は workout のみ表示
+                if isWorkout, context.state.load > 0 {
                     Text("\(Int(context.state.load))kg × \(Int(context.state.reps))回")
                         .font(.caption)
                         .opacity(0.75)
                 }
-                Text("セット \(context.state.cycleIndex + 1)")
+                Text(isWorkout ? "セット \(context.state.cycleIndex + 1)" : "サイクル \(context.state.cycleIndex + 1)")
                     .font(.caption)
                     .opacity(0.6)
             }
@@ -159,6 +222,6 @@ struct LockScreenLiveActivityView: View {
         }
         .padding()
         .activitySystemActionForegroundColor(.white)
-        .activityBackgroundTint(context.state.phase == "Work" ? Color.red.opacity(0.25) : Color.blue.opacity(0.25))
+        .activityBackgroundTint(domainPhaseColor(for: context.state).opacity(0.25))
     }
 }

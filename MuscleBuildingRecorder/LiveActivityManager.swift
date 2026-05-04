@@ -23,7 +23,8 @@ final class LiveActivityManager {
         cycleIndex: Int,
         load: Double,
         reps: Double,
-        phaseStartTime: Date?
+        phaseStartTime: Date?,
+        domain: String = "workout"
     ) {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else {
             print("LiveActivityManager: ⚠️ Live Activities are not enabled")
@@ -45,7 +46,8 @@ final class LiveActivityManager {
                 cycleIndex: cycleIndex,
                 load: load,
                 reps: reps,
-                phaseStartTime: phaseStartTime
+                phaseStartTime: phaseStartTime,
+                domain: domain
             )
             return
         }
@@ -60,7 +62,8 @@ final class LiveActivityManager {
             cycleIndex: cycleIndex,
             load: load,
             reps: reps,
-            phaseStartTime: phaseStartTime
+            phaseStartTime: phaseStartTime,
+            domain: domain
         )
 
         do {
@@ -84,7 +87,8 @@ final class LiveActivityManager {
         cycleIndex: Int,
         load: Double,
         reps: Double,
-        phaseStartTime: Date?
+        phaseStartTime: Date?,
+        domain: String = "workout"
     ) {
         guard let activity = currentActivity else { return }
 
@@ -97,7 +101,8 @@ final class LiveActivityManager {
             cycleIndex: cycleIndex,
             load: load,
             reps: reps,
-            phaseStartTime: phaseStartTime
+            phaseStartTime: phaseStartTime,
+            domain: domain
         )
 
         Task {
@@ -144,29 +149,39 @@ extension SessionManager {
         let manager = LiveActivityManager.shared
         let heartRate = Int(HeartRateManager.shared.currentHeartRate)
 
+        // study/work では category/exercise の代わりに subject/taskName を表示用に流す
+        let displayExercise = activeDomain == .workout
+            ? selectedExercise
+            : currentTaskName
+        let displayCategory = activeDomain == .workout
+            ? selectedCategory
+            : (activeDomain == .study ? currentSubject : currentProject)
+
         if manager.isLiveActivityActive() {
             manager.updateLiveActivity(
                 phase: currentPhase,
                 elapsedTime: elapsedTimeString,
                 heartRate: heartRate,
-                exercise: selectedExercise,
-                category: selectedCategory,
+                exercise: displayExercise,
+                category: displayCategory,
                 cycleIndex: cycleIndex,
                 load: currentLoad,
                 reps: currentReps,
-                phaseStartTime: phaseStartTime
+                phaseStartTime: phaseStartTime,
+                domain: activeDomain.rawValue
             )
         } else {
             manager.startLiveActivity(
                 phase: currentPhase,
                 elapsedTime: elapsedTimeString,
                 heartRate: heartRate,
-                exercise: selectedExercise,
-                category: selectedCategory,
+                exercise: displayExercise,
+                category: displayCategory,
                 cycleIndex: cycleIndex,
                 load: currentLoad,
                 reps: currentReps,
-                phaseStartTime: phaseStartTime
+                phaseStartTime: phaseStartTime,
+                domain: activeDomain.rawValue
             )
         }
     }

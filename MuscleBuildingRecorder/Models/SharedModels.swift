@@ -34,8 +34,17 @@ struct WorkoutStateSnapshot: Codable {
     let restRemainingTime: Int?
     let targetRestTime: Int?
 
+    /// V2.1: アクティビティドメイン（"workout" / "study" / "work"）。
+    /// 既存の App Group データとの後方互換のため Optional（nil → workout）。
+    let domain: String?
+
     var isActive: Bool {
         phase != "idle"
+    }
+
+    /// ドメイン未指定時は workout（旧データ互換）
+    var domainResolved: String {
+        domain ?? "workout"
     }
 
     var phaseColor: Color {
@@ -62,7 +71,8 @@ struct WorkoutStateSnapshot: Codable {
             reps: 0,
             timestamp: Date(),
             restRemainingTime: nil,
-            targetRestTime: nil
+            targetRestTime: nil,
+            domain: nil
         )
     }
 }

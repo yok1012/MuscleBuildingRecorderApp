@@ -185,7 +185,9 @@ class WatchConnectivityService: NSObject, ObservableObject, WCSessionDelegate {
             "totalRestTime": totalRestTime,
             "elapsedTime": elapsedTime,
             "currentPhaseTime": currentPhaseTime,
-            "timestamp": Date().timeIntervalSince1970
+            "timestamp": Date().timeIntervalSince1970,
+            // V2.1: ドメイン情報。Watch 側は受信しなくても既存ロジックは workout 扱いで動く
+            "domain": SessionManager.shared.activeDomain.rawValue
         ]
 
         if let startDate = phaseStartDate {
@@ -241,7 +243,8 @@ class WatchConnectivityService: NSObject, ObservableObject, WCSessionDelegate {
             "elapsedTime": sessionManager.elapsedTime,
             "currentPhaseTime": currentPhaseTime,
             "timestamp": Date().timeIntervalSince1970,
-            "isFullStateSync": true  // Watch側で完全同期と判別するためのフラグ
+            "isFullStateSync": true,  // Watch側で完全同期と判別するためのフラグ
+            "domain": sessionManager.activeDomain.rawValue  // V2.1
         ]
 
         if let phaseStart = sessionManager.phaseStartTime {

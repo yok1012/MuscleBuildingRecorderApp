@@ -437,6 +437,7 @@ struct WorkoutWidget: Widget {
         reps: 10,
         timestamp: Date(),
         restRemainingTime: nil,
-        targetRestTime: nil
+        targetRestTime: nil,
+        domain: "workout"
     ))
 }

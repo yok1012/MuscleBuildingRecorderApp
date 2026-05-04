@@ -208,7 +208,8 @@ extension SessionManager {
             reps: currentReps,
             timestamp: Date(),
             restRemainingTime: restRemaining,
-            targetRestTime: targetRest
+            targetRestTime: targetRest,
+            domain: activeDomain.rawValue
         )
 
         WidgetStateStore.shared.updateWorkoutState(snapshot)
