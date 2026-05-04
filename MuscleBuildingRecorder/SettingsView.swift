@@ -5,6 +5,7 @@ import UniformTypeIdentifiers
 struct SettingsView: View {
     @EnvironmentObject var heartRateManager: HeartRateManager
     @StateObject private var proUserManager = ProUserManager.shared
+    @StateObject private var presetManager = WorkoutPresetManager.shared
     @Environment(\.managedObjectContext) var viewContext
     @State private var selectedHeartRateSource: HeartRateSourceType = .healthKit
     @State private var showingBLEDeviceSelector = false
@@ -76,6 +77,8 @@ struct SettingsView: View {
             Form {
                 proSection
                 screenTimeSection
+                buttonLayoutSection
+                presetsSection
                 heartRateSection
                 notificationSettingsSection
                 dataExportSection
@@ -724,6 +727,69 @@ struct SettingsView: View {
                 }
             }
         }
+    }
+
+    // MARK: - Button Layout Section (Pro)
+    private var buttonLayoutSection: some View {
+        Section(header: Text("ボタン配置")) {
+            NavigationLink(destination: ButtonLayoutSettingsView()
+                .environmentObject(proUserManager)) {
+                HStack(spacing: 12) {
+                    Image(systemName: "rectangle.3.group")
+                        .foregroundColor(.purple)
+                        .font(.title2)
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(spacing: 6) {
+                            Text("メイン切替ボタンの位置")
+                                .font(.headline)
+                            if !proUserManager.isPro {
+                                Image(systemName: "lock.fill")
+                                    .foregroundColor(.yellow)
+                                    .font(.caption)
+                            }
+                        }
+                        Text("休憩切替ボタンを上部・中部・下部から選べます (Pro)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Workout Presets Section
+    private var presetsSection: some View {
+        Section(header: Text("ワークアウトプリセット")) {
+            NavigationLink(destination: PresetListView()) {
+                HStack(spacing: 12) {
+                    Image(systemName: "list.bullet.rectangle.portrait")
+                        .foregroundColor(.accentColor)
+                        .font(.title2)
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(spacing: 6) {
+                            Text("プリセット管理")
+                                .font(.headline)
+                            if !proUserManager.isPro && presetManager.allPresets.count > 1 {
+                                Image(systemName: "lock.fill")
+                                    .foregroundColor(.yellow)
+                                    .font(.caption)
+                            }
+                        }
+                        Text(presetSubtitle)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+        }
+    }
+
+    private var presetSubtitle: String {
+        let count = presetManager.allPresets.count
+        if count == 0 {
+            return "種目・時間・セット数を順に並べて自動進行 (無料: 1個・Pro: 最大10個)"
+        }
+        return "\(count) 件保存済み (無料: 1個・Pro: 最大10個)"
     }
 
     // MARK: - Pro Section

@@ -116,6 +116,88 @@ final class WorkoutNoteLogger: ObservableObject {
         logDirectory.appendingPathComponent("notes_\(fileDateFormatter.string(from: Date())).csv")
     }
 
+    /// 指定期間 [start, end] のメモエントリを CSV から読み出す（エクスポート用）。
+    /// 期間が日跨ぎの場合は該当する全ての notes_yyyyMMdd.csv を結合する。
+    func loadEntries(from start: Date, to end: Date) -> [WorkoutNoteEntry] {
+        guard end >= start else { return [] }
+
+        var entries: [WorkoutNoteEntry] = []
+        var cursor = Calendar.current.startOfDay(for: start)
+        let endDay = Calendar.current.startOfDay(for: end)
+
+        while cursor <= endDay {
+            let dateString = fileDateFormatter.string(from: cursor)
+            let url = logDirectory.appendingPathComponent("notes_\(dateString).csv")
+            if FileManager.default.fileExists(atPath: url.path) {
+                entries.append(contentsOf: parseFile(at: url, from: start, to: end))
+            }
+            guard let next = Calendar.current.date(byAdding: .day, value: 1, to: cursor) else { break }
+            cursor = next
+        }
+
+        return entries.sorted { $0.timestamp < $1.timestamp }
+    }
+
+    private func parseFile(at url: URL, from start: Date, to end: Date) -> [WorkoutNoteEntry] {
+        guard let content = try? String(contentsOf: url, encoding: .utf8) else { return [] }
+        var result: [WorkoutNoteEntry] = []
+        let lines = content.components(separatedBy: "\n")
+
+        let startMs = Int64(start.timeIntervalSince1970 * 1000)
+        let endMs = Int64(end.timeIntervalSince1970 * 1000)
+
+        for i in 1..<lines.count {
+            let line = lines[i]
+            guard !line.isEmpty else { continue }
+            let cols = parseCSVLine(line)
+            guard cols.count >= 6,
+                  let ts = Int64(cols[0]),
+                  ts >= startMs, ts <= endMs
+            else { continue }
+            let phase = cols[2]
+            let cycleIndex = Int(cols[3]) ?? 0
+            let heartRate = Double(cols[4]) ?? 0
+            let text = cols[5]
+            result.append(WorkoutNoteEntry(
+                timestamp: Date(timeIntervalSince1970: TimeInterval(ts) / 1000.0),
+                phase: phase,
+                cycleIndex: cycleIndex,
+                text: text,
+                heartRate: heartRate
+            ))
+        }
+        return result
+    }
+
+    /// 既存の escapeCSV と対になる簡易パーサ
+    private func parseCSVLine(_ line: String) -> [String] {
+        var columns: [String] = []
+        var current = ""
+        var inQuotes = false
+        var i = line.startIndex
+        while i < line.endIndex {
+            let char = line[i]
+            if char == "\"" {
+                if inQuotes,
+                   line.index(after: i) < line.endIndex,
+                   line[line.index(after: i)] == "\"" {
+                    current.append("\"")
+                    i = line.index(after: i)
+                } else {
+                    inQuotes.toggle()
+                }
+            } else if char == "," && !inQuotes {
+                columns.append(current)
+                current = ""
+            } else {
+                current.append(char)
+            }
+            i = line.index(after: i)
+        }
+        columns.append(current)
+        return columns
+    }
+
     func getAllNoteLogFiles() -> [URL] {
         do {
             let files = try FileManager.default.contentsOfDirectory(

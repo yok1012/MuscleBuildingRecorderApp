@@ -48,6 +48,13 @@ struct HistoryDetailView: View {
             .sorted { ($0.startAt ?? Date()) < ($1.startAt ?? Date()) }
     }
 
+    /// このセッションの期間内に記録されたメモ（WorkoutNoteLogger の CSV から取得）
+    private var sessionNotes: [WorkoutNoteEntry] {
+        guard let start = session.startedAt else { return [] }
+        let end = session.endedAt ?? Date()
+        return WorkoutNoteLogger.shared.loadEntries(from: start, to: end)
+    }
+
     private var dateString: String {
         guard let date = session.startedAt else { return "" }
         let formatter = DateFormatter()
@@ -81,6 +88,9 @@ struct HistoryDetailView: View {
 
                     // エクササイズ詳細
                     exerciseDetailsSection
+
+                    // メモ履歴
+                    notesSection
 
                     // エクスポートボタン
                     exportButtonsSection
@@ -191,6 +201,39 @@ struct HistoryDetailView: View {
 
             ForEach(records, id: \.self) { record in
                 ExerciseRecordCard(record: record)
+            }
+        }
+    }
+
+    private var notesSection: some View {
+        let notes = sessionNotes
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("メモ")
+                    .font(.headline)
+                Spacer()
+                Text("\(notes.count) 件")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
+            if notes.isEmpty {
+                HStack {
+                    Image(systemName: "note.text")
+                        .foregroundColor(.secondary)
+                    Text("このセッション中のメモはありません")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                }
+                .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color(.systemGray6))
+                .cornerRadius(8)
+            } else {
+                ForEach(notes) { entry in
+                    NoteEntryCard(entry: entry)
+                }
             }
         }
     }
@@ -384,6 +427,71 @@ private struct ExerciseRecordCard: View {
                     .foregroundColor(.secondary)
                     .padding(.top, 2)
             }
+        }
+        .padding()
+        .background(Color(.systemGray6))
+        .cornerRadius(8)
+    }
+}
+
+// メモエントリーカード
+private struct NoteEntryCard: View {
+    let entry: WorkoutNoteEntry
+
+    private var timeString: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm:ss"
+        return formatter.string(from: entry.timestamp)
+    }
+
+    private var phaseDisplay: String {
+        switch entry.phase.lowercased() {
+        case "work": return "筋トレ"
+        case "rest": return "休憩"
+        default: return entry.phase
+        }
+    }
+
+    private var phaseColor: Color {
+        switch entry.phase.lowercased() {
+        case "work": return .orange
+        case "rest": return .blue
+        default: return .gray
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Text(timeString)
+                    .font(.caption.monospacedDigit())
+                    .foregroundColor(.secondary)
+
+                Text(phaseDisplay)
+                    .font(.caption2.weight(.semibold))
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(phaseColor.opacity(0.2))
+                    .foregroundColor(phaseColor)
+                    .cornerRadius(4)
+
+                Text("サイクル \(entry.cycleIndex)")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+
+                Spacer()
+
+                if entry.heartRate > 0 {
+                    Label("\(Int(entry.heartRate))", systemImage: "heart.fill")
+                        .font(.caption2)
+                        .foregroundColor(.red)
+                }
+            }
+
+            Text(entry.text)
+                .font(.subheadline)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding()
         .background(Color(.systemGray6))

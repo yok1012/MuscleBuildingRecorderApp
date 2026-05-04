@@ -440,6 +440,8 @@ class SessionManager: ObservableObject {
         }
 
         // 心拍数CSVログの補完（前のフェーズのデータに種目情報を追記）
+        // V2: note はメモは独立イベントとして notes_yyyyMMdd.csv に保存されるため、
+        // ここでは補完しない（フェーズ全体への重複書き込みを防ぐ）。
         if currentPhaseStartTimestamp > 0 {
             heartRateCSVLogger.supplementPhaseData(
                 phaseStartTimestamp: currentPhaseStartTimestamp,
@@ -448,7 +450,7 @@ class SessionManager: ObservableObject {
                 exercise: selectedExercise,
                 reps: currentReps,
                 load: currentLoad,
-                note: currentNote
+                note: ""
             )
         }
 
@@ -516,7 +518,7 @@ class SessionManager: ObservableObject {
         record.name = selectedExercise
         record.load = currentLoad
         record.reps = currentReps
-        record.note = currentNote
+        // V2: note は SetRecord に書き込まない（メモは WorkoutNoteLogger 側に時系列保存）
         record.session = currentSession
         currentSetRecord = record
 
@@ -582,7 +584,7 @@ class SessionManager: ObservableObject {
         stopTimer()
         print("SessionManager: Timer stopped")
 
-        // 最後のフェーズの心拍数CSVログを補完
+        // 最後のフェーズの心拍数CSVログを補完（V2: note はここでは書かない）
         let now = Date()
         let phaseEndTimestamp = Int64(now.timeIntervalSince1970 * 1000)
         if currentPhaseStartTimestamp > 0 {
@@ -593,7 +595,7 @@ class SessionManager: ObservableObject {
                 exercise: selectedExercise,
                 reps: currentReps,
                 load: currentLoad,
-                note: currentNote
+                note: ""
             )
         }
 
@@ -658,7 +660,7 @@ class SessionManager: ObservableObject {
         guard let record = currentSetRecord else { return }
 
         record.endAt = Date()
-        record.note = currentNote
+        // V2: SetRecord.note には書き込まない（メモは WorkoutNoteLogger に時系列保存）
 
         let hrStats = heartRateManager.getHeartRateStats()
         record.hrAvg = hrStats.avg
@@ -1024,11 +1026,10 @@ class SessionManager: ObservableObject {
 
     // MARK: - Quick Note Entry
 
-    /// 筋トレ中・休憩中の任意タイミングでメモを残す。
-    /// - メモ自体は `WorkoutNoteLogger` で時系列保存（メモリ + notes_yyyyMMdd.csv）
-    /// - 同タイミングの心拍数行として `HeartRateCSVLogger` にも記録し、心拍データと結合可能にする
-    /// - `currentSetRecord.note` にも「改行区切りで追記」するので Core Data の履歴にも反映
-    /// - Parameter text: 入力されたメモ本文（空や空白のみは無視）
+    /// 筋トレ中・休憩中の任意タイミングでメモを残す（V2 仕様：独立イベントとして 1 度だけ保存）
+    /// - 保存先1: `WorkoutNoteLogger` の時系列ログ（メモリ + notes_yyyyMMdd.csv）
+    /// - 保存先2: 心拍数CSV の note 列（その瞬間の 1 行のみ）
+    /// - SetRecord.note には書き込まない（複数セットへの累積を防止）
     /// - Returns: 記録された Entry（空入力時は nil）
     @discardableResult
     func addQuickNote(_ text: String) -> WorkoutNoteEntry? {
@@ -1041,7 +1042,6 @@ class SessionManager: ObservableObject {
 
         let hr = heartRateManager.currentHeartRate
 
-        // 1. 時系列メモログへ
         let entry = noteLogger.addNote(
             text: trimmed,
             phase: currentPhase.rawValue,
@@ -1049,25 +1049,7 @@ class SessionManager: ObservableObject {
             heartRate: hr
         )
 
-        // 2. 心拍数CSVにも note 付き行として書き込み（行単位で心拍データと結合できる）
         heartRateCSVLogger.recordInstantNote(text: trimmed, heartRate: hr)
-
-        // 3. 現在の SetRecord.note にも追記（既存の履歴UI向け、改行区切り）
-        if let record = currentSetRecord {
-            let existing = (record.note ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-            if existing.isEmpty {
-                record.note = trimmed
-            } else {
-                record.note = existing + "\n" + trimmed
-            }
-            // currentNote も追記して次のフェーズ遷移時の補完に反映
-            currentNote = record.note ?? trimmed
-            dataController.save()
-        } else {
-            // SetRecord がまだ無い場合（異常系）は少なくとも currentNote に保持
-            let existing = currentNote.trimmingCharacters(in: .whitespacesAndNewlines)
-            currentNote = existing.isEmpty ? trimmed : existing + "\n" + trimmed
-        }
 
         print("SessionManager: 📝 Note added - phase: \(currentPhase.rawValue), hr: \(Int(hr)), text: \(trimmed)")
         return entry

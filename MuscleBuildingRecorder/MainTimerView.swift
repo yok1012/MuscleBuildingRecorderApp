@@ -11,6 +11,8 @@ struct MainTimerView: View {
     @ObservedObject private var watchConnectivity = WatchConnectivityService.shared
     @ObservedObject private var adManager = RewardedAdManager.shared
     @ObservedObject private var noteLogger = WorkoutNoteLogger.shared
+    @ObservedObject private var buttonLayout = ButtonLayoutManager.shared
+    @ObservedObject private var presetRunner = PresetRunner.shared
     @State private var showingInputSheet = false
     @State private var showingSummary = false
     @State private var showingExerciseSelection = false
@@ -21,6 +23,7 @@ struct MainTimerView: View {
     @State private var showingFinishConfirmation = false
     @State private var showingRestSettings = false
     @State private var showingNoteSheet = false
+    @State private var showingPresetPicker = false
 
     // インライン編集モード
     enum InlineEditMode: Equatable {
@@ -41,9 +44,21 @@ struct MainTimerView: View {
         min(geometryWidth, maxContentWidth)
     }
 
+    /// 現在有効なメイン切替ボタンの縦位置（無料は強制中央）
+    private var effectiveButtonPosition: MainButtonVerticalPosition {
+        proUserManager.isPro ? buttonLayout.config.mainButtonVerticalPosition : .middle
+    }
+
     var body: some View {
         GeometryReader { geometry in
+            let position = effectiveButtonPosition
             VStack(spacing: 0) {
+                // 上部配置: アクションボタンを画面の最上部へ
+                if position == .top {
+                    mainActionSection(geometry: geometry)
+                        .frame(height: geometry.size.height * 0.32)
+                }
+
                 // 最上部: 大きな状態表示ヘッダー
                 statusHeaderSection
                     .frame(height: geometry.size.height * 0.10)
@@ -63,9 +78,11 @@ struct MainTimerView: View {
                     .frame(height: geometry.size.height * 0.10)
                     .frame(maxWidth: maxContentWidth)
 
-                // メインアクションボタンエリア
-                mainActionSection(geometry: geometry)
-                    .frame(height: geometry.size.height * 0.32)
+                // 中央配置: アクションボタンを既定位置（心拍数の下）に
+                if position == .middle {
+                    mainActionSection(geometry: geometry)
+                        .frame(height: geometry.size.height * 0.32)
+                }
 
                 // 緊急解除バー（スクリーンタイム制限適用中のみ表示）
                 screenTimeUnlockBar
@@ -76,9 +93,23 @@ struct MainTimerView: View {
                     .frame(height: geometry.size.height * 0.14)
                     .frame(maxWidth: maxContentWidth)
                     .padding(.horizontal)
+
+                // 下部配置: アクションボタンを画面の最下部（secondaryControls の下）へ
+                if position == .bottom {
+                    mainActionSection(geometry: geometry)
+                        .frame(height: geometry.size.height * 0.32)
+                }
             }
             .frame(maxWidth: .infinity)
             .background(animatedBackground)
+            .animation(.easeInOut(duration: 0.25), value: position)
+        }
+        .safeAreaInset(edge: .top, spacing: 0) {
+            if presetRunner.isRunning {
+                presetProgressBanner
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+            }
         }
         .sheet(isPresented: $showingInputSheet) {
             ExerciseInputSheet()
@@ -95,6 +126,9 @@ struct MainTimerView: View {
         .sheet(isPresented: $showingNoteSheet) {
             WorkoutNoteSheet()
                 .environmentObject(sessionManager)
+        }
+        .sheet(isPresented: $showingPresetPicker) {
+            PresetQuickPickerView()
         }
         .fullScreenCover(isPresented: $showingSummary) {
             SessionSummaryView()
@@ -596,12 +630,129 @@ struct MainTimerView: View {
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: sessionManager.suggestedPhase != nil)
     }
 
-    // MARK: - Main Action Section (大きなアクションボタン)
-    private func mainActionSection(geometry: GeometryProxy) -> some View {
-        // iPad対応: 幅を制限
-        let buttonWidth = effectiveWidth(geometry.size.width)
+    // MARK: - Preset Progress Banner（プリセット実行中に上部に表示）
+    @ViewBuilder
+    private var presetProgressBanner: some View {
+        if let preset = presetRunner.activePreset, let step = presetRunner.currentStep {
+            TimelineView(.periodic(from: .now, by: 1.0)) { context in
+                let phaseRemaining = presetRunner.secondsUntilPhaseChange(now: context.date) ?? 0
+                let stepRemaining = presetRunner.secondsUntilStepEnd(now: context.date) ?? 0
+                let isLast = presetRunner.isOnLastStep
+                let phase = sessionManager.currentPhase
 
-        return VStack(spacing: 16) {
+                VStack(spacing: 6) {
+                    // 上段: タイトル + ステップ/セット進捗
+                    HStack(spacing: 8) {
+                        Image(systemName: presetRunner.autoAdvanceEnabled ? "forward.fill" : "list.bullet.rectangle.portrait.fill")
+                            .font(.caption)
+                            .foregroundColor(.accentColor)
+                        Text(preset.title)
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+                        Spacer()
+                        Text("ステップ \(presetRunner.currentStepIndex + 1)/\(presetRunner.totalStepCount)")
+                            .font(.caption.weight(.semibold))
+                        Text("・")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                        Text("セット \(presetRunner.currentSetInStep)/\(step.setCount)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+
+                    // 下段: フェーズ残り(左) | ステップ残り(中) | 次の種目(右)
+                    HStack(alignment: .center, spacing: 10) {
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(phaseCountdownLabel(phase: phase))
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                            Text(formatCountdown(seconds: phaseRemaining))
+                                .font(.title3.weight(.bold).monospacedDigit())
+                                .foregroundColor(phaseCountdownColor(phase: phase))
+                        }
+
+                        Divider().frame(height: 28)
+
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(isLast ? "終了まで" : "次の種目まで")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                            Text(formatCountdown(seconds: stepRemaining))
+                                .font(.subheadline.weight(.semibold).monospacedDigit())
+                                .foregroundColor(isLast ? .green : .accentColor)
+                        }
+
+                        Spacer(minLength: 4)
+
+                        if let next = presetRunner.nextStep {
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text("次")
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                                Text(next.exerciseName)
+                                    .font(.caption.weight(.medium))
+                                    .lineLimit(1)
+                                    .truncationMode(.tail)
+                            }
+                            .frame(maxWidth: 90, alignment: .leading)
+                        }
+                    }
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(
+                    RoundedRectangle(cornerRadius: 14)
+                        .fill(.thinMaterial)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 14)
+                                .stroke(Color.accentColor.opacity(0.35), lineWidth: 1)
+                        )
+                )
+            }
+        }
+    }
+
+    /// フェーズ残り時間のラベル（"休憩まで" / "筋トレまで"）
+    private func phaseCountdownLabel(phase: WorkoutPhase) -> String {
+        switch phase {
+        case .work: return "休憩まで"
+        case .rest: return "筋トレまで"
+        case .idle: return ""
+        }
+    }
+
+    /// フェーズ残り時間の数値カラー
+    private func phaseCountdownColor(phase: WorkoutPhase) -> Color {
+        switch phase {
+        case .work: return .blue   // 次は休憩
+        case .rest: return .red    // 次は筋トレ
+        case .idle: return .secondary
+        }
+    }
+
+    private func formatCountdown(seconds: Int) -> String {
+        let s = max(seconds, 0)
+        let m = s / 60
+        let r = s % 60
+        return String(format: "%02d:%02d", m, r)
+    }
+
+    // MARK: - Main Action Section (大きなアクションボタン)
+    /// このセクション自体は中身（actionButtonStack）を返すだけ。
+    /// 画面のどの位置（上部 / 中部 / 下部）に置くかは body 側の VStack 順序で制御する。
+    private func mainActionSection(geometry: GeometryProxy) -> some View {
+        let buttonWidth = effectiveWidth(geometry.size.width)
+        return actionButtonStack(buttonWidth: buttonWidth)
+            .frame(maxWidth: maxContentWidth)
+            .frame(maxHeight: .infinity, alignment: .center)
+            .animation(.spring(response: 0.4, dampingFraction: 0.7), value: sessionManager.currentPhase)
+    }
+
+    /// アクションボタン本体（待機中＝スタート / 運動中＝休憩へ / 休憩中＝次のセットへ + サブボタン）
+    @ViewBuilder
+    private func actionButtonStack(buttonWidth: CGFloat) -> some View {
+        VStack(spacing: 16) {
             if sessionManager.currentPhase == .idle {
                 // 待機中: 大きなスタートボタン
                 Button(action: startSessionWithWatchCheck) {
@@ -628,6 +779,27 @@ struct MainTimerView: View {
                     )
                 }
                 .scaleEffect(pulseAnimation ? 1.02 : 1.0)
+
+                // プリセットから開始するセカンダリボタン（idle時のみ）
+                Button {
+                    showingPresetPicker = true
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "list.bullet.rectangle.portrait.fill")
+                            .font(.subheadline)
+                        Text("プリセットから開始")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 10)
+                    .background(
+                        Capsule()
+                            .fill(Color.accentColor.opacity(0.85))
+                            .shadow(color: Color.accentColor.opacity(0.4), radius: 6, x: 0, y: 3)
+                    )
+                }
 
             } else if sessionManager.currentPhase == .work {
                 // 運動中: 状態表示 + 休憩ボタン
@@ -760,8 +932,6 @@ struct MainTimerView: View {
                 }
             }
         }
-        .frame(maxWidth: maxContentWidth)
-        .animation(.spring(response: 0.4, dampingFraction: 0.7), value: sessionManager.currentPhase)
     }
 
     // MARK: - Screen Time Unlock Bar (緊急解除: 常時表示・セッション中のみ)

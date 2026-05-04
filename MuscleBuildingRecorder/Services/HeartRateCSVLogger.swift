@@ -123,7 +123,7 @@ final class HeartRateCSVLogger: ObservableObject {
         }
     }
 
-    /// フェーズ終了時に種目情報を補完
+    /// フェーズ終了時に種目情報を補完（V2: note は引数を受けても書き込まない）
     /// - Parameters:
     ///   - phaseStartTimestamp: フェーズ開始時のタイムスタンプ（ミリ秒）
     ///   - phaseEndTimestamp: フェーズ終了時のタイムスタンプ（ミリ秒）
@@ -131,7 +131,7 @@ final class HeartRateCSVLogger: ObservableObject {
     ///   - exercise: 種目名
     ///   - reps: 回数
     ///   - load: 重量
-    ///   - note: メモ
+    ///   - note: 互換のため引数は残すが、補完では一切使わない（メモは独立イベント保存）
     func supplementPhaseData(
         phaseStartTimestamp: Int64,
         phaseEndTimestamp: Int64,
@@ -141,7 +141,8 @@ final class HeartRateCSVLogger: ObservableObject {
         load: Double,
         note: String
     ) {
-        // ファイルハンドルを一旦閉じる
+        _ = note
+
         closeFileHandle()
 
         let url = currentCSVURL()
@@ -151,19 +152,15 @@ final class HeartRateCSVLogger: ObservableObject {
         }
 
         do {
-            // CSVファイルを読み込み
             var content = try String(contentsOf: url, encoding: .utf8)
             var lines = content.components(separatedBy: "\n")
 
-            // 特殊文字をエスケープ（CSV用）
             let escapedCategory = escapeCSV(category)
             let escapedExercise = escapeCSV(exercise)
-            let escapedNote = escapeCSV(note)
 
             var modifiedCount = 0
 
-            // 各行を処理
-            for i in 1..<lines.count {  // ヘッダーをスキップ
+            for i in 1..<lines.count {
                 let line = lines[i]
                 guard !line.isEmpty else { continue }
 
@@ -171,19 +168,15 @@ final class HeartRateCSVLogger: ObservableObject {
                 guard columns.count >= 10,
                       let timestamp = Int64(columns[0]) else { continue }
 
-                // タイムスタンプが範囲内かチェック
                 if timestamp >= phaseStartTimestamp && timestamp <= phaseEndTimestamp {
-                    // 種目情報が空、かつメモも空の場合のみ補完
-                    // （recordInstantNote で書かれた行は note が埋まっているため上書きされない）
-                    if columns[5].isEmpty && columns[9].isEmpty {
-                        // 新しい行を構築
+                    // category が空のときのみ補完。note 列はこの関数では決して書き換えない。
+                    if columns[5].isEmpty {
                         var newColumns = columns
                         newColumns[5] = escapedCategory
                         newColumns[6] = escapedExercise
                         newColumns[7] = String(format: "%.0f", reps)
                         newColumns[8] = String(format: "%.1f", load)
-                        newColumns[9] = escapedNote
-
+                        // newColumns[9] (note) は触らない
                         lines[i] = newColumns.joined(separator: ",")
                         modifiedCount += 1
                     }
@@ -369,6 +362,112 @@ final class HeartRateCSVLogger: ObservableObject {
         columns.append(current)
 
         return columns
+    }
+
+    // MARK: - Range Aggregation (エクスポート時にセット範囲で集計)
+
+    /// 心拍数の生サンプル
+    struct Sample {
+        let timestamp: Date
+        let bpm: Double
+        let phase: String
+        let cycleIndex: Int
+    }
+
+    /// 範囲集計結果
+    struct RangeStats {
+        let avg: Double
+        let max: Double
+        let min: Double
+        /// 線形回帰の傾き (bpm / 分)
+        let slope: Double
+        let sampleCount: Int
+    }
+
+    /// 指定期間（[start, end]）の心拍サンプルを CSV から読む。
+    /// 期間が日跨ぎの場合は該当する全 CSV を結合する。
+    func loadSamples(from start: Date, to end: Date) -> [Sample] {
+        guard end >= start else { return [] }
+
+        // 念のためファイルハンドルを閉じてバッファされた書き込みを確定
+        closeFileHandle()
+
+        var samples: [Sample] = []
+        var cursor = Calendar.current.startOfDay(for: start)
+        let endDay = Calendar.current.startOfDay(for: end)
+
+        while cursor <= endDay {
+            let dateString = csvDateFormatter.string(from: cursor)
+            let url = logDirectory.appendingPathComponent("heartrate_\(dateString).csv")
+            if FileManager.default.fileExists(atPath: url.path) {
+                samples.append(contentsOf: parseFile(at: url, from: start, to: end))
+            }
+            guard let next = Calendar.current.date(byAdding: .day, value: 1, to: cursor) else { break }
+            cursor = next
+        }
+
+        return samples.sorted { $0.timestamp < $1.timestamp }
+    }
+
+    /// 指定期間の集計値を計算する
+    func computeStats(from start: Date, to end: Date) -> RangeStats? {
+        let samples = loadSamples(from: start, to: end).filter { $0.bpm > 0 }
+        guard !samples.isEmpty else { return nil }
+
+        let bpms = samples.map { $0.bpm }
+        let avg = bpms.reduce(0, +) / Double(bpms.count)
+        let maxV = bpms.max() ?? 0
+        let minV = bpms.min() ?? 0
+
+        // 線形回帰: x は分単位の経過時間
+        let slope: Double
+        if samples.count >= 2 {
+            let baseTime = samples.first!.timestamp.timeIntervalSince1970
+            let xs = samples.map { ($0.timestamp.timeIntervalSince1970 - baseTime) / 60.0 }
+            let ys = bpms
+            let xMean = xs.reduce(0, +) / Double(xs.count)
+            let yMean = ys.reduce(0, +) / Double(ys.count)
+            var num = 0.0
+            var den = 0.0
+            for i in 0..<xs.count {
+                num += (xs[i] - xMean) * (ys[i] - yMean)
+                den += (xs[i] - xMean) * (xs[i] - xMean)
+            }
+            slope = den == 0 ? 0 : num / den
+        } else {
+            slope = 0
+        }
+
+        return RangeStats(avg: avg, max: maxV, min: minV, slope: slope, sampleCount: samples.count)
+    }
+
+    private func parseFile(at url: URL, from start: Date, to end: Date) -> [Sample] {
+        guard let content = try? String(contentsOf: url, encoding: .utf8) else { return [] }
+        var result: [Sample] = []
+        let lines = content.components(separatedBy: "\n")
+
+        let startMs = Int64(start.timeIntervalSince1970 * 1000)
+        let endMs = Int64(end.timeIntervalSince1970 * 1000)
+
+        for i in 1..<lines.count {
+            let line = lines[i]
+            guard !line.isEmpty else { continue }
+            let cols = parseCSVLine(line)
+            guard cols.count >= 5,
+                  let ts = Int64(cols[0]),
+                  ts >= startMs, ts <= endMs,
+                  let bpm = Double(cols[2])
+            else { continue }
+            let phase = cols[3]
+            let cycleIndex = Int(cols[4]) ?? 0
+            result.append(Sample(
+                timestamp: Date(timeIntervalSince1970: TimeInterval(ts) / 1000.0),
+                bpm: bpm,
+                phase: phase,
+                cycleIndex: cycleIndex
+            ))
+        }
+        return result
     }
 
     // MARK: - Cleanup
