@@ -50,7 +50,7 @@ class JSONExporter {
     ) -> ExportPayload {
         let sessionPayloads = sessions.map { SessionPayload(session: $0, includeTimeSeries: includeTimeSeries) }
         return ExportPayload(
-            exportFormatVersion: "2.0",
+            exportFormatVersion: "2.1",  // 2.1: ドメイン（workout/study/work）情報を追加
             exportedAt: Date(),
             sessions: sessionPayloads,
             overallStatistics: includeOverall ? OverallStatistics(from: sessions) : nil
@@ -84,6 +84,9 @@ private struct ExportPayload: Codable {
 
 private struct SessionPayload: Codable {
     let id: String
+    let domain: String                    // V2.1: workout / study / work
+    let title: String?                    // V2.1: study/work のセッションタイトル
+    let subjectOrProject: String?         // V2.1: study=科目, work=プロジェクト
     let startedAt: Date?
     let endedAt: Date?
     let totalWorkSec: Int
@@ -98,6 +101,9 @@ private struct SessionPayload: Codable {
 
     init(session: Session, includeTimeSeries: Bool) {
         self.id = session.id?.uuidString ?? ""
+        self.domain = session.domainEnum.rawValue
+        self.title = session.title
+        self.subjectOrProject = session.subjectOrProject
         self.startedAt = session.startedAt
         self.endedAt = session.endedAt
         self.totalWorkSec = Int(session.totalWorkSec)
@@ -228,6 +234,7 @@ private struct SetPayload: Codable {
     let loadUnit: String
     let reps: Double
     let repsUnit: String
+    let taskName: String?     // V2.1: study/work でタスク名を保持
     let heartRate: HeartRateStatsPayload
 
     init(record: SetRecord) {
@@ -242,6 +249,7 @@ private struct SetPayload: Codable {
         let masterUnits = SetPayload.lookupUnits(name: record.name)
         self.loadUnit = masterUnits.load
         self.repsUnit = masterUnits.reps
+        self.taskName = record.taskName
         self.heartRate = HeartRateStatsPayload(forRange: record.startAt, end: record.endAt, fallback: record)
     }
 

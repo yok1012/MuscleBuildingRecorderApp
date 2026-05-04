@@ -130,6 +130,41 @@ struct HistoryDetailView: View {
                 .font(.headline)
 
             VStack(alignment: .leading, spacing: 8) {
+                // ドメインバッジ + タイトル（study/work のみ）
+                HStack {
+                    Label("モード", systemImage: session.domainEnum.iconName)
+                        .font(.caption)
+                        .foregroundColor(domainAccentColor)
+                    Spacer()
+                    Text(session.domainEnum.displayName)
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundColor(domainAccentColor)
+                }
+
+                if session.domainEnum != .workout, let title = session.title, !title.isEmpty {
+                    HStack {
+                        Label("タスク", systemImage: "doc.text")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        Text(title)
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                    }
+                }
+
+                if session.domainEnum != .workout, let subjectOrProject = session.subjectOrProject, !subjectOrProject.isEmpty {
+                    HStack {
+                        Label(session.domainEnum == .study ? "科目" : "プロジェクト", systemImage: "tag")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        Text(subjectOrProject)
+                            .font(.caption)
+                    }
+                }
+
                 HStack {
                     Label("日時", systemImage: "calendar")
                         .font(.caption)
@@ -149,7 +184,7 @@ struct HistoryDetailView: View {
                 }
 
                 HStack {
-                    Label("ワーク時間", systemImage: "flame.fill")
+                    Label(session.domainEnum.workPhaseLabel + "時間", systemImage: "flame.fill")
                         .font(.caption)
                         .foregroundColor(.orange)
                     Spacer()
@@ -158,7 +193,7 @@ struct HistoryDetailView: View {
                 }
 
                 HStack {
-                    Label("レスト時間", systemImage: "pause.fill")
+                    Label(session.domainEnum.restPhaseLabel + "時間", systemImage: "pause.fill")
                         .font(.caption)
                         .foregroundColor(.blue)
                     Spacer()
@@ -166,14 +201,17 @@ struct HistoryDetailView: View {
                         .font(.caption)
                 }
 
-                HStack {
-                    Label("総ボリューム", systemImage: "scalemass.fill")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    Spacer()
-                    Text("\(session.totalVolume, specifier: "%.1f") kg")
-                        .font(.caption)
-                        .fontWeight(.semibold)
+                // 総ボリュームは workout のみ表示（study/work では意味がないため非表示）
+                if session.domainEnum == .workout {
+                    HStack {
+                        Label("総ボリューム", systemImage: "scalemass.fill")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        Text("\(session.totalVolume, specifier: "%.1f") kg")
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                    }
                 }
 
                 if let stats = session.heartRateStatistics {
@@ -194,13 +232,21 @@ struct HistoryDetailView: View {
         }
     }
 
+    private var domainAccentColor: Color {
+        switch session.domainEnum {
+        case .workout: return .red
+        case .study:   return .blue
+        case .work:    return .green
+        }
+    }
+
     private var exerciseDetailsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("エクササイズ詳細")
+            Text(session.domainEnum == .workout ? "エクササイズ詳細" : "サイクル詳細")
                 .font(.headline)
 
             ForEach(records, id: \.self) { record in
-                ExerciseRecordCard(record: record)
+                ExerciseRecordCard(record: record, domain: session.domainEnum)
             }
         }
     }
@@ -361,14 +407,27 @@ struct HistoryDetailView: View {
     }
 }
 
-// エクササイズレコードカード
+// エクササイズレコードカード（ドメイン別表示）
 private struct ExerciseRecordCard: View {
     let record: SetRecord
+    let domain: ActivityDomain
 
     private var durationString: String? {
         guard let start = record.startAt, let end = record.endAt else { return nil }
         let seconds = Int(end.timeIntervalSince(start))
         return String(format: "%d:%02d", seconds / 60, seconds % 60)
+    }
+
+    /// 主タイトル（workout = カテゴリ-種目、study/work = タスク名）
+    private var primaryText: String? {
+        switch domain {
+        case .workout:
+            guard let name = record.name, !name.isEmpty else { return nil }
+            return "\(record.category ?? "") - \(name)"
+        case .study, .work:
+            let taskName = record.taskName ?? ""
+            return taskName.isEmpty ? nil : taskName
+        }
     }
 
     var body: some View {
@@ -397,13 +456,14 @@ private struct ExerciseRecordCard: View {
                 }
             }
 
-            if let name = record.name, !name.isEmpty {
+            if let primary = primaryText {
                 HStack {
-                    Text("\(record.category ?? "") - \(name)")
+                    Text(primary)
                         .font(.subheadline)
                         .fontWeight(.medium)
                     Spacer()
-                    if record.load > 0 || record.reps > 0 {
+                    // workout のみ load×reps を表示
+                    if domain == .workout, record.load > 0 || record.reps > 0 {
                         Text("\(record.load, specifier: "%.1f") kg × \(Int(record.reps)) 回")
                             .font(.caption)
                     }

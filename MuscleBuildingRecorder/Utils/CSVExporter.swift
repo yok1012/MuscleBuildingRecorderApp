@@ -18,7 +18,7 @@ class CSVExporter {
     static func export(sessions: [Session]) -> String {
         let dateFormatter = makeDateFormatter()
 
-        // ヘッダー行
+        // ヘッダー行（V2.1: ドメイン列を末尾近くに追加。既存列の順序は不変＝後方互換維持）
         var csv = [
             "セッションID",
             "セッション開始日時",
@@ -41,7 +41,11 @@ class CSVExporter {
             "最大心拍数",
             "最小心拍数",
             "心拍勾配(bpm/分)",
-            "心拍サンプル数"
+            "心拍サンプル数",
+            "ドメイン",
+            "セッションタイトル",
+            "科目orプロジェクト",
+            "タスク名"
         ].joined(separator: ",") + "\n"
 
         for session in sessions {
@@ -52,11 +56,17 @@ class CSVExporter {
             let totalRestSec = session.totalRestSec
             let totalVolume = session.totalVolume
 
+            // V2.1: ドメイン関連メタデータ
+            let domainStr = session.domainEnum.rawValue
+            let sessionTitle = session.title ?? ""
+            let sessionSubjectOrProject = session.subjectOrProject ?? ""
+
             guard let setRecords = session.setRecords?.allObjects as? [SetRecord], !setRecords.isEmpty else {
                 csv += [
                     quote(sessionId), quote(sessionStart), quote(sessionEnd),
                     "\(totalWorkSec)", "\(totalRestSec)", formatDouble(totalVolume),
-                    "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""
+                    "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
+                    quote(domainStr), quote(sessionTitle), quote(sessionSubjectOrProject), ""
                 ].joined(separator: ",") + "\n"
                 continue
             }
@@ -97,6 +107,8 @@ class CSVExporter {
                 let hrSlope = stats?.slope ?? record.hrSlopeAvg
                 let sampleCount = stats?.sampleCount ?? 0
 
+                let recordTaskName = record.taskName ?? ""
+
                 csv += [
                     quote(sessionId), quote(sessionStart), quote(sessionEnd),
                     "\(totalWorkSec)", "\(totalRestSec)", formatDouble(totalVolume),
@@ -106,7 +118,8 @@ class CSVExporter {
                     reps, quote(units.reps),
                     quote(combinedNote),
                     formatDouble(hrAvg), formatDouble(hrMax), formatDouble(hrMin),
-                    formatDouble(hrSlope), "\(sampleCount)"
+                    formatDouble(hrSlope), "\(sampleCount)",
+                    quote(domainStr), quote(sessionTitle), quote(sessionSubjectOrProject), quote(recordTaskName)
                 ].joined(separator: ",") + "\n"
             }
         }
@@ -125,7 +138,8 @@ class CSVExporter {
             "合計ボリューム", "重量単位",
             "セット数", "種目数",
             "平均心拍数", "最大心拍数", "最小心拍数",
-            "メモ件数"
+            "メモ件数",
+            "ドメイン", "セッションタイトル", "科目orプロジェクト"
         ].joined(separator: ",") + "\n"
 
         for session in sessions {
@@ -157,13 +171,18 @@ class CSVExporter {
             // メモ件数
             let noteCount = WorkoutNoteLogger.shared.loadEntries(from: s, to: e).count
 
+            let domainStr = session.domainEnum.rawValue
+            let sessionTitle = session.title ?? ""
+            let sessionSubjectOrProject = session.subjectOrProject ?? ""
+
             csv += [
                 quote(sessionId), quote(sessionStart), quote(sessionEnd),
                 "\(totalMinutes)", "\(workMinutes)", "\(restMinutes)",
                 formatDouble(totalVolume), quote(weightUnit),
                 "\(setCount)", "\(exerciseCount)",
                 formatDouble(avgHr), formatDouble(maxHr), formatDouble(minHr),
-                "\(noteCount)"
+                "\(noteCount)",
+                quote(domainStr), quote(sessionTitle), quote(sessionSubjectOrProject)
             ].joined(separator: ",") + "\n"
         }
 
