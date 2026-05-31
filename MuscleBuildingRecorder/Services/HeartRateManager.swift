@@ -125,18 +125,19 @@ class HeartRateManager: ObservableObject {
     
     private func handleWatchHeartRateTimeout() {
         print("HeartRateManager: Watch heart rate timeout, checking fallback options")
-        
-        // Watch心拍数がタイムアウト - フォールバック判定
+
+        // Watchが「接続済み」と判定されていても、Watchアプリ側が心拍数を流していない場合がある。
+        // この場合 isUsingWatchHeartRate は一度も true にならないため、以前は無限に「Watch待機中」となり
+        // SetRecord に 0 または直近のサンプル単発の値（例えば 71）しか入らない原因になっていた。
+        // タイムアウト時には、Watch HR の使用有無に関わらずローカル HealthKit にフォールバックする。
         if isUsingWatchHeartRate {
             isUsingWatchHeartRate = false
-            
-            // ローカルHealthKitが有効かチェック
-            if isLocalHealthKitActive {
-                activeHeartRateSource = "iPhone (HealthKit)"
-            } else {
-                // ローカルHealthKitを開始
-                startLocalHeartRateMonitoring()
-            }
+        }
+
+        if isLocalHealthKitActive {
+            activeHeartRateSource = "iPhone (HealthKit)"
+        } else {
+            startLocalHeartRateMonitoring()
         }
     }
     

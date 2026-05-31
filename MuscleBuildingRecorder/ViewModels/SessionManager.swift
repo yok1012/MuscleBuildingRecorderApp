@@ -35,16 +35,34 @@ class SessionManager: ObservableObject {
     @Published var currentTaskName: String = ""
     @Published var currentSubject: String = ""   // study 用
     @Published var currentProject: String = ""   // work 用
+    /// 進行度 0–100（study/work 用、SetRecord.focusScore に書き込む）
+    @Published var currentProgress: Double = 0
+    /// メモ（study/work 用、SetRecord.note に書き込む）
+    @Published var currentMemo: String = ""
 
     // 休憩時間管理
     @Published var restTimeLimit: TimeInterval = 60  // 休憩時間の上限（秒）
     @Published var isRestTimeExceeded: Bool = false   // 休憩時間超過フラグ
     @Published var restTimeAlertEnabled: Bool = true  // 休憩時間アラート有効/無効
+    /// 予鈴を鳴らすまでの「終了前」秒数（F-1: 二段階タイマー通知）。デフォルト 10 秒前。
+    @Published var preBellLeadSeconds: TimeInterval = 10
+    /// 当該休憩でスヌーズ（+30秒）が累計どれだけ加算されたか。表示用。
+    @Published var currentRestSnoozeOffset: TimeInterval = 0
 
     // 心拍数自動判別
     @Published var autoPhaseDetectionEnabled: Bool = false  // 自動判別機能の有効/無効
     @Published var suggestedPhase: WorkoutPhase? = nil       // 推奨フェーズ（現在のフェーズと異なる場合に表示）
     @Published var heartRateBaseline: Double = 70            // 安静時心拍数の基準値
+
+    // 筋トレ移行時の確認ダイアログ設定
+    /// rest→work 遷移時に確認ダイアログを表示するかどうか（UserDefaults永続化）
+    @Published var confirmTransitionToWork: Bool = UserDefaults.standard.object(forKey: "confirmTransitionToWork") as? Bool ?? true {
+        didSet {
+            UserDefaults.standard.set(confirmTransitionToWork, forKey: "confirmTransitionToWork")
+        }
+    }
+    /// 確認待ちフラグ（true のとき MainTimerView が alert を表示する）
+    @Published var pendingTransitionToWork: Bool = false
 
     // MARK: - Timer (Combine-based unified timer)
     private var timerCancellable: AnyCancellable?
@@ -68,6 +86,10 @@ class SessionManager: ObservableObject {
     private var lastWidgetUpdateTime: Date = .distantPast
     private let widgetUpdateInterval: TimeInterval = 1.0  // 1秒間隔
 
+    /// 直近に完了した筋トレ record（休憩中に「前セット実績」として直接編集される）
+    /// UI が変更を検知できるよう @Published 化。
+    @Published private(set) var lastWorkRecord: SetRecord?
+
     private let dataController = DataController.shared
     private let heartRateManager = HeartRateManager.shared
     private let watchConnectivity = WatchConnectivityService.shared
@@ -81,9 +103,52 @@ class SessionManager: ObservableObject {
     // 心拍数CSVログ補完用
     private var currentPhaseStartTimestamp: Int64 = 0
 
+    /// 種目変更監視用 cancellable（init 内で設定）
+    private var exerciseChangeCancellable: AnyCancellable?
+    private var categoryChangeCancellable: AnyCancellable?
+
+    /// 休憩中に種目変更が起きた直後、次の rest→work 遷移で cycleIndex をインクリメントしないためのフラグ。
+    /// rest 中の cycleIndex は「直前 work の番号」を保持しているため、種目変更で 0 にリセットした上で
+    /// この遷移をスキップしないと、新種目の初回が Cycle 2 として扱われてしまう。
+    private var skipNextRestToWorkIncrement: Bool = false
+
     private init() {
         loadDefaultExerciseValues()
         setupHeartRateLogging()
+        setupExerciseChangeObservers()
+    }
+
+    /// 種目またはカテゴリが変更されたら cycleIndex を 0 に戻す
+    /// - 待機中の変更は cycleIndex が既に 0 のため実害なし
+    /// - セッション中（work/rest）の変更でも自動的に新しい種目用にカウントを 1 から始める
+    private func setupExerciseChangeObservers() {
+        exerciseChangeCancellable = $selectedExercise
+            .removeDuplicates()
+            .dropFirst()
+            .sink { [weak self] _ in self?.handleExerciseOrCategoryChange() }
+
+        categoryChangeCancellable = $selectedCategory
+            .removeDuplicates()
+            .dropFirst()
+            .sink { [weak self] _ in self?.handleExerciseOrCategoryChange() }
+    }
+
+    private func handleExerciseOrCategoryChange() {
+        // 休憩中の変更は cycleIndex が 0 でもスキップ抑止が必要なため、guard は currentPhase == .rest を許容
+        guard cycleIndex != 0 || currentPhase == .rest else { return }
+        cycleIndex = 0
+        // 直近の筋トレrecord参照は別種目のため破棄（誤った種目への自動記録を防止）
+        lastWorkRecord = nil
+        // 休憩中に変更された場合は、次の rest→work 遷移で +1 しないようにフラグを立てる
+        // （rest 中の cycleIndex は「直前 work の番号」を保持しているため）
+        if currentPhase == .rest {
+            skipNextRestToWorkIncrement = true
+        }
+        // CSVログのフェーズ情報を新しいサイクル番号で更新
+        if currentPhase != .idle {
+            heartRateCSVLogger.setPhase(currentPhase.rawValue, cycleIndex: cycleIndex)
+        }
+        print("SessionManager: 🔄 Exercise/Category changed → cycleIndex reset to 0 (skipNext: \(skipNextRestToWorkIncrement))")
     }
 
     private func setupHeartRateLogging() {
@@ -216,9 +281,34 @@ class SessionManager: ObservableObject {
         phaseStartTime = Date()
         sessionStartTime = Date()
         cycleIndex = 0
+        skipNextRestToWorkIncrement = false
         totalWorkTime = 0
         totalRestTime = 0
         elapsedTime = 0
+
+        // 初回 work フェーズ用 SetRecord を即時作成
+        // （未作成のままだと、最初の rest 遷移時に completeCurrentSetRecord が
+        //   早期 return して lastWorkRecord が nil になり、休憩中の前セット編集ができなくなる）
+        if let session = currentSession, let sessionId = session.id {
+            let record = dataController.createSetRecord(
+                sessionId: sessionId,
+                phase: .work,
+                cycleIndex: cycleIndex
+            )
+            record.category = selectedCategory
+            record.name = selectedExercise
+            record.load = currentLoad
+            record.reps = currentReps
+            record.taskName = currentTaskName.isEmpty ? nil : currentTaskName
+            if activeDomain == .study || activeDomain == .work {
+                record.focusScore = currentProgress
+                record.note = currentMemo.isEmpty ? nil : currentMemo
+            }
+            record.session = session
+            currentSetRecord = record
+            dataController.save()
+        }
+
         startTimer()
         setupLiveActivity()
 
@@ -419,6 +509,102 @@ class SessionManager: ObservableObject {
         togglePhaseInternal(notifyWatch: true)
     }
 
+    /// 休憩→筋トレ遷移を要求（確認設定がONなら pendingTransitionToWork を立てて UI に確認を委ねる）
+    /// - Parameter notifyWatch: Watch に通知するかどうか
+    /// - Returns: 即時遷移したかどうか（false の場合は確認待ち）
+    @discardableResult
+    func requestTransitionToWork(notifyWatch: Bool) -> Bool {
+        guard currentPhase == .rest else {
+            // rest 以外は通常の toggle に委譲（idle/work からの呼び出し）
+            togglePhaseInternal(notifyWatch: notifyWatch)
+            return true
+        }
+        if confirmTransitionToWork {
+            // UI 側で確認 alert を表示するため、フラグを立てるだけ
+            pendingTransitionToWork = true
+            return false
+        }
+        applyPhaseInternal(newPhase: .work, notifyWatch: notifyWatch)
+        return true
+    }
+
+    /// 確認ダイアログで「OK」が押された後に呼ばれる
+    /// - Parameter dontAskAgain: 「次回から確認しない」がチェックされていた場合 true
+    func confirmTransitionToWorkConfirmed(dontAskAgain: Bool) {
+        pendingTransitionToWork = false
+        if dontAskAgain {
+            confirmTransitionToWork = false
+        }
+        guard currentPhase == .rest else { return }
+        applyPhaseInternal(newPhase: .work, notifyWatch: true)
+    }
+
+    /// 前セット record（直近の筋トレ record）の値を直接更新する
+    /// 休憩中UI から「前セットの実績」として呼ばれる
+    /// - Parameters:
+    ///   - progress: 進行度 0–100（study/work用、focusScoreフィールドを流用）
+    ///   - note: メモ（study/work用、SetRecord.noteを流用）
+    func updatePreviousSetRecord(
+        exercise: String? = nil,
+        category: String? = nil,
+        reps: Double? = nil,
+        load: Double? = nil,
+        taskName: String? = nil,
+        progress: Double? = nil,
+        note: String? = nil
+    ) {
+        guard let record = lastWorkRecord else { return }
+        if let exercise = exercise { record.name = exercise }
+        if let category = category { record.category = category }
+        if let reps = reps { record.reps = reps }
+        if let load = load { record.load = load }
+        if let taskName = taskName {
+            record.taskName = taskName.isEmpty ? nil : taskName
+        }
+        if let progress = progress { record.focusScore = progress }
+        if let note = note {
+            record.note = note.isEmpty ? nil : note
+        }
+        // study/work では taskName 履歴を記録（再利用サジェスト用）
+        if let taskName = taskName, !taskName.isEmpty {
+            let parent = activeDomain == .study ? currentSubject : currentProject
+            let domainKey = activeDomain == .study ? "study" : (activeDomain == .work ? "work" : "")
+            if !domainKey.isEmpty {
+                TaskHistoryStore.shared.remember(domain: domainKey, parent: parent, taskName: taskName)
+            }
+        }
+        dataController.save()
+        // @Published 通知のため再代入
+        lastWorkRecord = record
+    }
+
+    /// 前セット record の payload（タグ・メモ・RPE・nextAction）を一括更新
+    func updatePreviousSetRecordPayload(_ payload: SetRecordPayload) {
+        guard let record = lastWorkRecord else { return }
+        record.payload = payload
+        dataController.save()
+        lastWorkRecord = record
+    }
+
+    /// 確認ダイアログで「キャンセル」が押された
+    /// Watch経由で要求された場合に Watch 側が先行して work に切り替わっている可能性があるため、
+    /// 現在の rest フェーズを Watch に再通知して同期する。
+    func cancelTransitionToWork() {
+        pendingTransitionToWork = false
+        guard currentPhase == .rest else { return }
+        watchConnectivity.sendPhaseChange(
+            phase: WorkoutPhase.rest.rawValue,
+            cycleIndex: cycleIndex,
+            totalWorkTime: totalWorkTime,
+            totalRestTime: totalRestTime,
+            elapsedTime: elapsedTime,
+            currentPhaseTime: phaseStartTime.map { Date().timeIntervalSince($0) } ?? 0,
+            phaseStartDate: phaseStartTime,
+            previousPhase: WorkoutPhase.rest.rawValue,
+            previousPhaseDuration: 0
+        )
+    }
+
     /// Watchからのフェーズ変更を適用（Watchには通知しない）
     /// - Parameters:
     ///   - newPhaseIdentifier: 新しいフェーズ ("work" or "rest")
@@ -450,6 +636,13 @@ class SessionManager: ObservableObject {
         // 既に同じフェーズの場合は何もしない（重複処理防止）
         if currentPhase == newPhase {
             print("SessionManager: ℹ️ Already in phase \(newPhaseIdentifier), skipping")
+            return
+        }
+
+        // 休憩→筋トレ遷移は設定によりiPhone側で確認を取る
+        if currentPhase == .rest && newPhase == .work && confirmTransitionToWork {
+            print("SessionManager: ⏸️ Watch rest→work request held for confirmation")
+            pendingTransitionToWork = true
             return
         }
 
@@ -496,7 +689,12 @@ class SessionManager: ObservableObject {
 
         // サイクルインデックスの更新（rest→workの遷移時）
         if previousPhase == .rest && newPhase == .work {
-            cycleIndex += 1
+            if skipNextRestToWorkIncrement {
+                // 休憩中に種目変更があったため、新種目を Cycle 1（cycleIndex 0）から開始する
+                skipNextRestToWorkIncrement = false
+            } else {
+                cycleIndex += 1
+            }
         }
 
         currentPhase = newPhase
@@ -552,7 +750,11 @@ class SessionManager: ObservableObject {
         record.reps = currentReps
         // V2: ドメイン別タスク名（study/work で利用、workout では空）
         record.taskName = currentTaskName.isEmpty ? nil : currentTaskName
-        // V2: note は SetRecord に書き込まない（メモは WorkoutNoteLogger 側に時系列保存）
+        // study/work では進行度・メモも書き込む（workout はノートを WorkoutNoteLogger に時系列保存する仕様のためスキップ）
+        if activeDomain == .study || activeDomain == .work {
+            record.focusScore = currentProgress
+            record.note = currentMemo.isEmpty ? nil : currentMemo
+        }
         record.session = currentSession
         currentSetRecord = record
 
@@ -603,7 +805,7 @@ class SessionManager: ObservableObject {
     }
 
     func saveCurrentCycle() {
-        guard let record = currentSetRecord, currentPhase == .rest else { return }
+        guard currentSetRecord != nil, currentPhase == .rest else { return }
 
         completeCurrentSetRecord()
         dataController.save()
@@ -696,10 +898,26 @@ class SessionManager: ObservableObject {
         record.endAt = Date()
         // V2: SetRecord.note には書き込まない（メモは WorkoutNoteLogger に時系列保存）
 
-        let hrStats = heartRateManager.getHeartRateStats()
-        record.hrAvg = hrStats.avg
-        record.hrMax = hrStats.max
-        record.hrMin = hrStats.min
+        // 筋トレ record を完了したら参照を保持（休憩中にUIから「前セット実績」として編集される）
+        if currentPhase == .work {
+            lastWorkRecord = record
+        }
+
+        // フェーズ全期間のサンプルから統計を計算する。
+        // HeartRateManager.getHeartRateStats() は 10 秒のスライディングウィンドウのため、
+        // 30 秒以上の work/rest フェーズでは「直近 10 秒のサンプルが 1 件しかない」状態が頻発し、
+        // 結果として SetRecord に同じ単一値（または 0）が書き込まれてしまっていた。
+        // HeartRateLogManager にはセッション中の全サンプルが phase + cycleIndex 付きで蓄積されている。
+        let phaseLogs = record.heartRateLogs
+        if !phaseLogs.isEmpty {
+            record.calculateHeartRateStats(from: phaseLogs)
+        } else {
+            // フォールバック: ライブのスライディングウィンドウ値（サンプルが届いていない場合は 0,0,0）
+            let hrStats = heartRateManager.getHeartRateStats()
+            record.hrAvg = hrStats.avg
+            record.hrMax = hrStats.max
+            record.hrMin = hrStats.min
+        }
         record.hrSlopeAvg = heartRateManager.heartRateSlope
 
         if let startTime = phaseStartTime {
@@ -810,14 +1028,53 @@ class SessionManager: ObservableObject {
 
     // MARK: - Rest Time Alert
     private var hasTriggeredRestAlert: Bool = false
+    /// 予鈴（休憩終了 N 秒前）を既に鳴らしたかどうか。currentSnoozeOffset の変化に応じてリセットする。
+    private var hasTriggeredPreBell: Bool = false
 
     private func checkRestTimeExceeded(phaseElapsed: TimeInterval) {
         guard restTimeAlertEnabled else { return }
 
+        // F-1: 予鈴（休憩終了 preBellLeadSeconds 秒前）
+        let preBellThreshold = restTimeLimit - preBellLeadSeconds
+        if preBellLeadSeconds > 0,
+           preBellThreshold > 0,
+           phaseElapsed >= preBellThreshold,
+           phaseElapsed < restTimeLimit,
+           !hasTriggeredPreBell {
+            hasTriggeredPreBell = true
+            triggerPreBell()
+        }
+
+        // 本鈴
         if phaseElapsed >= restTimeLimit && !hasTriggeredRestAlert {
             hasTriggeredRestAlert = true
             isRestTimeExceeded = true
             triggerRestTimeAlert()
+        }
+    }
+
+    /// 予鈴（軽いハプティック + 短い通知）
+    private func triggerPreBell() {
+        // 軽めのバイブレーション
+        let generator = UIImpactFeedbackGenerator(style: .light)
+        generator.impactOccurred()
+
+        // ローカル通知（サウンドなし、短文）
+        let content = UNMutableNotificationContent()
+        content.title = "もうすぐ休憩終了"
+        content.body = "あと \(Int(preBellLeadSeconds)) 秒で次のセットです"
+        content.sound = nil
+
+        let request = UNNotificationRequest(
+            identifier: "restPreBell",
+            content: content,
+            trigger: nil
+        )
+
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error = error {
+                print("Failed to schedule pre-bell notification: \(error)")
+            }
         }
     }
 
@@ -828,8 +1085,8 @@ class SessionManager: ObservableObject {
 
         // ローカル通知
         let content = UNMutableNotificationContent()
-        content.title = "休憩時間超過"
-        content.body = "設定した休憩時間（\(Int(restTimeLimit))秒）を超えました。次のセットを始めましょう！"
+        content.title = "休憩終了"
+        content.body = "設定した休憩時間（\(Int(restTimeLimit))秒）になりました。次のセットを始めましょう！"
         content.sound = .default
 
         let request = UNNotificationRequest(
@@ -847,7 +1104,26 @@ class SessionManager: ObservableObject {
 
     func resetRestTimeAlert() {
         hasTriggeredRestAlert = false
+        hasTriggeredPreBell = false
         isRestTimeExceeded = false
+        currentRestSnoozeOffset = 0
+    }
+
+    /// 休憩を任意秒数延長する（F-1: スヌーズ機能）
+    /// - Parameter seconds: 追加する秒数（デフォルト 30 秒）
+    /// - 予鈴・本鈴の発火フラグをリセットし、延長後に再び予鈴・本鈴が鳴るようにする
+    func snoozeRest(by seconds: TimeInterval = 30) {
+        guard currentPhase == .rest else { return }
+        restTimeLimit += seconds
+        currentRestSnoozeOffset += seconds
+        // 予鈴・本鈴を再度鳴らせるようにフラグを戻す
+        hasTriggeredRestAlert = false
+        hasTriggeredPreBell = false
+        isRestTimeExceeded = false
+        // 軽いハプティックでスヌーズを確認
+        let generator = UIImpactFeedbackGenerator(style: .medium)
+        generator.impactOccurred()
+        print("SessionManager: ⏰ Snoozed rest by \(Int(seconds))s (new limit: \(Int(restTimeLimit))s)")
     }
 
     private func resetSession() {
@@ -860,9 +1136,13 @@ class SessionManager: ObservableObject {
         totalRestTime = 0
         currentSession = nil
         currentSetRecord = nil
+        lastWorkRecord = nil
         cycleIndex = 0
+        skipNextRestToWorkIncrement = false
         workTimeAccumulated = 0
         restTimeAccumulated = 0
+        currentProgress = 0
+        currentMemo = ""
 
         // Watch権威タイマーをリセット
         isWatchTimeAuthority = false

@@ -48,7 +48,7 @@ enum ActivityDomain: String, CaseIterable, Codable {
     var workPhaseLabel: String {
         switch self {
         case .workout: return "筋トレ"
-        case .study:   return "集中"
+        case .study:   return "勉強"
         case .work:    return "作業"
         }
     }

@@ -48,11 +48,32 @@ struct HistoryDetailView: View {
             .sorted { ($0.startAt ?? Date()) < ($1.startAt ?? Date()) }
     }
 
-    /// このセッションの期間内に記録されたメモ（WorkoutNoteLogger の CSV から取得）
+    /// このセッションの期間内に記録されたメモ
+    /// - 主な保存先: `WorkoutNoteLogger` の CSV（「メモを残す」シート経由の独立メモ）
+    /// - 補完: `SetRecord.payload.memo`（休憩中インライン入力のクイックメモ）
+    ///   こちらは `record.note` に JSON または平文で保存されるため、payload としてデコードして取り出す
     private var sessionNotes: [WorkoutNoteEntry] {
         guard let start = session.startedAt else { return [] }
         let end = session.endedAt ?? Date()
-        return WorkoutNoteLogger.shared.loadEntries(from: start, to: end)
+        var entries = WorkoutNoteLogger.shared.loadEntries(from: start, to: end)
+
+        // SetRecord 側の payload.memo を補完（WorkoutNoteLogger 側と重複するテキストは除外）
+        let existingTexts = Set(entries.map { $0.text })
+        for record in records {
+            let memo = record.payload.memo.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !memo.isEmpty, !existingTexts.contains(memo) else { continue }
+            // タイムスタンプは record.endAt（セット完了時刻）を優先、なければ startAt
+            guard let ts = record.endAt ?? record.startAt else { continue }
+            entries.append(WorkoutNoteEntry(
+                timestamp: ts,
+                phase: (record.phase ?? "").lowercased(),
+                cycleIndex: Int(record.cycleIndex),
+                text: memo,
+                heartRate: record.hrAvg
+            ))
+        }
+
+        return entries.sorted { $0.timestamp < $1.timestamp }
     }
 
     private var dateString: String {
@@ -481,11 +502,55 @@ private struct ExerciseRecordCard: View {
                 }
             }
 
-            if let note = record.note, !note.isEmpty {
-                Text(note)
+            // payload としてデコードし、memo / tags / RPE を分けて表示
+            let payload = record.payload
+            if !payload.memo.isEmpty {
+                Text(payload.memo)
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .padding(.top, 2)
+            }
+            if !payload.tags.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 4) {
+                        ForEach(payload.tags, id: \.self) { tag in
+                            Text(tag)
+                                .font(.caption2)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Color.yellow.opacity(0.25))
+                                .foregroundColor(.primary)
+                                .cornerRadius(4)
+                        }
+                    }
+                }
+                .padding(.top, 2)
+            }
+            // F-2: Physical / Mental RPE 表示
+            if payload.rpe != nil || payload.mentalRpe != nil {
+                HStack(spacing: 12) {
+                    if let p = payload.rpe {
+                        HStack(spacing: 3) {
+                            Image(systemName: "figure.strengthtraining.traditional")
+                                .font(.caption2)
+                                .foregroundColor(.red)
+                            Text("肉体 \(p)/5")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    if let m = payload.mentalRpe {
+                        HStack(spacing: 3) {
+                            Image(systemName: "brain.head.profile")
+                                .font(.caption2)
+                                .foregroundColor(.purple)
+                            Text("精神 \(m)/5")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
+                .padding(.top, 2)
             }
         }
         .padding()

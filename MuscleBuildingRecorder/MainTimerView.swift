@@ -24,6 +24,41 @@ struct MainTimerView: View {
     @State private var showingRestSettings = false
     @State private var showingNoteSheet = false
     @State private var showingPresetPicker = false
+    // 筋トレ移行時の確認シート
+    @State private var dontAskTransitionAgain = false
+    // 次セット編集用バインディング（確認シートで編集可能）
+    @State private var nextCategory: String = ""
+    @State private var nextExercise: String = ""
+    @State private var nextReps: Double = 10
+    @State private var nextLoad: Double = 40
+    @State private var nextSubject: String = ""      // study 用
+    @State private var nextProject: String = ""      // work 用
+    @State private var nextTaskName: String = ""     // study/work 用
+    @State private var nextProgress: Double = 0      // study/work 用 (0-100)
+    @State private var nextMemo: String = ""         // study/work 用
+    // 前セット編集シート
+    @State private var showingPreviousSetEdit = false
+    @State private var prevExercise: String = ""
+    @State private var prevCategory: String = ""
+    @State private var prevReps: Double = 0
+    @State private var prevLoad: Double = 0
+    @State private var prevTaskName: String = ""
+    @State private var prevProgress: Double = 0      // study/work 用
+    @State private var prevMemo: String = ""         // study/work 用
+    // 休憩中インライン入力: 前セットへのタグフィードバック（lastWorkRecord.payload.tagsと同期）
+    @State private var selectedRestTags: Set<String> = []
+    @State private var restQuickMemo: String = ""
+    /// 前セットの肉体的疲労度（1-5、nil なら未入力）。lastWorkRecord.payload.rpe と同期。
+    @State private var restPhysicalRpe: Int? = nil
+    /// 前セットの精神的疲労度（1-5、nil なら未入力）。lastWorkRecord.payload.mentalRpe と同期。
+    @State private var restMentalRpe: Int? = nil
+    @State private var restCentricInitialized: Bool = false  // 休憩開始毎に1度だけ初期化
+    /// セッション進捗画面の表示状態（ボタン移動のみ。横スワイプ TabView は廃止）
+    @State private var showingSessionProgress: Bool = false
+    @State private var showingTransitionAlert: Bool = false
+    @State private var showingTagSettings: Bool = false       // タグ追加・並び替え画面
+    @State private var showingTaskMasterSelection: Bool = false // 勉強/仕事のタスクマスタ選択
+    @ObservedObject private var tagPresetStore = TagPresetStore.shared
 
     // インライン編集モード
     enum InlineEditMode: Equatable {
@@ -51,8 +86,172 @@ struct MainTimerView: View {
 
     var body: some View {
         GeometryReader { geometry in
-            let position = effectiveButtonPosition
-            VStack(spacing: 0) {
+            // 背景は root ZStack に1回だけ配置し safe area まで広げる（上下の白縁対策）。
+            // 進捗画面へはボタン移動のみ（横スワイプ TabView は廃止）。
+            ZStack {
+                animatedBackground
+                    .ignoresSafeArea()
+
+                Group {
+                    if showingSessionProgress && sessionManager.currentPhase != .idle {
+                        sessionProgressScreen(geometry: geometry)
+                            .transition(.move(edge: .trailing))
+                    } else if sessionManager.currentPhase == .rest {
+                        restCentricBody(geometry: geometry)
+                    } else {
+                        legacyBody(geometry: geometry)
+                    }
+                }
+                .animation(.easeInOut(duration: 0.3), value: showingSessionProgress)
+            }
+        }
+        .safeAreaInset(edge: .top, spacing: 0) {
+            if presetRunner.isRunning {
+                presetProgressBanner
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+            }
+        }
+        .sheet(isPresented: $showingInputSheet, onDismiss: {
+            // 休憩中インライン入力の next 値を最新の入力内容へ同期
+            if sessionManager.currentPhase == .rest {
+                nextCategory = sessionManager.selectedCategory
+                nextExercise = sessionManager.selectedExercise
+                nextReps = sessionManager.currentReps
+                nextLoad = sessionManager.currentLoad
+                nextSubject = sessionManager.currentSubject
+                nextProject = sessionManager.currentProject
+                nextTaskName = sessionManager.currentTaskName
+            }
+        }) {
+            switch sessionManager.activeDomain {
+            case .workout:
+                ExerciseInputSheet()
+                    .environmentObject(sessionManager)
+            case .study, .work:
+                TaskInputSheet(domain: sessionManager.activeDomain)
+                    .environmentObject(sessionManager)
+            }
+        }
+        .sheet(isPresented: $showingExerciseSelection, onDismiss: {
+            // 休憩中インライン入力の next 値を最新の選択へ同期
+            if sessionManager.currentPhase == .rest {
+                nextCategory = sessionManager.selectedCategory
+                nextExercise = sessionManager.selectedExercise
+                nextReps = sessionManager.currentReps
+                nextLoad = sessionManager.currentLoad
+            }
+        }) {
+            ExerciseSelectionSheet()
+                .environmentObject(sessionManager)
+        }
+        .sheet(isPresented: $showingRestSettings) {
+            RestTimeSettingsSheet()
+                .environmentObject(sessionManager)
+        }
+        .sheet(isPresented: $showingNoteSheet) {
+            WorkoutNoteSheet()
+                .environmentObject(sessionManager)
+        }
+        .sheet(isPresented: $showingPresetPicker) {
+            PresetQuickPickerView()
+        }
+        .sheet(isPresented: $showingPreviousSetEdit) {
+            previousSetEditSheet
+        }
+        .sheet(isPresented: $showingTagSettings) {
+            TagPresetSettingsView()
+        }
+        .sheet(isPresented: $showingTaskMasterSelection, onDismiss: {
+            // 休憩中インライン入力の next 値を最新の選択へ同期
+            if sessionManager.currentPhase == .rest {
+                nextSubject = sessionManager.currentSubject
+                nextProject = sessionManager.currentProject
+                nextTaskName = sessionManager.currentTaskName
+                nextProgress = sessionManager.currentProgress
+            }
+        }) {
+            if sessionManager.activeDomain != .workout {
+                TaskMasterSelectionSheet(domain: sessionManager.activeDomain)
+                    .environmentObject(sessionManager)
+            }
+        }
+        .fullScreenCover(isPresented: $showingSummary) {
+            SessionSummaryView()
+                .environmentObject(sessionManager)
+                .environmentObject(proUserManager)
+        }
+        .alert("トレーニング終了", isPresented: $showingFinishConfirmation) {
+            Button("キャンセル", role: .cancel) { }
+            Button("終了する", role: .destructive) { finishWorkoutWithAdGate() }
+        } message: {
+            Text("トレーニングを終了しますか？\n\n総時間: \(formatTime(sessionManager.elapsedTime))\n筋トレ: \(formatTime(sessionManager.totalWorkTime))\n休憩: \(formatTime(sessionManager.totalRestTime))")
+        }
+        .alert(sessionManager.activeDomain.workPhaseLabel + "を開始しますか?", isPresented: $showingTransitionAlert) {
+            Button("キャンセル", role: .cancel) {
+                sessionManager.cancelTransitionToWork()
+            }
+            Button("次の\(sessionManager.activeDomain.workPhaseLabel)設定") {
+                // まだ開始せず、進捗画面で次セットを調整する。
+                // pending（Watch 起点）の場合は flag を戻し Watch を rest に再同期。
+                sessionManager.cancelTransitionToWork()
+                openSessionProgress()
+            }
+            Button("開始") {
+                commitNextSetAndStart()
+            }
+        } message: {
+            Text(transitionAlertMessage)
+        }
+        .onChange(of: sessionManager.pendingTransitionToWork) { pending in
+            if pending {
+                primeNextSetEditing()
+                showingTransitionAlert = true
+            }
+        }
+        .onChange(of: sessionManager.currentPhase) { newPhase in
+            if newPhase == .rest {
+                primeRestCentricInputs()
+            } else {
+                restCentricInitialized = false
+            }
+            // idle（セッション終了）になったら進捗画面を確実に閉じる（完了サマリとの被り防止）
+            if newPhase == .idle {
+                showingSessionProgress = false
+            }
+        }
+        .onReceive(watchConnectivity.$showExerciseSelectionRequested) { requested in
+            if requested {
+                showingExerciseSelection = true
+                watchConnectivity.showExerciseSelectionRequested = false
+            }
+        }
+        .onChange(of: sessionManager.sessionEndedFromWatch) { ended in
+            if ended {
+                sessionManager.sessionEndedFromWatch = false
+                handleSessionEndedFromWatch()
+            }
+        }
+        .onAppear {
+            setupSessionObservers()
+            withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
+                pulseAnimation = true
+            }
+            requestNotificationPermission()
+            if sessionManager.currentPhase == .rest { primeRestCentricInputs() }
+        }
+    }
+
+    // MARK: - Legacy Body (idle / work 時の従来レイアウト)
+    @ViewBuilder
+    private func legacyBody(geometry: GeometryProxy) -> some View {
+        let position = effectiveButtonPosition
+        legacyBodyContent(geometry: geometry, position: position)
+    }
+
+    @ViewBuilder
+    private func legacyBodyContent(geometry: GeometryProxy, position: MainButtonVerticalPosition) -> some View {
+        VStack(spacing: 0) {
                 // 上部配置: アクションボタンを画面の最上部へ
                 if position == .top {
                     mainActionSection(geometry: geometry)
@@ -99,81 +298,720 @@ struct MainTimerView: View {
                     mainActionSection(geometry: geometry)
                         .frame(height: geometry.size.height * 0.32)
                 }
-            }
-            .frame(maxWidth: .infinity)
-            .background(animatedBackground)
-            .animation(.easeInOut(duration: 0.25), value: position)
         }
-        .safeAreaInset(edge: .top, spacing: 0) {
-            if presetRunner.isRunning {
-                presetProgressBanner
+        .frame(maxWidth: .infinity)
+        .animation(.easeInOut(duration: 0.25), value: position)
+    }
+
+    // MARK: - Rest-Centric Layout (休憩中の主操作画面)
+
+    /// 休憩中の専用レイアウト: タイマー + 前セット編集（中央メイン）+ 次セット設定ボタン + CTA + 完了
+    @ViewBuilder
+    private func restCentricBody(geometry: GeometryProxy) -> some View {
+        VStack(spacing: 6) {
+            statusHeaderSection
+                .frame(height: geometry.size.height * 0.09)
+            restTimerHeroSection
+                .frame(height: geometry.size.height * 0.18)
+                .padding(.horizontal, 12)
+            ScrollView {
+                previousSetCentralEditor
                     .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
+                    .padding(.vertical, 4)
+            }
+            .frame(maxHeight: .infinity)
+            nextSetSettingsButton
+                .padding(.horizontal, 12)
+            nextSetCTASection(buttonWidth: effectiveWidth(geometry.size.width))
+                .padding(.horizontal, 12)
+                .padding(.bottom, 4)
+            finishButtonCompact
+                .padding(.horizontal, 12)
+                .padding(.bottom, 6)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    /// 休憩中の中央メイン: 前セット（実績）を編集できるエリア。
+    /// 拡大カード（タップで `previousSetEditSheet`）＋ タグ/RPE/メモ（いずれも前セットへのフィードバック）。
+    private var previousSetCentralEditor: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            sectionHeader(icon: "clock.arrow.circlepath", text: "前の\(sessionManager.activeDomain.workPhaseLabel)")
+            previousSetCentralCard
+            // タグ群
+            tagSectionHeader
+            tagChipRow
+            // F-2: RPE（前セットの肉体的・精神的疲労度）— workout のみ表示
+            if sessionManager.activeDomain == .workout {
+                rpeSection
+            }
+            // クイックメモ
+            sectionHeader(icon: "square.and.pencil", text: "メモ")
+            quickMemoField
+        }
+        .padding(.vertical, 6)
+    }
+
+    /// 前セットの拡大カード（タップで編集シートを開く）。未記録時はプレースホルダ。
+    @ViewBuilder
+    private var previousSetCentralCard: some View {
+        if let record = sessionManager.lastWorkRecord {
+            Button(action: openPreviousSetEdit) {
+                HStack(spacing: 10) {
+                    previousSetCompactDescription(for: record)
+                    Spacer()
+                    Image(systemName: "pencil")
+                        .font(.subheadline)
+                        .foregroundColor(.white.opacity(0.7))
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 14)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.black.opacity(0.25))
+                .cornerRadius(12)
+            }
+            .buttonStyle(.plain)
+        } else {
+            HStack(spacing: 6) {
+                Image(systemName: "info.circle")
+                    .font(.caption)
+                Text("最初の\(sessionManager.activeDomain.workPhaseLabel)後にここに表示されます")
+                    .font(.caption)
+            }
+            .foregroundColor(.white.opacity(0.6))
+            .padding(.horizontal, 12)
+            .padding(.vertical, 14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.black.opacity(0.15))
+            .cornerRadius(12)
+        }
+    }
+
+    /// 進捗画面（次セット設定）へ移動するボタン。
+    private var nextSetSettingsButton: some View {
+        Button(action: openSessionProgress) {
+            HStack(spacing: 8) {
+                Image(systemName: "slider.horizontal.3")
+                    .font(.callout)
+                Text("次の\(sessionManager.activeDomain.workPhaseLabel)設定")
+                    .font(.callout).fontWeight(.semibold)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+            }
+            .foregroundColor(.white)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .background(
+                RoundedRectangle(cornerRadius: 14)
+                    .fill(Color.white.opacity(0.15))
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// 休憩開始時に呼ばれる初期化処理。前セット実績の payload・current 値をUIへ反映。
+    private func primeRestCentricInputs() {
+        guard !restCentricInitialized else { return }
+        restCentricInitialized = true
+        primeNextSetEditing()
+        // 前セットがあれば既存タグ・メモ・RPE を読み込み
+        if let record = sessionManager.lastWorkRecord {
+            let payload = record.payload
+            selectedRestTags = Set(payload.tags)
+            restQuickMemo = payload.memo
+            restPhysicalRpe = payload.rpe
+            restMentalRpe = payload.mentalRpe
+        } else {
+            selectedRestTags = []
+            restQuickMemo = ""
+            restPhysicalRpe = nil
+            restMentalRpe = nil
+        }
+    }
+
+    // MARK: Rest sections
+
+    private var restTimerHeroSection: some View {
+        HStack(alignment: .center, spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("休憩中")
+                    .font(.caption)
+                    .foregroundColor(.white.opacity(0.7))
+                Text(timerText)
+                    .font(.system(size: 56, weight: .bold, design: .monospaced))
+                    .foregroundColor(.white)
+                    .minimumScaleFactor(0.5)
+                    .lineLimit(1)
+                if sessionManager.restTimeAlertEnabled {
+                    HStack(spacing: 4) {
+                        Text("目安 \(Int(sessionManager.restTimeLimit))秒")
+                            .font(.caption2)
+                            .foregroundColor(.white.opacity(0.6))
+                        if sessionManager.currentRestSnoozeOffset > 0 {
+                            Text("(+\(Int(sessionManager.currentRestSnoozeOffset))s)")
+                                .font(.caption2)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.orange)
+                        }
+                    }
+                }
+            }
+            Spacer()
+            Button(action: snoozeRest) {
+                VStack(spacing: 2) {
+                    Image(systemName: "goforward.30")
+                        .font(.title2)
+                    Text("+30s")
+                        .font(.caption2)
+                        .fontWeight(.semibold)
+                }
+                .foregroundColor(.white)
+                .frame(width: 64, height: 64)
+                .background(
+                    Circle().fill(Color.orange.opacity(0.85))
+                        .shadow(color: .orange.opacity(0.5), radius: 6, x: 0, y: 3)
+                )
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 18)
+                .fill(Color.blue.opacity(0.25))
+        )
+    }
+
+    private func snoozeRest() {
+        // SessionManager.snoozeRest を呼ぶことで、予鈴・本鈴フラグもリセットされ
+        // 延長後に再度通知が鳴るようになる（F-1）。
+        sessionManager.snoozeRest(by: 30)
+    }
+
+    @ViewBuilder
+    private func previousSetCompactDescription(for record: SetRecord) -> some View {
+        switch sessionManager.activeDomain {
+        case .workout:
+            HStack(spacing: 4) {
+                Text(record.name ?? "-")
+                    .font(.caption).foregroundColor(.white)
+                Text("\(Int(record.reps))×\(String(format: "%.1f", record.load))")
+                    .font(.caption).fontWeight(.bold).foregroundColor(.yellow)
+            }
+        case .study, .work:
+            HStack(spacing: 6) {
+                Text(record.taskName ?? "-")
+                    .font(.caption).foregroundColor(.yellow).lineLimit(1)
+                Text("\(Int(record.focusScore))%")
+                    .font(.caption2).foregroundColor(.white.opacity(0.8))
             }
         }
-        .sheet(isPresented: $showingInputSheet) {
-            // ドメインに応じて入力シートを切り替え（workout=従来、study/work=タスク入力）
+    }
+
+    // MARK: Inline next-set form
+
+    private var inlineNextSetForm: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            sectionHeader(icon: "arrow.forward.circle.fill", text: "次の\(sessionManager.activeDomain.workPhaseLabel)")
             switch sessionManager.activeDomain {
             case .workout:
-                ExerciseInputSheet()
-                    .environmentObject(sessionManager)
-            case .study, .work:
-                TaskInputSheet(domain: sessionManager.activeDomain)
-                    .environmentObject(sessionManager)
+                inlineWorkoutFields
+            case .study:
+                inlineStudyFields
+            case .work:
+                inlineWorkFields
             }
         }
-        .sheet(isPresented: $showingExerciseSelection) {
-            ExerciseSelectionSheet()
-                .environmentObject(sessionManager)
+        .padding(.vertical, 6)
+    }
+
+    /// F-2: RPE 入力（Physical / Mental の 2 軸、1-5 スケール）
+    @ViewBuilder
+    private var rpeSection: some View {
+        sectionHeader(icon: "gauge.with.dots.needle.50percent", text: "前セットの疲労度（RPE）")
+        VStack(spacing: 8) {
+            rpePicker(
+                label: "肉体的",
+                icon: "figure.strengthtraining.traditional",
+                value: $restPhysicalRpe,
+                accent: .red
+            )
+            rpePicker(
+                label: "精神的",
+                icon: "brain.head.profile",
+                value: $restMentalRpe,
+                accent: .purple
+            )
         }
-        .sheet(isPresented: $showingRestSettings) {
-            RestTimeSettingsSheet()
-                .environmentObject(sessionManager)
-        }
-        .sheet(isPresented: $showingNoteSheet) {
-            WorkoutNoteSheet()
-                .environmentObject(sessionManager)
-        }
-        .sheet(isPresented: $showingPresetPicker) {
-            PresetQuickPickerView()
-        }
-        .fullScreenCover(isPresented: $showingSummary) {
-            SessionSummaryView()
-                .environmentObject(sessionManager)
-                .environmentObject(proUserManager)
-        }
-        .alert("トレーニング終了", isPresented: $showingFinishConfirmation) {
-            Button("キャンセル", role: .cancel) { }
-            Button("終了する", role: .destructive) {
-                finishWorkoutWithAdGate()
+    }
+
+    @ViewBuilder
+    private func rpePicker(label: String, icon: String, value: Binding<Int?>, accent: Color) -> some View {
+        HStack(spacing: 8) {
+            HStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.caption2)
+                    .foregroundColor(accent)
+                Text(label)
+                    .font(.caption2)
+                    .foregroundColor(.white.opacity(0.85))
             }
-        } message: {
-            Text("トレーニングを終了しますか？\n\n総時間: \(formatTime(sessionManager.elapsedTime))\n筋トレ: \(formatTime(sessionManager.totalWorkTime))\n休憩: \(formatTime(sessionManager.totalRestTime))")
-        }
-        .onReceive(watchConnectivity.$showExerciseSelectionRequested) { requested in
-            // Watchから種目選択画面の表示リクエストを受信
-            if requested {
-                showingExerciseSelection = true
-                // フラグをリセット
-                watchConnectivity.showExerciseSelectionRequested = false
+            .frame(width: 64, alignment: .leading)
+
+            HStack(spacing: 4) {
+                ForEach(1...5, id: \.self) { level in
+                    Button {
+                        // タップで切替（同じ値を再タップしたらクリア）
+                        if value.wrappedValue == level {
+                            value.wrappedValue = nil
+                        } else {
+                            value.wrappedValue = level
+                        }
+                        let impact = UIImpactFeedbackGenerator(style: .light)
+                        impact.impactOccurred()
+                        syncTagsAndMemoToLastRecord()
+                    } label: {
+                        Text("\(level)")
+                            .font(.system(size: 13, weight: .bold))
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 28)
+                            .foregroundColor(value.wrappedValue == level ? .black : .white)
+                            .background(
+                                Capsule().fill(value.wrappedValue == level
+                                               ? accent.opacity(0.85)
+                                               : Color.white.opacity(0.12))
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(sessionManager.lastWorkRecord == nil)
+                }
             }
         }
-        .onChange(of: sessionManager.sessionEndedFromWatch) { ended in
-            if ended {
-                sessionManager.sessionEndedFromWatch = false
-                handleSessionEndedFromWatch()
+        .opacity(sessionManager.lastWorkRecord == nil ? 0.5 : 1.0)
+    }
+
+    @ViewBuilder
+    private func sectionHeader(icon: String, text: String) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon).font(.caption)
+            Text(text).font(.caption)
+            Spacer()
+        }
+        .foregroundColor(.white.opacity(0.75))
+        .padding(.top, 4)
+    }
+
+    @ViewBuilder
+    private var inlineWorkoutFields: some View {
+        // 種目選択（タップで ExerciseSelectionSheet を開く）
+        Button(action: { showingExerciseSelection = true }) {
+            HStack(spacing: 10) {
+                Image(systemName: "figure.strengthtraining.traditional")
+                    .font(.title3)
+                    .foregroundColor(.orange)
+                    .frame(width: 28)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(nextCategory.isEmpty ? sessionManager.selectedCategory : nextCategory)
+                        .font(.caption2)
+                        .foregroundColor(.white.opacity(0.7))
+                    Text(nextExercise.isEmpty ? sessionManager.selectedExercise : nextExercise)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.white)
+                        .lineLimit(1)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundColor(.white.opacity(0.6))
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(Color.white.opacity(0.12))
+            .cornerRadius(10)
+        }
+        .buttonStyle(.plain)
+
+        // 回数 / 重量: 増減ボタン + スライダー
+        HStack(spacing: 8) {
+            restCounterRow(
+                label: "回数",
+                valueText: "\(Int(nextReps))\(sessionManager.repsUnit)",
+                color: .green,
+                value: $nextReps,
+                range: 1...100,
+                step: 1
+            )
+            restCounterRow(
+                label: "重量",
+                valueText: "\(String(format: "%.1f", nextLoad))\(sessionManager.loadUnit)",
+                color: .blue,
+                value: $nextLoad,
+                range: 0...200,
+                step: restLoadStep
+            )
+        }
+    }
+
+    private var restLoadStep: Double {
+        switch sessionManager.loadUnit {
+        case "kg": return 1
+        case "W": return 10
+        case "レベル": return 1
+        default: return 1
+        }
+    }
+
+    @ViewBuilder
+    private func restCounterRow(
+        label: String,
+        valueText: String,
+        color: Color,
+        value: Binding<Double>,
+        range: ClosedRange<Double>,
+        step: Double
+    ) -> some View {
+        VStack(spacing: 6) {
+            HStack(spacing: 4) {
+                Text(label)
+                    .font(.caption2)
+                    .foregroundColor(.white.opacity(0.75))
+                Spacer()
+                Text(valueText)
+                    .font(.headline)
+                    .fontWeight(.bold)
+                    .foregroundColor(color)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                    .monospacedDigit()
+            }
+            HStack(spacing: 4) {
+                restCounterButton("-5", color: .red) { adjustNextValue(value, delta: -5, range: range) }
+                restCounterButton("-1", color: .orange) { adjustNextValue(value, delta: -1, range: range) }
+                restCounterButton("+1", color: .green.opacity(0.75)) { adjustNextValue(value, delta: 1, range: range) }
+                restCounterButton("+5", color: .green) { adjustNextValue(value, delta: 5, range: range) }
+            }
+            Slider(value: value, in: range, step: step)
+                .tint(color)
+        }
+        .padding(8)
+        .background(Color.white.opacity(0.08))
+        .cornerRadius(10)
+    }
+
+    private func restCounterButton(_ label: String, color: Color, action: @escaping () -> Void) -> some View {
+        Button(action: {
+            let impact = UIImpactFeedbackGenerator(style: .light)
+            impact.impactOccurred()
+            action()
+        }) {
+            Text(label)
+                .font(.system(size: 12, weight: .bold))
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 8)
+                .background(color)
+                .cornerRadius(6)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func adjustNextValue(_ binding: Binding<Double>, delta: Double, range: ClosedRange<Double>) {
+        let newValue = min(max(binding.wrappedValue + delta, range.lowerBound), range.upperBound)
+        binding.wrappedValue = newValue
+    }
+
+    @ViewBuilder
+    private var inlineStudyFields: some View {
+        taskSelectionCard(
+            iconName: "book.fill",
+            iconColor: .blue,
+            secondaryLabel: "科目",
+            secondary: nextSubject.isEmpty ? sessionManager.currentSubject : nextSubject,
+            primaryPlaceholder: "タップして勉強内容を入力",
+            primary: nextTaskName.isEmpty ? sessionManager.currentTaskName : nextTaskName
+        )
+        inlineHistoryChips(domain: "study", parent: nextSubject, binding: $nextTaskName)
+        restCounterRow(
+            label: "進行度",
+            valueText: "\(Int(nextProgress))%",
+            color: .blue,
+            value: $nextProgress,
+            range: 0...100,
+            step: 1
+        )
+    }
+
+    @ViewBuilder
+    private var inlineWorkFields: some View {
+        taskSelectionCard(
+            iconName: "briefcase.fill",
+            iconColor: .green,
+            secondaryLabel: "プロジェクト",
+            secondary: nextProject.isEmpty ? sessionManager.currentProject : nextProject,
+            primaryPlaceholder: "タップしてタスク名を入力",
+            primary: nextTaskName.isEmpty ? sessionManager.currentTaskName : nextTaskName
+        )
+        inlineHistoryChips(domain: "work", parent: nextProject, binding: $nextTaskName)
+        restCounterRow(
+            label: "進行度",
+            valueText: "\(Int(nextProgress))%",
+            color: .green,
+            value: $nextProgress,
+            range: 0...100,
+            step: 1
+        )
+    }
+
+    /// 勉強/仕事ドメイン用の「タップでタスクマスタ選択を開く」カード
+    @ViewBuilder
+    private func taskSelectionCard(
+        iconName: String,
+        iconColor: Color,
+        secondaryLabel: String,
+        secondary: String,
+        primaryPlaceholder: String,
+        primary: String
+    ) -> some View {
+        Button(action: { showingTaskMasterSelection = true }) {
+            HStack(spacing: 10) {
+                Image(systemName: iconName)
+                    .font(.title3)
+                    .foregroundColor(iconColor)
+                    .frame(width: 28)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(secondary.isEmpty ? "\(secondaryLabel) 未設定" : "\(secondaryLabel): \(secondary)")
+                        .font(.caption2)
+                        .foregroundColor(.white.opacity(0.7))
+                        .lineLimit(1)
+                    Text(primary.isEmpty ? primaryPlaceholder : primary)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.white)
+                        .lineLimit(1)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundColor(.white.opacity(0.6))
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(Color.white.opacity(0.12))
+            .cornerRadius(10)
+        }
+        .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private func inlineFieldRow<Content: View>(label: String, @ViewBuilder _ content: () -> Content) -> some View {
+        HStack {
+            Text(label)
+                .font(.subheadline)
+                .foregroundColor(.white.opacity(0.85))
+            Spacer()
+            content()
+                .textFieldStyle(.plain)
+                .foregroundColor(.white)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(Color.white.opacity(0.12))
+                .cornerRadius(8)
+        }
+    }
+
+    @ViewBuilder
+    private func inlineHistoryChips(domain: String, parent: String, binding: Binding<String>) -> some View {
+        let suggestions = TaskHistoryStore.shared.suggestions(domain: domain, parent: parent)
+        if !suggestions.isEmpty {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 6) {
+                    ForEach(suggestions, id: \.self) { name in
+                        Button { binding.wrappedValue = name } label: {
+                            Text(name)
+                                .font(.caption2)
+                                .lineLimit(1)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(Color.white.opacity(0.15))
+                                .foregroundColor(.white)
+                                .clipShape(Capsule())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
             }
         }
-        .onAppear {
-            // SessionManagerの変更を監視してWatchに送信
-            setupSessionObservers()
-            // パルスアニメーション開始
-            withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
-                pulseAnimation = true
+    }
+
+    // MARK: Tag chips (前セットへのタグ。lastWorkRecordがあるときのみ有効)
+
+    /// タグ行のヘッダ（タイトル + 管理ボタン）
+    private var tagSectionHeader: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "tag.fill").font(.caption)
+            Text("前セットのタグ").font(.caption)
+            Spacer()
+            Button(action: { showingTagSettings = true }) {
+                HStack(spacing: 4) {
+                    Image(systemName: "plus.circle")
+                    Text("管理").font(.caption2)
+                }
+                .foregroundColor(.white)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Capsule().fill(Color.white.opacity(0.18)))
             }
-            // 通知のパーミッションをリクエスト
-            requestNotificationPermission()
+            .buttonStyle(.plain)
         }
+        .foregroundColor(.white.opacity(0.75))
+        .padding(.top, 4)
+    }
+
+    private var tagChipRow: some View {
+        let tags = tagPresetStore.tags(for: sessionManager.activeDomain.rawValue)
+        let hasPrevRecord = sessionManager.lastWorkRecord != nil
+        return ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
+                ForEach(tags, id: \.self) { tag in
+                    Button { toggleTag(tag) } label: {
+                        Text(tag)
+                            .font(.caption)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(
+                                Capsule().fill(selectedRestTags.contains(tag)
+                                               ? Color.yellow
+                                               : Color.white.opacity(0.18))
+                            )
+                            .foregroundColor(selectedRestTags.contains(tag) ? .black : .white)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(!hasPrevRecord)
+                }
+            }
+        }
+        .opacity(hasPrevRecord ? 1.0 : 0.5)
+    }
+
+    private func toggleTag(_ tag: String) {
+        guard sessionManager.lastWorkRecord != nil else { return }
+        if selectedRestTags.contains(tag) {
+            selectedRestTags.remove(tag)
+        } else {
+            selectedRestTags.insert(tag)
+        }
+        syncTagsAndMemoToLastRecord()
+        let impact = UIImpactFeedbackGenerator(style: .light)
+        impact.impactOccurred()
+    }
+
+    private var quickMemoField: some View {
+        TextField("クイックメモ（例: 肩に違和感）", text: $restQuickMemo, axis: .vertical)
+            .lineLimit(2...4)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            .background(Color.white.opacity(0.12))
+            .cornerRadius(10)
+            .foregroundColor(.white)
+            .onChange(of: restQuickMemo) { _ in
+                syncTagsAndMemoToLastRecord()
+            }
+    }
+
+    /// selectedRestTags / restQuickMemo / RPE を lastWorkRecord.payload に保存
+    private func syncTagsAndMemoToLastRecord() {
+        guard let record = sessionManager.lastWorkRecord else { return }
+        var payload = record.payload
+        payload.tags = Array(selectedRestTags)
+        payload.memo = restQuickMemo
+        payload.rpe = restPhysicalRpe
+        payload.mentalRpe = restMentalRpe
+        sessionManager.updatePreviousSetRecordPayload(payload)
+    }
+
+    // MARK: CTA & finish
+
+    private func nextSetCTASection(buttonWidth: CGFloat) -> some View {
+        Button(action: handleStartNextSet) {
+            HStack(spacing: 14) {
+                Image(systemName: "play.circle.fill").font(.system(size: 30))
+                Text("次の\(sessionManager.activeDomain.workPhaseLabel)へ")
+                    .font(.title3).fontWeight(.bold)
+            }
+            .foregroundColor(.white)
+            .frame(maxWidth: buttonWidth * 0.92)
+            .padding(.vertical, 14)
+            .background(
+                RoundedRectangle(cornerRadius: 24)
+                    .fill(LinearGradient(colors: [Color.red, Color.red.opacity(0.75)],
+                                         startPoint: .top, endPoint: .bottom))
+                    .shadow(color: .red.opacity(0.5), radius: 10, x: 0, y: 5)
+            )
+        }
+    }
+
+    /// 「次のセットへ」押下時のハンドラ。設定ONなら簡易alert、OFFなら即遷移。
+    private func handleStartNextSet() {
+        // インライン入力済みなので、設定 ON 時は簡易確認のみ
+        if sessionManager.confirmTransitionToWork {
+            showingTransitionAlert = true
+        } else {
+            commitNextSetAndStart()
+        }
+    }
+
+    // MARK: - Session Progress Screen (次セット設定 + 進捗。ボタン移動のみ)
+
+    /// 進捗画面を開く。次セットフォームを最新の current 値で初期化してから表示。
+    private func openSessionProgress() {
+        primeNextSetEditing()
+        withAnimation { showingSessionProgress = true }
+    }
+
+    /// 進捗画面の「次の◯◯へ」押下: 画面を閉じてから次セットを確定・開始。
+    private func handleStartNextSetFromProgress() {
+        showingSessionProgress = false
+        commitNextSetAndStart()
+    }
+
+    /// 進捗 + 次セット設定をまとめた画面。ProgressDashboardPage にフォーム/ボタンをクロージャ注入。
+    @ViewBuilder
+    private func sessionProgressScreen(geometry: GeometryProxy) -> some View {
+        ProgressDashboardPage(
+            geometry: geometry,
+            onClose: { withAnimation { showingSessionProgress = false } },
+            onStartNextSet: { handleStartNextSetFromProgress() },
+            formContent: { inlineNextSetForm }
+        )
+        .environmentObject(sessionManager)
+    }
+
+    /// 簡易alertのメッセージ。次セットのサマリを1行で表示
+    private var transitionAlertMessage: String {
+        switch sessionManager.activeDomain {
+        case .workout:
+            return "\(nextExercise) \(Int(nextReps))回 × \(String(format: "%.1f", nextLoad))\(sessionManager.loadUnit)"
+        case .study:
+            return "\(nextSubject) / \(nextTaskName)"
+        case .work:
+            return "\(nextProject) / \(nextTaskName)"
+        }
+    }
+
+    private var finishButtonCompact: some View {
+        Button(action: { showingFinishConfirmation = true }) {
+            HStack(spacing: 8) {
+                Image(systemName: "stop.circle.fill").font(.subheadline)
+                Text("完了").font(.subheadline).fontWeight(.semibold)
+            }
+            .foregroundColor(.white)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 8)
+            .background(Capsule().fill(Color.gray.opacity(0.6)))
+        }
+        .disabled(isShowingAd)
     }
 
     // MARK: - Notification Permission
@@ -265,12 +1103,12 @@ struct MainTimerView: View {
             if sessionManager.currentPhase != .idle {
                 // 種目／タスク表示エリア（タップで変更可能）
                 // workout: ExerciseSelectionSheet（カテゴリ+種目）
-                // study/work: TaskInputSheet（タスク名+科目/プロジェクト）
+                // study/work: TaskMasterSelectionSheet（マスタタスク選択）
                 Button(action: {
                     if sessionManager.activeDomain == .workout {
                         showingExerciseSelection = true
                     } else {
-                        showingInputSheet = true
+                        showingTaskMasterSelection = true
                     }
                 }) {
                     HStack {
@@ -310,7 +1148,7 @@ struct MainTimerView: View {
                                 if sessionManager.activeDomain == .workout {
                                     showingExerciseSelection = true
                                 } else {
-                                    showingInputSheet = true
+                                    showingTaskMasterSelection = true
                                 }
                             }
                         }
@@ -393,79 +1231,10 @@ struct MainTimerView: View {
                 .shadow(color: .black.opacity(0.3), radius: 10, x: 0, y: 5)
                 .scaleEffect(pulseAnimation && sessionManager.currentPhase == .work ? 1.02 : 1.0)
 
-            // 目標表示（回数 × 重量）- workout モードのみ表示。study/work では非表示。
-            if sessionManager.currentPhase != .idle && sessionManager.activeDomain == .workout {
-                VStack(spacing: 8) {
-                    // メイン表示行
-                    HStack(spacing: 8) {
-                        Text("目標:")
-                            .font(.subheadline)
-                            .foregroundColor(.white.opacity(0.7))
-
-                        // 回数（タップで編集モード切替）
-                        Button(action: {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                inlineEditMode = inlineEditMode == .reps ? .none : .reps
-                            }
-                            let impactFeedback = UIImpactFeedbackGenerator(style: .light)
-                            impactFeedback.impactOccurred()
-                        }) {
-                            Text("\(Int(sessionManager.currentReps))回")
-                                .font(.title3)
-                                .fontWeight(.bold)
-                                .foregroundColor(inlineEditMode == .reps ? .white : .yellow)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 6)
-                                .background(inlineEditMode == .reps ? Color.yellow : Color.clear)
-                                .cornerRadius(8)
-                        }
-                        .buttonStyle(.plain)
-
-                        Text("×")
-                            .font(.subheadline)
-                            .foregroundColor(.white.opacity(0.7))
-
-                        // 重量（タップで編集モード切替）
-                        Button(action: {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                inlineEditMode = inlineEditMode == .load ? .none : .load
-                            }
-                            let impactFeedback = UIImpactFeedbackGenerator(style: .light)
-                            impactFeedback.impactOccurred()
-                        }) {
-                            Text("\(String(format: "%.1f", sessionManager.currentLoad))kg")
-                                .font(.title3)
-                                .fontWeight(.bold)
-                                .foregroundColor(inlineEditMode == .load ? .white : .yellow)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 6)
-                                .background(inlineEditMode == .load ? Color.yellow : Color.clear)
-                                .cornerRadius(8)
-                        }
-                        .buttonStyle(.plain)
-
-                        // 詳細入力ボタン
-                        Button(action: { showingInputSheet = true }) {
-                            Image(systemName: "slider.horizontal.3")
-                                .font(.title2)
-                                .foregroundColor(.white.opacity(0.7))
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
-                    .background(Color.black.opacity(0.2))
-                    .cornerRadius(20)
-
-                    // インライン編集コントロール（展開時のみ表示）
-                    if inlineEditMode != .none {
-                        inlineEditControls
-                            .transition(.asymmetric(
-                                insertion: .scale.combined(with: .opacity),
-                                removal: .scale.combined(with: .opacity)
-                            ))
-                    }
-                }
+            // 前セット実績カード（休憩中のみ表示）
+            // ドメイン別の項目を表示。タップで前セット編集シートを開く。
+            if sessionManager.currentPhase == .rest {
+                previousSetSummaryCard
             }
 
             // 総経過時間（見やすく改善）
@@ -487,6 +1256,264 @@ struct MainTimerView: View {
                 .cornerRadius(12)
             }
         }
+    }
+
+    // MARK: - Previous Set Summary Card (休憩中: 直前セットの実績表示・編集)
+    @ViewBuilder
+    private var previousSetSummaryCard: some View {
+        if let record = sessionManager.lastWorkRecord {
+            Button(action: openPreviousSetEdit) {
+                VStack(spacing: 6) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "clock.arrow.circlepath")
+                            .font(.caption)
+                        Text("前の\(sessionManager.activeDomain.workPhaseLabel)実績")
+                            .font(.caption)
+                        Spacer()
+                        Image(systemName: "square.and.pencil")
+                            .font(.caption)
+                    }
+                    .foregroundColor(.white.opacity(0.7))
+
+                    previousSetContentRow(for: record)
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(Color.black.opacity(0.25))
+                .cornerRadius(16)
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal, 12)
+        } else {
+            // 1セット目: 前セット未生成。次セットの確認シートでのみ編集
+            HStack(spacing: 6) {
+                Image(systemName: "info.circle")
+                    .font(.caption)
+                Text("前の\(sessionManager.activeDomain.workPhaseLabel)はまだありません")
+                    .font(.caption)
+            }
+            .foregroundColor(.white.opacity(0.6))
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .background(Color.black.opacity(0.15))
+            .cornerRadius(16)
+        }
+    }
+
+    @ViewBuilder
+    private func previousSetContentRow(for record: SetRecord) -> some View {
+        switch sessionManager.activeDomain {
+        case .workout:
+            HStack(spacing: 10) {
+                Text(record.name ?? "-")
+                    .font(.subheadline)
+                    .foregroundColor(.white)
+                Text("\(Int(record.reps))\(sessionManager.repsUnit)")
+                    .font(.title3)
+                    .fontWeight(.bold)
+                    .foregroundColor(.yellow)
+                Text("×")
+                    .font(.caption)
+                    .foregroundColor(.white.opacity(0.6))
+                Text("\(String(format: "%.1f", record.load))\(sessionManager.loadUnit)")
+                    .font(.title3)
+                    .fontWeight(.bold)
+                    .foregroundColor(.yellow)
+            }
+        case .study:
+            VStack(spacing: 2) {
+                Text(sessionManager.currentSubject.isEmpty ? "-" : sessionManager.currentSubject)
+                    .font(.caption)
+                    .foregroundColor(.white.opacity(0.85))
+                Text(record.taskName ?? "(勉強内容未入力)")
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.yellow)
+                    .lineLimit(1)
+                Text("進行度 \(Int(record.focusScore))%")
+                    .font(.caption2)
+                    .foregroundColor(.white.opacity(0.7))
+            }
+        case .work:
+            VStack(spacing: 2) {
+                Text(sessionManager.currentProject.isEmpty ? "-" : sessionManager.currentProject)
+                    .font(.caption)
+                    .foregroundColor(.white.opacity(0.85))
+                Text(record.taskName ?? "(タスク未入力)")
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.yellow)
+                    .lineLimit(1)
+                Text("進行度 \(Int(record.focusScore))%")
+                    .font(.caption2)
+                    .foregroundColor(.white.opacity(0.7))
+            }
+        }
+    }
+
+    private func openPreviousSetEdit() {
+        guard let record = sessionManager.lastWorkRecord else { return }
+        prevExercise = record.name ?? ""
+        prevCategory = record.category ?? ""
+        prevReps = record.reps
+        prevLoad = record.load
+        prevTaskName = record.taskName ?? ""
+        prevProgress = record.focusScore
+        prevMemo = record.note ?? ""
+        showingPreviousSetEdit = true
+    }
+
+    private func savePreviousSetEdits() {
+        switch sessionManager.activeDomain {
+        case .workout:
+            sessionManager.updatePreviousSetRecord(
+                exercise: prevExercise,
+                category: prevCategory,
+                reps: prevReps,
+                load: prevLoad
+            )
+        case .study, .work:
+            sessionManager.updatePreviousSetRecord(
+                taskName: prevTaskName,
+                progress: prevProgress,
+                note: prevMemo
+            )
+        }
+        showingPreviousSetEdit = false
+    }
+
+    private var previousSetEditSheet: some View {
+        NavigationStack {
+            Form {
+                Section("前の\(sessionManager.activeDomain.workPhaseLabel)実績") {
+                    switch sessionManager.activeDomain {
+                    case .workout:
+                        Picker("カテゴリ", selection: $prevCategory) {
+                            ForEach(sessionManager.getAvailableCategories(), id: \.self) { category in
+                                Text(category).tag(category)
+                            }
+                        }
+                        Picker("種目", selection: $prevExercise) {
+                            ForEach(prevAvailableExercises, id: \.self) { exercise in
+                                Text(exercise).tag(exercise)
+                            }
+                        }
+                        formCounterRow(
+                            label: "回数",
+                            value: $prevReps,
+                            unit: sessionManager.repsUnit,
+                            range: 1...100,
+                            step: 1,
+                            color: .green,
+                            valueFormat: "%.0f"
+                        )
+                        formCounterRow(
+                            label: "重量",
+                            value: $prevLoad,
+                            unit: sessionManager.loadUnit,
+                            range: 0...200,
+                            step: restLoadStep,
+                            color: .blue,
+                            valueFormat: "%.1f"
+                        )
+                    case .study:
+                        TextField("勉強内容", text: $prevTaskName)
+                        taskHistorySuggestions(domain: "study", parent: sessionManager.currentSubject, binding: $prevTaskName)
+                        formCounterRow(
+                            label: "進行度",
+                            value: $prevProgress,
+                            unit: "%",
+                            range: 0...100,
+                            step: 1,
+                            color: .blue,
+                            valueFormat: "%.0f"
+                        )
+                        memoEditor(text: $prevMemo)
+                    case .work:
+                        TextField("タスク", text: $prevTaskName)
+                        taskHistorySuggestions(domain: "work", parent: sessionManager.currentProject, binding: $prevTaskName)
+                        formCounterRow(
+                            label: "進行度",
+                            value: $prevProgress,
+                            unit: "%",
+                            range: 0...100,
+                            step: 1,
+                            color: .green,
+                            valueFormat: "%.0f"
+                        )
+                        memoEditor(text: $prevMemo)
+                    }
+                }
+            }
+            .navigationTitle("実績を編集")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("キャンセル") { showingPreviousSetEdit = false }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("保存") { savePreviousSetEdits() }
+                        .fontWeight(.bold)
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
+    }
+
+    /// previousSetEditSheet 内 Picker 用: prevCategory に基づく種目候補
+    private var prevAvailableExercises: [String] {
+        let category = prevCategory.isEmpty ? sessionManager.selectedCategory : prevCategory
+        return sessionManager.getExercises(for: category)
+    }
+
+    /// Form 内向け: ラベル + 増減ボタン + スライダーの行
+    @ViewBuilder
+    private func formCounterRow(
+        label: String,
+        value: Binding<Double>,
+        unit: String,
+        range: ClosedRange<Double>,
+        step: Double,
+        color: Color,
+        valueFormat: String
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(label)
+                Spacer()
+                Text("\(String(format: valueFormat, value.wrappedValue))\(unit)")
+                    .font(.headline)
+                    .fontWeight(.bold)
+                    .foregroundColor(color)
+                    .monospacedDigit()
+            }
+            HStack(spacing: 6) {
+                formCounterButton("-5", color: .red) { adjustNextValue(value, delta: -5, range: range) }
+                formCounterButton("-1", color: .orange) { adjustNextValue(value, delta: -1, range: range) }
+                formCounterButton("+1", color: .green.opacity(0.75)) { adjustNextValue(value, delta: 1, range: range) }
+                formCounterButton("+5", color: .green) { adjustNextValue(value, delta: 5, range: range) }
+            }
+            Slider(value: value, in: range, step: step)
+                .tint(color)
+        }
+        .padding(.vertical, 4)
+    }
+
+    private func formCounterButton(_ label: String, color: Color, action: @escaping () -> Void) -> some View {
+        Button(action: {
+            let impact = UIImpactFeedbackGenerator(style: .light)
+            impact.impactOccurred()
+            action()
+        }) {
+            Text(label)
+                .font(.system(size: 13, weight: .bold))
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 8)
+                .background(color)
+                .cornerRadius(8)
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Inline Edit Controls (インライン編集コントロール)
@@ -804,23 +1831,23 @@ struct MainTimerView: View {
     /// アクションボタン本体（待機中＝スタート / 運動中＝休憩へ / 休憩中＝次のセットへ + サブボタン）
     @ViewBuilder
     private func actionButtonStack(buttonWidth: CGFloat) -> some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 12) {
             if sessionManager.currentPhase == .idle {
                 // モード切替（筋トレ / 勉強 / 仕事）
                 domainPicker
 
                 // 待機中: 大きなスタートボタン
                 Button(action: startSessionWithWatchCheck) {
-                    VStack(spacing: 16) {
+                    VStack(spacing: 10) {
                         Image(systemName: "play.circle.fill")
-                            .font(.system(size: 70))
+                            .font(.system(size: 56))
                         Text("スタート")
-                            .font(.largeTitle)
+                            .font(.title)
                             .fontWeight(.bold)
                     }
                     .foregroundColor(.white)
-                    .frame(width: buttonWidth * 0.8,
-                           height: min(buttonWidth * 0.55, 220))
+                    .frame(width: buttonWidth * 0.75,
+                           height: min(buttonWidth * 0.42, 160))
                     .background(
                         RoundedRectangle(cornerRadius: 35)
                             .fill(
@@ -929,8 +1956,8 @@ struct MainTimerView: View {
                     .cornerRadius(20)
                     .animation(.easeInOut(duration: 0.3), value: sessionManager.isRestTimeExceeded)
 
-                    // 筋トレボタン（大）
-                    Button(action: { sessionManager.togglePhase() }) {
+                    // 筋トレボタン（大）— 確認設定ONなら確認ダイアログを経由
+                    Button(action: requestTransitionToWork) {
                         HStack(spacing: 16) {
                             Image(systemName: "figure.strengthtraining.traditional")
                                 .font(.system(size: 40))
@@ -954,36 +1981,7 @@ struct MainTimerView: View {
                         )
                     }
 
-                    // サブボタン（保存・入力）
-                    HStack(spacing: 12) {
-                        Button(action: { sessionManager.saveCurrentCycle() }) {
-                            HStack(spacing: 6) {
-                                Image(systemName: "checkmark.circle.fill")
-                                Text("セット保存")
-                            }
-                            .font(.callout)
-                            .fontWeight(.semibold)
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 20)
-                            .padding(.vertical, 12)
-                            .background(Color.orange)
-                            .cornerRadius(20)
-                        }
-
-                        Button(action: { showingInputSheet = true }) {
-                            HStack(spacing: 6) {
-                                Image(systemName: "square.and.pencil")
-                                Text("入力変更")
-                            }
-                            .font(.callout)
-                            .fontWeight(.semibold)
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 20)
-                            .padding(.vertical, 12)
-                            .background(Color.white.opacity(0.25))
-                            .cornerRadius(20)
-                        }
-                    }
+                    // 前セット実績は中央カードから、次セット内容は「次のセットへ」の確認シートで編集
                 }
             }
         }
@@ -1009,7 +2007,7 @@ struct MainTimerView: View {
                     }
                     .foregroundColor(sessionManager.activeDomain == domain ? .white : .white.opacity(0.6))
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 10)
+                    .padding(.vertical, 8)
                     .background(
                         RoundedRectangle(cornerRadius: 12)
                             .fill(sessionManager.activeDomain == domain ? domainColor(domain) : Color.white.opacity(0.1))
@@ -1211,6 +2209,166 @@ struct MainTimerView: View {
         return sessionManager.elapsedTimeString
     }
 
+    // MARK: - Transition Confirmation
+    /// 旧モーダル用に残してあったエントリ。現在は restCentricBody から直接 handleStartNextSet を使う。
+    /// 互換のためメソッドだけ残置（一部呼び出し元が legacyBody 経由で残っている場合がある）。
+    private func requestTransitionToWork() {
+        let immediate = sessionManager.requestTransitionToWork(notifyWatch: true)
+        if !immediate {
+            primeNextSetEditing()
+            showingTransitionAlert = true
+        }
+    }
+
+    /// 確認シート編集用 @State を SessionManager の current Xxx 系で初期化
+    private func primeNextSetEditing() {
+        dontAskTransitionAgain = false
+        nextCategory = sessionManager.selectedCategory
+        nextExercise = sessionManager.selectedExercise
+        nextReps = sessionManager.currentReps
+        nextLoad = sessionManager.currentLoad
+        nextSubject = sessionManager.currentSubject
+        nextProject = sessionManager.currentProject
+        nextTaskName = sessionManager.currentTaskName
+        nextProgress = sessionManager.currentProgress
+        nextMemo = sessionManager.currentMemo
+    }
+
+    /// 「開始」押下時：編集値を SessionManager に反映してから遷移
+    private func commitNextSetAndStart() {
+        switch sessionManager.activeDomain {
+        case .workout:
+            sessionManager.selectedCategory = nextCategory
+            sessionManager.selectedExercise = nextExercise
+            sessionManager.currentReps = nextReps
+            sessionManager.currentLoad = nextLoad
+        case .study:
+            sessionManager.currentSubject = nextSubject
+            sessionManager.currentTaskName = nextTaskName
+            sessionManager.currentProgress = nextProgress
+            sessionManager.currentMemo = nextMemo
+            // 履歴に taskName を記憶
+            if !nextTaskName.isEmpty {
+                TaskHistoryStore.shared.remember(domain: "study", parent: nextSubject, taskName: nextTaskName)
+            }
+        case .work:
+            sessionManager.currentProject = nextProject
+            sessionManager.currentTaskName = nextTaskName
+            sessionManager.currentProgress = nextProgress
+            sessionManager.currentMemo = nextMemo
+            if !nextTaskName.isEmpty {
+                TaskHistoryStore.shared.remember(domain: "work", parent: nextProject, taskName: nextTaskName)
+            }
+        }
+        showingTransitionAlert = false
+        showingSessionProgress = false
+        sessionManager.confirmTransitionToWorkConfirmed(dontAskAgain: dontAskTransitionAgain)
+    }
+
+    // 旧モーダル確認シートは撤去。restCentricBody がインライン入力を兼ねるため不要。
+
+    @ViewBuilder
+    private var workoutNextSetFields: some View {
+        TextField("カテゴリ", text: $nextCategory)
+        TextField("種目", text: $nextExercise)
+        HStack {
+            Text("回数")
+            Spacer()
+            TextField("回数", value: $nextReps, format: .number)
+                .keyboardType(.numberPad)
+                .multilineTextAlignment(.trailing)
+                .frame(maxWidth: 80)
+            Text(sessionManager.repsUnit)
+                .foregroundColor(.secondary)
+        }
+        HStack {
+            Text("重量")
+            Spacer()
+            TextField("重量", value: $nextLoad, format: .number.precision(.fractionLength(0...1)))
+                .keyboardType(.decimalPad)
+                .multilineTextAlignment(.trailing)
+                .frame(maxWidth: 80)
+            Text(sessionManager.loadUnit)
+                .foregroundColor(.secondary)
+        }
+    }
+
+    @ViewBuilder
+    private var studyNextSetFields: some View {
+        TextField("科目", text: $nextSubject)
+        TextField("勉強内容", text: $nextTaskName)
+        taskHistorySuggestions(domain: "study", parent: nextSubject, binding: $nextTaskName)
+        progressEditor(value: $nextProgress)
+        memoEditor(text: $nextMemo)
+    }
+
+    @ViewBuilder
+    private var workNextSetFields: some View {
+        TextField("プロジェクト", text: $nextProject)
+        TextField("タスク", text: $nextTaskName)
+        taskHistorySuggestions(domain: "work", parent: nextProject, binding: $nextTaskName)
+        progressEditor(value: $nextProgress)
+        memoEditor(text: $nextMemo)
+    }
+
+    /// 履歴サジェスト表示。parent に紐づく taskName を最新順に表示し、タップで binding に反映
+    @ViewBuilder
+    private func taskHistorySuggestions(domain: String, parent: String, binding: Binding<String>) -> some View {
+        let suggestions = TaskHistoryStore.shared.suggestions(domain: domain, parent: parent)
+        if !suggestions.isEmpty {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("最近の入力")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) {
+                        ForEach(suggestions, id: \.self) { name in
+                            Button { binding.wrappedValue = name } label: {
+                                Text(name)
+                                    .font(.caption)
+                                    .lineLimit(1)
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 6)
+                                    .background(Color.accentColor.opacity(0.15))
+                                    .foregroundColor(.accentColor)
+                                    .clipShape(Capsule())
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.vertical, 2)
+                }
+            }
+        }
+    }
+
+    /// 進行度スライダー（0–100）
+    @ViewBuilder
+    private func progressEditor(value: Binding<Double>) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text("進行度")
+                Spacer()
+                Text("\(Int(value.wrappedValue))%")
+                    .foregroundColor(.secondary)
+                    .monospacedDigit()
+            }
+            Slider(value: value, in: 0...100, step: 1)
+        }
+    }
+
+    /// メモ入力欄（複数行）
+    @ViewBuilder
+    private func memoEditor(text: Binding<String>) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("メモ")
+                .font(.caption)
+                .foregroundColor(.secondary)
+            TextField("メモを入力", text: text, axis: .vertical)
+                .lineLimit(2...5)
+        }
+    }
+
     // MARK: - Watch Connection Methods
     private func startSessionWithWatchCheck() {
         // Watchとの接続を確認
@@ -1284,6 +2442,9 @@ struct MainTimerView: View {
     private func finishWorkoutWithAdGate() {
         print("MainTimerView: finishWorkoutWithAdGate called")
 
+        // 進捗画面が開いていても確実に閉じてから完了サマリを出す（被り防止）
+        showingSessionProgress = false
+
         // 1. まずセッションを保存（データ保護）
         sessionManager.endSession()
         print("MainTimerView: Session ended and saved")
@@ -1320,6 +2481,9 @@ struct MainTimerView: View {
     /// endSession()は既にWatchConnectivityServiceで呼び出し済み
     private func handleSessionEndedFromWatch() {
         print("MainTimerView: handleSessionEndedFromWatch called")
+
+        // 進捗画面が開いていても確実に閉じる（被り防止）
+        showingSessionProgress = false
 
         // 既にリザルト表示中の場合は何もしない
         guard !showingSummary else { return }
@@ -1403,6 +2567,339 @@ struct MainTimerView: View {
         adManager.showAd(from: topViewController) { success in
             completion(success)
         }
+    }
+}
+
+// MARK: - U-3: Progress Dashboard Page
+/// セッション中にタイマー画面から横スワイプで表示される進捗ダッシュボード。
+/// - 経過時間（円形プログレス）
+/// - 完了セット数（work record の数）
+/// - 総ボリューム（workout のみ）
+/// - 筋トレ時間 / 休憩時間
+/// - 平均/最大心拍数
+struct ProgressDashboardPage<FormContent: View>: View {
+    @EnvironmentObject var sessionManager: SessionManager
+    @ObservedObject private var heartRateManager = HeartRateManager.shared
+    let geometry: GeometryProxy
+    let onClose: () -> Void
+    let onStartNextSet: () -> Void
+    @ViewBuilder let formContent: () -> FormContent
+
+    init(
+        geometry: GeometryProxy,
+        onClose: @escaping () -> Void,
+        onStartNextSet: @escaping () -> Void,
+        @ViewBuilder formContent: @escaping () -> FormContent
+    ) {
+        self.geometry = geometry
+        self.onClose = onClose
+        self.onStartNextSet = onStartNextSet
+        self.formContent = formContent
+    }
+
+    private var workRecords: [SetRecord] {
+        guard let session = sessionManager.currentSession,
+              let records = session.setRecords?.allObjects as? [SetRecord] else { return [] }
+        return records.filter { $0.phase == "Work" }
+    }
+
+    private var completedWorkSets: Int {
+        // 進行中の work record も含めるため、cycleIndex + 1（rest 中は cycleIndex 個完了済み）
+        // ただし phase によって扱いが異なるため work record 件数を信頼する
+        workRecords.filter { $0.endAt != nil }.count
+    }
+
+    private var totalVolume: Double {
+        workRecords.reduce(0) { $0 + ($1.load * $1.reps) }
+    }
+
+    private var avgHeartRate: Double {
+        let valid = workRecords.compactMap { $0.hrAvg > 0 ? $0.hrAvg : nil }
+        guard !valid.isEmpty else { return 0 }
+        return valid.reduce(0, +) / Double(valid.count)
+    }
+
+    private var maxHeartRate: Double {
+        workRecords.compactMap { $0.hrMax > 0 ? $0.hrMax : nil }.max() ?? 0
+    }
+
+    /// 円形プログレスバー用の進捗値（0.0〜1.0）
+    /// セッション開始から 60 分を 1 周分とする（視覚目安）
+    private var elapsedProgress: Double {
+        let target: TimeInterval = 60 * 60
+        return min(sessionManager.elapsedTime / target, 1.0)
+    }
+
+    private var domainAccent: Color {
+        switch sessionManager.activeDomain {
+        case .workout: return .red
+        case .study:   return .blue
+        case .work:    return .green
+        }
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            topBar
+            ScrollView {
+                VStack(spacing: 16) {
+                    progressRing
+                        .padding(.top, 4)
+
+                    statsGrid
+                        .padding(.horizontal, 12)
+
+                    if sessionManager.activeDomain == .workout && !workRecords.isEmpty {
+                        perCycleSummary
+                            .padding(.horizontal, 12)
+                    }
+
+                    Divider()
+                        .overlay(Color.white.opacity(0.2))
+                        .padding(.vertical, 4)
+
+                    // 次セット設定フォーム（MainTimerView から注入）
+                    formContent()
+                        .padding(.horizontal, 12)
+
+                    Spacer(minLength: 24)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.bottom, 24)
+            }
+            .scrollDismissesKeyboard(.interactively)
+
+            startNextSetButton
+                .padding(.horizontal, 12)
+                .padding(.bottom, 8)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    /// 上部バー: 戻るボタン + タイトル
+    private var topBar: some View {
+        HStack {
+            Button(action: onClose) {
+                HStack(spacing: 4) {
+                    Image(systemName: "chevron.left")
+                    Text("戻る")
+                }
+                .font(.callout)
+                .foregroundColor(.white)
+            }
+            Spacer()
+            Text("セッション進捗")
+                .font(.headline)
+                .foregroundColor(.white.opacity(0.9))
+            Spacer()
+            // 左右バランス用のダミー（タイトル中央寄せ）
+            HStack(spacing: 4) {
+                Image(systemName: "chevron.left")
+                Text("戻る")
+            }
+            .font(.callout)
+            .opacity(0)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(Color.white.opacity(0.1))
+    }
+
+    /// 次セットへ進むボタン（commitNextSetAndStart 相当を親に委譲）
+    private var startNextSetButton: some View {
+        Button(action: onStartNextSet) {
+            HStack(spacing: 14) {
+                Image(systemName: "play.circle.fill").font(.system(size: 28))
+                Text("次の\(sessionManager.activeDomain.workPhaseLabel)へ")
+                    .font(.title3).fontWeight(.bold)
+            }
+            .foregroundColor(.white)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+            .background(
+                RoundedRectangle(cornerRadius: 24)
+                    .fill(LinearGradient(colors: [domainAccent, domainAccent.opacity(0.75)],
+                                         startPoint: .top, endPoint: .bottom))
+                    .shadow(color: domainAccent.opacity(0.5), radius: 10, x: 0, y: 5)
+            )
+        }
+    }
+
+    // MARK: - Progress Ring
+    @ViewBuilder
+    private var progressRing: some View {
+        ZStack {
+            Circle()
+                .stroke(Color.white.opacity(0.15), lineWidth: 14)
+            Circle()
+                .trim(from: 0, to: elapsedProgress)
+                .stroke(
+                    LinearGradient(
+                        colors: [domainAccent, domainAccent.opacity(0.6)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    style: StrokeStyle(lineWidth: 14, lineCap: .round)
+                )
+                .rotationEffect(.degrees(-90))
+                .animation(.easeInOut(duration: 0.4), value: elapsedProgress)
+            VStack(spacing: 2) {
+                Text(formatDuration(sessionManager.elapsedTime))
+                    .font(.system(size: 36, weight: .bold, design: .monospaced))
+                    .foregroundColor(.white)
+                Text("経過時間")
+                    .font(.caption2)
+                    .foregroundColor(.white.opacity(0.7))
+                if elapsedProgress >= 1.0 {
+                    Text("60分超")
+                        .font(.caption2)
+                        .foregroundColor(.orange)
+                }
+            }
+        }
+        .frame(width: 200, height: 200)
+    }
+
+    // MARK: - Stats Grid
+    @ViewBuilder
+    private var statsGrid: some View {
+        let columns = [GridItem(.flexible()), GridItem(.flexible())]
+        LazyVGrid(columns: columns, spacing: 10) {
+            statCard(
+                icon: "checkmark.circle.fill",
+                iconColor: .green,
+                label: "完了セット",
+                value: "\(completedWorkSets)",
+                unit: "セット"
+            )
+            statCard(
+                icon: "flame.fill",
+                iconColor: .orange,
+                label: sessionManager.activeDomain.workPhaseLabel,
+                value: formatDuration(sessionManager.totalWorkTime),
+                unit: nil
+            )
+            statCard(
+                icon: "pause.fill",
+                iconColor: .cyan,
+                label: sessionManager.activeDomain.restPhaseLabel,
+                value: formatDuration(sessionManager.totalRestTime),
+                unit: nil
+            )
+            if sessionManager.activeDomain == .workout {
+                statCard(
+                    icon: "scalemass.fill",
+                    iconColor: .yellow,
+                    label: "総ボリューム",
+                    value: String(format: "%.0f", totalVolume),
+                    unit: sessionManager.loadUnit
+                )
+            } else {
+                statCard(
+                    icon: "number",
+                    iconColor: .purple,
+                    label: "サイクル",
+                    value: "\(sessionManager.cycleIndex + 1)",
+                    unit: nil
+                )
+            }
+            if avgHeartRate > 0 {
+                statCard(
+                    icon: "heart.fill",
+                    iconColor: .red,
+                    label: "平均心拍",
+                    value: "\(Int(avgHeartRate))",
+                    unit: "bpm"
+                )
+            }
+            if maxHeartRate > 0 {
+                statCard(
+                    icon: "heart.circle.fill",
+                    iconColor: .pink,
+                    label: "最大心拍",
+                    value: "\(Int(maxHeartRate))",
+                    unit: "bpm"
+                )
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func statCard(icon: String, iconColor: Color, label: String, value: String, unit: String?) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.caption)
+                    .foregroundColor(iconColor)
+                Text(label)
+                    .font(.caption2)
+                    .foregroundColor(.white.opacity(0.75))
+                Spacer()
+            }
+            HStack(alignment: .lastTextBaseline, spacing: 2) {
+                Text(value)
+                    .font(.system(.title2, design: .rounded))
+                    .fontWeight(.bold)
+                    .foregroundColor(.white)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+                if let unit = unit {
+                    Text(unit)
+                        .font(.caption2)
+                        .foregroundColor(.white.opacity(0.7))
+                }
+            }
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.white.opacity(0.12))
+        )
+    }
+
+    // MARK: - Per-Cycle Summary
+    @ViewBuilder
+    private var perCycleSummary: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("セット内訳")
+                .font(.caption)
+                .foregroundColor(.white.opacity(0.7))
+            ForEach(Array(workRecords.sorted { $0.cycleIndex < $1.cycleIndex }.enumerated()), id: \.offset) { index, record in
+                HStack(spacing: 8) {
+                    Text("Cycle \(record.cycleIndex + 1)")
+                        .font(.caption2)
+                        .foregroundColor(.white.opacity(0.7))
+                        .frame(width: 60, alignment: .leading)
+                    Text(record.name ?? "-")
+                        .font(.caption)
+                        .foregroundColor(.white)
+                        .lineLimit(1)
+                    Spacer()
+                    Text("\(Int(record.reps))×\(String(format: "%.1f", record.load))")
+                        .font(.caption.monospacedDigit())
+                        .foregroundColor(.white.opacity(0.85))
+                    if record.hrAvg > 0 {
+                        Label("\(Int(record.hrAvg))", systemImage: "heart.fill")
+                            .font(.caption2)
+                            .foregroundColor(.red.opacity(0.9))
+                    }
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.white.opacity(0.08))
+                )
+            }
+        }
+    }
+
+    private func formatDuration(_ seconds: TimeInterval) -> String {
+        let total = Int(seconds)
+        let m = total / 60
+        let s = total % 60
+        return String(format: "%d:%02d", m, s)
     }
 }
 

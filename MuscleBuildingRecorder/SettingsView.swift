@@ -6,6 +6,7 @@ struct SettingsView: View {
     @EnvironmentObject var heartRateManager: HeartRateManager
     @StateObject private var proUserManager = ProUserManager.shared
     @StateObject private var presetManager = WorkoutPresetManager.shared
+    @ObservedObject private var sessionManager = SessionManager.shared
     @Environment(\.managedObjectContext) var viewContext
     @State private var selectedHeartRateSource: HeartRateSourceType = .healthKit
     @State private var showingBLEDeviceSelector = false
@@ -31,6 +32,9 @@ struct SettingsView: View {
     // 通知・心拍ゾーン設定
     @State private var showingRestNotificationSettings = false
     @State private var showingHeartRateZoneSettings = false
+    @State private var showingTagPresetSettings = false
+    @State private var showingTaskMasterStudy = false
+    @State private var showingTaskMasterWork = false
 
     @FetchRequest(
         sortDescriptors: [NSSortDescriptor(keyPath: \Session.startedAt, ascending: false)]
@@ -77,6 +81,7 @@ struct SettingsView: View {
             Form {
                 proSection
                 screenTimeSection
+                workoutBehaviorSection
                 buttonLayoutSection
                 presetsSection
                 heartRateSection
@@ -150,6 +155,15 @@ struct SettingsView: View {
             }
             .sheet(isPresented: $showingHeartRateZoneSettings) {
                 HeartRateZoneSettingsView()
+            }
+            .sheet(isPresented: $showingTagPresetSettings) {
+                TagPresetSettingsView()
+            }
+            .sheet(isPresented: $showingTaskMasterStudy) {
+                TaskMasterSettingsView(domain: .study)
+            }
+            .sheet(isPresented: $showingTaskMasterWork) {
+                TaskMasterSettingsView(domain: .work)
             }
         }
     }
@@ -339,6 +353,77 @@ struct SettingsView: View {
             Text(heartRateManager.activeHeartRateSource)
                 .font(.caption)
                 .foregroundColor(.secondary)
+        }
+    }
+
+    // MARK: - Workout Behavior Section
+    private var workoutBehaviorSection: some View {
+        Section(header: Text("トレーニング動作")) {
+            Toggle(isOn: $sessionManager.confirmTransitionToWork) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("筋トレ移行時に確認")
+                        .font(.headline)
+                    Text("休憩から筋トレに戻るとき、回数・重量を確認するダイアログを表示します")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+            Button(action: { showingTagPresetSettings = true }) {
+                HStack {
+                    Image(systemName: "tag.fill")
+                        .foregroundColor(.yellow)
+                        .frame(width: 30)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("タグの管理")
+                            .font(.headline)
+                        Text("休憩中のクイック入力で選べるタグをドメイン別にカスタマイズ")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .foregroundColor(.secondary)
+                }
+            }
+            .foregroundColor(.primary)
+
+            Button(action: { showingTaskMasterStudy = true }) {
+                HStack {
+                    Image(systemName: "book.fill")
+                        .foregroundColor(.blue)
+                        .frame(width: 30)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("勉強タスクマスタ")
+                            .font(.headline)
+                        Text("よく使う勉強タスクを登録して、休憩中に素早く選択")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .foregroundColor(.secondary)
+                }
+            }
+            .foregroundColor(.primary)
+
+            Button(action: { showingTaskMasterWork = true }) {
+                HStack {
+                    Image(systemName: "briefcase.fill")
+                        .foregroundColor(.green)
+                        .frame(width: 30)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("仕事タスクマスタ")
+                            .font(.headline)
+                        Text("よく使う仕事タスクを登録して、休憩中に素早く選択")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .foregroundColor(.secondary)
+                }
+            }
+            .foregroundColor(.primary)
         }
     }
 
