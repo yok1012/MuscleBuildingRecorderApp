@@ -59,11 +59,11 @@ struct ScreenTimeSettingsView: View {
                 Image(systemName: manager.isAuthorized ? "checkmark.seal.fill" : "exclamationmark.triangle.fill")
                     .foregroundColor(manager.isAuthorized ? .green : .orange)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(manager.isAuthorized ? "Screen Time 認可済み" : "認可が必要です")
+                    Text(manager.isAuthorized ? LocalizedStringKey("Screen Time 認可済み") : LocalizedStringKey("認可が必要です"))
                         .font(.headline)
                     Text(manager.isAuthorized
-                         ? "アプリの制限を適用できます"
-                         : "Apple の Screen Time 認可を得る必要があります")
+                         ? LocalizedStringKey("アプリの制限を適用できます")
+                         : LocalizedStringKey("Apple の Screen Time 認可を得る必要があります"))
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -83,7 +83,7 @@ struct ScreenTimeSettingsView: View {
                             ProgressView()
                                 .padding(.trailing, 6)
                         }
-                        Text(isRequestingAuth ? "認可リクエスト中..." : "認可をリクエストする")
+                        Text(isRequestingAuth ? LocalizedStringKey("認可リクエスト中...") : LocalizedStringKey("認可をリクエストする"))
                             .fontWeight(.semibold)
                     }
                 }
@@ -150,9 +150,9 @@ struct ScreenTimeSettingsView: View {
         let apps = localConfig.exemptionSelection.applicationTokens.count
         let cats = localConfig.exemptionSelection.categoryTokens.count
         if apps == 0 && cats == 0 {
-            return "除外アプリを選択する"
+            return "除外アプリを選択する".localizedSeed
         }
-        return "除外: \(apps)アプリ / \(cats)カテゴリー"
+        return "除外: %lldアプリ / %lldカテゴリー".localizedFormat(apps, cats)
     }
 
     private var hasExemptionSelection: Bool {
@@ -194,9 +194,9 @@ struct ScreenTimeSettingsView: View {
         let apps = localConfig.shieldedSelection.applicationTokens.count
         let cats = localConfig.shieldedSelection.categoryTokens.count
         if apps == 0 && cats == 0 {
-            return "全カテゴリー（既定）"
+            return "全カテゴリー（既定）".localizedSeed
         }
-        return "制限: \(apps)アプリ / \(cats)カテゴリー"
+        return "制限: %lldアプリ / %lldカテゴリー".localizedFormat(apps, cats)
     }
 
     private var hasShieldedSelection: Bool {
@@ -280,7 +280,7 @@ struct ScreenTimeSettingsView: View {
             Image(systemName: icon)
                 .foregroundColor(color)
                 .frame(width: 18)
-            Text(text)
+            Text(LocalizedStringKey(text))
                 .font(.caption)
                 .foregroundColor(.secondary)
         }

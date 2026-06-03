@@ -210,13 +210,13 @@ struct PurchaseView: View {
 
         switch subscription.subscriptionPeriod.unit {
         case .day:
-            return "\(subscription.subscriptionPeriod.value)日ごと"
+            return "%lld日ごと".localizedFormat(subscription.subscriptionPeriod.value)
         case .week:
-            return "\(subscription.subscriptionPeriod.value)週間ごと"
+            return "%lld週間ごと".localizedFormat(subscription.subscriptionPeriod.value)
         case .month:
-            return "\(subscription.subscriptionPeriod.value)ヶ月ごと"
+            return "%lldヶ月ごと".localizedFormat(subscription.subscriptionPeriod.value)
         case .year:
-            return "\(subscription.subscriptionPeriod.value)年ごと"
+            return "%lld年ごと".localizedFormat(subscription.subscriptionPeriod.value)
         @unknown default:
             return ""
         }

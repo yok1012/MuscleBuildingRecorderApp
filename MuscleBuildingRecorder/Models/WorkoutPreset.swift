@@ -58,7 +58,7 @@ struct WorkoutPresetStep: Codable, Identifiable, Equatable {
     }
 
     var summaryText: String {
-        "\(workSeconds)秒/\(restSeconds)秒 ×\(setCount)セット"
+        "%lld秒/%lld秒 ×%lldセット".localizedFormat(workSeconds, restSeconds, setCount)
     }
 }
 
@@ -114,9 +114,9 @@ struct WorkoutPreset: Codable, Identifiable, Equatable {
         let totalSets = steps.reduce(0) { $0 + $1.setCount }
         switch domain {
         case .workout:
-            return "\(steps.count)種目 / 計 \(totalSets)セット"
+            return "%lld種目 / 計 %lldセット".localizedFormat(steps.count, totalSets)
         case .study, .work:
-            return "\(steps.count)タスク / 計 \(totalSets)サイクル"
+            return "%lldタスク / 計 %lldサイクル".localizedFormat(steps.count, totalSets)
         }
     }
 }

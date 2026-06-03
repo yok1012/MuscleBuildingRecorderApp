@@ -400,7 +400,7 @@ struct CycleRow: View {
                         .foregroundColor(record.phase == "Work" ? .red : .blue)
 
                     VStack(alignment: .leading) {
-                        Text("\(record.category ?? "") - \(record.name ?? "")")
+                        Text("\((record.category ?? "").localizedSeed) - \((record.name ?? "").localizedSeed)")
                             .font(.footnote)
                         HStack {
                             Text("\(record.load, specifier: "%.1f") × \(Int(record.reps))")

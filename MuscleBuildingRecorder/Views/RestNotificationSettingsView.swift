@@ -42,7 +42,7 @@ struct RestNotificationSettingsView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("通知許可")
                         .font(.headline)
-                    Text(notificationScheduler.isAuthorized ? "通知が許可されています" : "通知を許可してください")
+                    Text(notificationScheduler.isAuthorized ? LocalizedStringKey("通知が許可されています") : LocalizedStringKey("通知を許可してください"))
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -170,11 +170,11 @@ struct RestNotificationSettingsView: View {
             let minutes = seconds / 60
             let remainingSeconds = seconds % 60
             if remainingSeconds > 0 {
-                return "\(minutes)分\(remainingSeconds)秒"
+                return "%lld分%lld秒".localizedFormat(minutes, remainingSeconds)
             }
-            return "\(minutes)分"
+            return "%lld分".localizedFormat(minutes)
         }
-        return "\(seconds)秒"
+        return "%lld秒".localizedFormat(seconds)
     }
 
     private func notificationColor(for index: Int) -> Color {

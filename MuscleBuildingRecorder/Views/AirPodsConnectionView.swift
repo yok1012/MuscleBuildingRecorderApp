@@ -127,7 +127,7 @@ struct AirPodsConnectionView: View {
                     Image(systemName: heartRateManager.heartRateSlope > 0 ? "arrow.up.circle.fill" : "arrow.down.circle.fill")
                         .foregroundColor(heartRateManager.heartRateSlope > 0 ? .orange : .blue)
 
-                    Text(heartRateManager.heartRateSlope > 0 ? "上昇中" : "下降中")
+                    Text(heartRateManager.heartRateSlope > 0 ? LocalizedStringKey("上昇中") : LocalizedStringKey("下降中"))
                         .font(.caption)
                         .foregroundColor(.secondary)
 
@@ -239,7 +239,7 @@ struct AirPodsConnectionView: View {
                 .font(.caption)
                 .foregroundColor(.secondary)
 
-            Text("接続状態: \(heartRateManager.isConnected ? "接続中" : "未接続")")
+            Text("接続状態: \(heartRateManager.isConnected ? "接続中".localizedSeed : "未接続".localizedSeed)")
                 .font(.system(.caption, design: .monospaced))
 
             Text("選択ソース: \(heartRateManager.selectedSourceType.rawValue)")
@@ -291,11 +291,11 @@ struct AirPodsConnectionView: View {
         let interval = Date().timeIntervalSince(date)
 
         if interval < 60 {
-            return "\(Int(interval))秒前"
+            return "%lld秒前".localizedFormat(Int(interval))
         } else if interval < 3600 {
-            return "\(Int(interval / 60))分前"
+            return "%lld分前".localizedFormat(Int(interval / 60))
         } else {
-            return "\(Int(interval / 3600))時間前"
+            return "%lld時間前".localizedFormat(Int(interval / 3600))
         }
     }
 }

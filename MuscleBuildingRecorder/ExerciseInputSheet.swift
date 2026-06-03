@@ -29,7 +29,7 @@ struct ExerciseInputSheet: View {
 
                     Picker("種目", selection: $sessionManager.selectedExercise) {
                         ForEach(availableExercises, id: \.self) { exercise in
-                            Text(exercise).tag(exercise)
+                            Text(exercise.localizedSeed).tag(exercise)
                         }
                     }
                     .onChange(of: sessionManager.selectedExercise) { oldValue, newValue in
@@ -45,7 +45,7 @@ struct ExerciseInputSheet: View {
                             Text("\(sessionManager.currentLoad, specifier: "%.1f")")
                                 .font(.system(size: 48, weight: .bold))
                                 .foregroundColor(.blue)
-                            Text(sessionManager.loadUnit)
+                            Text(sessionManager.loadUnit.localizedSeed)
                                 .font(.title2)
                                 .foregroundColor(.secondary)
                             Spacer()
@@ -111,7 +111,7 @@ struct ExerciseInputSheet: View {
                             Text("\(sessionManager.currentReps, specifier: "%.0f")")
                                 .font(.system(size: 48, weight: .bold))
                                 .foregroundColor(.green)
-                            Text(sessionManager.repsUnit)
+                            Text(sessionManager.repsUnit.localizedSeed)
                                 .font(.title2)
                                 .foregroundColor(.secondary)
                             Spacer()

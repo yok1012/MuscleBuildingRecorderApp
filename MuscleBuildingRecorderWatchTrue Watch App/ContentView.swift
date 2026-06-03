@@ -24,9 +24,9 @@ struct ContentView: View {
 
         var displayName: String {
             switch self {
-            case .idle: return "待機中"
-            case .work: return "筋トレ"
-            case .rest: return "休憩"
+            case .idle: return String(localized: "待機中")
+            case .work: return String(localized: "筋トレ")
+            case .rest: return String(localized: "休憩")
             }
         }
 
@@ -213,7 +213,7 @@ struct ContentView: View {
         HStack(alignment: .center, spacing: 8) {
             // 現在のフェーズタイマー（左側・メイン）
             VStack(spacing: 0) {
-                Text(currentPhase == .work ? "筋トレ中" : currentPhase == .rest ? "休憩中" : "待機")
+                Text(currentPhase == .work ? String(localized: "筋トレ中") : currentPhase == .rest ? String(localized: "休憩中") : String(localized: "待機"))
                     .font(.system(size: 10))
                     .foregroundColor(.secondary)
                 Text(workoutManager.currentPhaseTimeString)

@@ -185,11 +185,11 @@ enum HeartRateZone: Int, CaseIterable, Codable {
 
     var description: String {
         switch self {
-        case .zone1: return "回復"
-        case .zone2: return "脂肪燃焼"
-        case .zone3: return "有酸素"
-        case .zone4: return "閾値"
-        case .zone5: return "最大"
+        case .zone1: return "回復".localizedSeed
+        case .zone2: return "脂肪燃焼".localizedSeed
+        case .zone3: return "有酸素".localizedSeed
+        case .zone4: return "閾値".localizedSeed
+        case .zone5: return "最大".localizedSeed
         }
     }
 

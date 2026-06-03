@@ -55,7 +55,7 @@ final class PresetRunner: ObservableObject {
     /// 進行表示用テキスト（例: "ステップ 1/3 ・ セット 2/4"）
     var progressText: String {
         guard let step = currentStep else { return "" }
-        return "ステップ \(currentStepIndex + 1)/\(totalStepCount) ・ セット \(currentSetInStep)/\(step.setCount)"
+        return "ステップ %lld/%lld ・ セット %lld/%lld".localizedFormat(currentStepIndex + 1, totalStepCount, currentSetInStep, step.setCount)
     }
 
     /// 次のステップ。最終ステップなら nil。

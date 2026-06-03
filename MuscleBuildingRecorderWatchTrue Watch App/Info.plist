@@ -25,7 +25,7 @@
 	<key>CFBundleShortVersionString</key>
 	<string>1.2</string>
 	<key>CFBundleVersion</key>
-	<string>3</string>
+	<string>9</string>
 	<key>NSHealthShareUsageDescription</key>
 	<string>このアプリはワークアウト中の心拍数データを読み取り、トレーニングの効果を可視化するためにHealthKitを使用します。</string>
 	<key>NSHealthUpdateUsageDescription</key>

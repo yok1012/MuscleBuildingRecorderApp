@@ -28,7 +28,7 @@ struct TagPresetSettingsView: View {
                             .foregroundColor(.secondary)
                     } else {
                         ForEach(tags, id: \.self) { tag in
-                            Text(tag)
+                            Text(tag.localizedSeed)
                         }
                         .onDelete { offsets in
                             store.removeTag(at: offsets, for: selectedDomain.rawValue)

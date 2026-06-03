@@ -24,6 +24,7 @@ struct MuscleBuildingRecorderApp: App {
     @StateObject private var sensorLogManager = SensorLogManager.shared
     @StateObject private var watchConnectivity = WatchConnectivityService.shared
     @StateObject private var proUserManager = ProUserManager.shared
+    @StateObject private var localizationManager = LocalizationManager.shared
 
     // AdMob初期化が完了したかどうか
     @State private var hasRequestedTracking = false
@@ -36,7 +37,10 @@ struct MuscleBuildingRecorderApp: App {
                 .environmentObject(sensorLogManager)
                 .environmentObject(watchConnectivity)
                 .environmentObject(proUserManager)
+                .environmentObject(localizationManager)
                 .environment(\.managedObjectContext, dataController.container.viewContext)
+                .environment(\.locale, localizationManager.locale)
+                .id(localizationManager.language)
                 .onAppear {
                     setupApp()
                 }

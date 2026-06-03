@@ -31,7 +31,7 @@ struct PresetEditorView: View {
                     .foregroundColor(.secondary)
             }
         }
-        .navigationTitle(draft?.title ?? "プリセット")
+        .navigationTitle(draft?.title ?? "プリセット".localizedSeed)
         .navigationBarTitleDisplayMode(.inline)
         .onAppear(perform: loadDraftIfNeeded)
         .onDisappear(perform: persistIfDirty)
@@ -84,9 +84,9 @@ struct PresetEditorView: View {
                     .background(domainAccentColor(for: currentDomain))
                     .clipShape(RoundedRectangle(cornerRadius: 10))
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(currentDomain.displayName + "モード")
+                    Text("\(currentDomain.displayName)モード")
                         .font(.headline)
-                    Text(currentDomain == .workout ? "セット・回数で記録" : "タスク・時間で記録")
+                    Text(currentDomain == .workout ? LocalizedStringKey("セット・回数で記録") : LocalizedStringKey("タスク・時間で記録"))
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -152,7 +152,7 @@ struct PresetEditorView: View {
     private func stepsSection(binding: Binding<WorkoutPreset>) -> some View {
         let domain = binding.wrappedValue.domain
         Section(header: HStack {
-            Text(domain == .workout ? "ステップ" : "タスク")
+            Text(domain == .workout ? LocalizedStringKey("ステップ") : LocalizedStringKey("タスク"))
             Spacer()
             Text("\(binding.wrappedValue.steps.count) 件")
                 .font(.caption)
@@ -232,7 +232,7 @@ struct PresetEditorView: View {
     private func stepRowTitle(step: WorkoutPresetStep, domain: ActivityDomain) -> String {
         switch domain {
         case .workout:
-            return "\(step.category) ・ \(step.exerciseName)"
+            return "\(step.category.localizedSeed) ・ \(step.exerciseName.localizedSeed)"
         case .study:
             let subject = step.subject ?? step.category
             let task = step.taskName ?? step.exerciseName
@@ -268,8 +268,8 @@ struct PresetEditorView: View {
     }
 
     private func disabledReason(_ preset: WorkoutPreset) -> String {
-        if preset.steps.isEmpty { return "ステップを 1 件以上追加してください" }
-        if !manager.canRun(preset) { return "Pro でロック解除すると実行できます" }
+        if preset.steps.isEmpty { return "ステップを 1 件以上追加してください".localizedSeed }
+        if !manager.canRun(preset) { return "Pro でロック解除すると実行できます".localizedSeed }
         return ""
     }
 
@@ -317,7 +317,7 @@ struct PresetStepEditorView: View {
             Section(header: Text("時間 / 回数")) {
                 Stepper(value: $step.workSeconds, in: 5...3600, step: 5) {
                     HStack {
-                        Text(domain.workPhaseLabel + "時間")
+                        Text("\(domain.workPhaseLabel)時間")
                         Spacer()
                         Text("\(step.workSeconds) 秒")
                             .foregroundColor(.secondary)
@@ -325,7 +325,7 @@ struct PresetStepEditorView: View {
                 }
                 Stepper(value: $step.restSeconds, in: 5...3600, step: 5) {
                     HStack {
-                        Text(domain.restPhaseLabel + "時間")
+                        Text("\(domain.restPhaseLabel)時間")
                         Spacer()
                         Text("\(step.restSeconds) 秒")
                             .foregroundColor(.secondary)
@@ -333,9 +333,9 @@ struct PresetStepEditorView: View {
                 }
                 Stepper(value: $step.setCount, in: 1...50, step: 1) {
                     HStack {
-                        Text(domain == .workout ? "セット回数" : "サイクル回数")
+                        Text(domain == .workout ? LocalizedStringKey("セット回数") : LocalizedStringKey("サイクル回数"))
                         Spacer()
-                        Text(domain == .workout ? "\(step.setCount) セット" : "\(step.setCount) サイクル")
+                        Text(domain == .workout ? LocalizedStringKey("\(step.setCount) セット") : LocalizedStringKey("\(step.setCount) サイクル"))
                             .foregroundColor(.secondary)
                     }
                 }
@@ -377,7 +377,7 @@ struct PresetStepEditorView: View {
                 .lineLimit(3, reservesSpace: true)
             }
         }
-        .navigationTitle(domain == .workout ? "ステップ編集" : "タスク編集")
+        .navigationTitle(domain == .workout ? LocalizedStringKey("ステップ編集") : LocalizedStringKey("タスク編集"))
         .navigationBarTitleDisplayMode(.inline)
     }
 
@@ -386,12 +386,12 @@ struct PresetStepEditorView: View {
         Section(header: Text("種目")) {
             Picker("カテゴリー", selection: $step.category) {
                 ForEach(availableCategories, id: \.self) { cat in
-                    Text(cat).tag(cat)
+                    Text(cat.localizedSeed).tag(cat)
                 }
             }
             Picker("種目", selection: $step.exerciseName) {
                 ForEach(availableExercises, id: \.self) { name in
-                    Text(name).tag(name)
+                    Text(name.localizedSeed).tag(name)
                 }
                 if availableExercises.isEmpty {
                     Text("種目がありません").tag(step.exerciseName)

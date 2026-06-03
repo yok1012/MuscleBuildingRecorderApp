@@ -1,0 +1,5947 @@
+{
+  "sourceLanguage": "ja",
+  "strings": {
+    "": {},
+    " 回": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": " reps"
+          }
+        }
+      }
+    },
+    "・": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "・"
+          }
+        }
+      }
+    },
+    "(%@)": {},
+    "(+%llds)": {},
+    "(タイトルなし)": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "(No title)"
+          }
+        }
+      }
+    },
+    "「休憩に移行」「次のセットへ」の大ボタンを画面の上部・中部・下部のいずれかに配置できます。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You can place the large \"Switch to Rest\" / \"Next Set\" button at the top, middle, or bottom of the screen."
+          }
+        }
+      }
+    },
+    "%.0f": {},
+    "%.0f %@": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$.0f %2$@"
+          }
+        }
+      }
+    },
+    "%.1f": {},
+    "%.1f × %lld": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$.1f × %2$lld"
+          }
+        }
+      }
+    },
+    "%.1f bpm/分": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%.1f bpm/min"
+          }
+        }
+      }
+    },
+    "%.1f kg": {},
+    "%.1f kg × %lld 回": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%.1f kg × %lld reps"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$.1f kg × %2$lld 回"
+          }
+        }
+      }
+    },
+    "%.3f%@": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$.3f%2$@"
+          }
+        }
+      }
+    },
+    "%@": {},
+    "%@ - %@": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$@ - %2$@"
+          }
+        }
+      }
+    },
+    "%@ bpm/分": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ bpm/min"
+          }
+        }
+      }
+    },
+    "%@ 未設定": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ not set"
+          }
+        }
+      }
+    },
+    "%@: %@": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$@: %2$@"
+          }
+        }
+      }
+    },
+    "%@%@": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$@%2$@"
+          }
+        }
+      }
+    },
+    "%@タスクを選択": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select %@ task"
+          }
+        }
+      }
+    },
+    "%@に切り替えますか？": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Switch to %@?"
+          }
+        }
+      }
+    },
+    "%@モード": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ mode"
+          }
+        }
+      }
+    },
+    "%@を開始しますか?": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start %@?"
+          }
+        }
+      }
+    },
+    "%@時間": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ time"
+          }
+        }
+      }
+    },
+    "%d分%d秒": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%dm %ds"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$d分%2$d秒"
+          }
+        }
+      }
+    },
+    "%lld": {},
+    "%lld - %lld bpm": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$lld - %2$lld bpm"
+          }
+        }
+      }
+    },
+    "%lld bpm": {},
+    "%lld サイクル": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld cycles"
+          }
+        }
+      }
+    },
+    "%lld セッション": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld sessions"
+          }
+        }
+      }
+    },
+    "%lld セット": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld sets"
+          }
+        }
+      }
+    },
+    "%lld 件": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld items"
+          }
+        }
+      }
+    },
+    "%lld 件保存済み (無料: 1個・Pro: 最大10個)": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld saved (Free: 1, Pro: up to 10)"
+          }
+        }
+      }
+    },
+    "%lld 分": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld min"
+          }
+        }
+      }
+    },
+    "%lld 回": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld reps"
+          }
+        }
+      }
+    },
+    "%lld 歳": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld years old"
+          }
+        }
+      }
+    },
+    "%lld 秒": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld sec"
+          }
+        }
+      }
+    },
+    "%lld 秒前": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld sec ago"
+          }
+        }
+      }
+    },
+    "%lld%@": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$lld%2$@"
+          }
+        }
+      }
+    },
+    "%lld%%": {},
+    "%lld×%@": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$lld×%2$@"
+          }
+        }
+      }
+    },
+    "%lldサイクル": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld cycles"
+          }
+        }
+      }
+    },
+    "%lldセット": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld sets"
+          }
+        }
+      }
+    },
+    "%lld件": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld items"
+          }
+        }
+      }
+    },
+    "%lld分%lld秒": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lldm %llds"
+          }
+        }
+      }
+    },
+    "%lld秒": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld sec"
+          }
+        }
+      }
+    },
+    "• サブスクリプションと買い切りライセンスからお選びいただけます": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "• Choose between a subscription and a one-time purchase license"
+          }
+        }
+      }
+    },
+    "• サブスクリプションはApple IDに請求され、期間終了の24時間以上前にキャンセルしない限り自動更新されます": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "• Subscriptions are charged to your Apple ID and renew automatically unless canceled at least 24 hours before the period ends"
+          }
+        }
+      }
+    },
+    "• サブスクリプションは設定アプリ > Apple ID > サブスクリプションから管理・解約できます": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "• You can manage or cancel subscriptions in Settings > Apple ID > Subscriptions"
+          }
+        }
+      }
+    },
+    "• 制限するアプリ／カテゴリーの個別選択\n• 休憩中の一時解除（60秒 既定）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "• Individually select apps/categories to restrict\n• Temporary unlock during rest (60 sec default)"
+          }
+        }
+      }
+    },
+    "• 合計セッション: %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "• Total sessions: %lld"
+          }
+        }
+      }
+    },
+    "• 持久力向上: 30〜45秒": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "• Endurance: 30–45 sec"
+          }
+        }
+      }
+    },
+    "• 期間: %@ 〜 %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "• Period: %@ – %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "new",
+            "value": "• 期間: %1$@ 〜 %2$@"
+          }
+        }
+      }
+    },
+    "• 筋力向上目的: 2〜3分": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "• Strength: 2–3 min"
+          }
+        }
+      }
+    },
+    "• 筋肥大目的: 60〜90秒": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "• Hypertrophy: 60–90 sec"
+          }
+        }
+      }
+    },
+    "• 買い切りライセンスは一度購入すれば永久に広告なしで使用できます": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "• The one-time purchase license removes ads permanently after a single purchase"
+          }
+        }
+      }
+    },
+    "• 購入はApple IDに紐付けられ、同じApple IDの端末で利用できます": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "• Purchases are tied to your Apple ID and can be used on devices with the same Apple ID"
+          }
+        }
+      }
+    },
+    "+%@": {},
+    "+30s": {},
+    "±%.1fG": {},
+    "×": {},
+    "⚠️ 長時間の高レート記録はバッテリーを消費します。通常使用では25-50 Hzを推奨します。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "⚠️ Long high-rate recording drains the battery. 25–50 Hz is recommended for normal use."
+          }
+        }
+      }
+    },
+    "⚠️ 除外しない場合、これらのアプリも制限されます。緊急時に電話がかけられない等のリスクがあるため、必ず初回に設定してください。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "⚠️ If not excluded, these apps will also be restricted. This carries risks such as being unable to make emergency calls, so be sure to configure it the first time."
+          }
+        }
+      }
+    },
+    "💡 休憩時間の目安": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "💡 Rest time guidelines"
+          }
+        }
+      }
+    },
+    "📝": {},
+    "0": {},
+    "0.0": {},
+    "1.0.0": {},
+    "25 Hz": {},
+    "50 Hz": {},
+    "60分超": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Over 60 min"
+          }
+        }
+      }
+    },
+    "100 Hz": {},
+    "2024.1": {},
+    "Apple Watch": {},
+    "Apple Watch (HealthKit)": {},
+    "Apple Watch・Bluetooth胸ベルト・AirPodsから心拍を取得し、運動強度を可視化できます。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Get your heart rate from Apple Watch, a Bluetooth chest strap, or AirPods to visualize exercise intensity."
+          }
+        }
+      }
+    },
+    "Apple の Screen Time 認可を得る必要があります": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You need to grant Apple Screen Time authorization"
+          }
+        }
+      }
+    },
+    "Bluetooth心拍計": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bluetooth Heart Rate Monitor"
+          }
+        }
+      }
+    },
+    "bpm": {},
+    "BPM": {},
+    "bpm/分": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "bpm/min"
+          }
+        }
+      }
+    },
+    "CSVエクスポート": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CSV Export"
+          }
+        }
+      }
+    },
+    "Cycle %d": {},
+    "Cycle %lld": {},
+    "HealthKit連携中": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HealthKit connected"
+          }
+        }
+      }
+    },
+    "iPhone (HealthKit自動取得)": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iPhone (HealthKit auto)"
+          }
+        }
+      }
+    },
+    "iPhone HR: %lld BPM": {},
+    "JSONエクスポート": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "JSON Export"
+          }
+        }
+      }
+    },
+    "kg": {},
+    "OK": {},
+    "ON にすると、設定した秒数経過で自動的にフェーズ遷移し、全ステップ完了でセッションも自動終了します。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When on, phases transition automatically after the set number of seconds, and the session ends automatically when all steps are complete."
+          }
+        }
+      }
+    },
+    "Pro でロック解除": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unlock with Pro"
+          }
+        }
+      }
+    },
+    "Pro 版で解放される機能": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Features unlocked with Pro"
+          }
+        }
+      }
+    },
+    "Pro 限定（ロック中）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pro only (locked)"
+          }
+        }
+      }
+    },
+    "Pro 限定機能": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pro-only feature"
+          }
+        }
+      }
+    },
+    "Pro版": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pro"
+          }
+        }
+      }
+    },
+    "Pro版 有効": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pro enabled"
+          }
+        }
+      }
+    },
+    "Pro版にアップグレード": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Upgrade to Pro"
+          }
+        }
+      }
+    },
+    "Pro版の特典": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pro benefits"
+          }
+        }
+      }
+    },
+    "Pro版購入済み": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pro purchased"
+          }
+        }
+      }
+    },
+    "Screen Time 認可済み": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Screen Time authorized"
+          }
+        }
+      }
+    },
+    "Volume: %lld": {},
+    "Watch HR: %lld BPM": {},
+    "Watchコマンド": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Watch Commands"
+          }
+        }
+      }
+    },
+    "Watch接続状態": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Watch Connection Status"
+          }
+        }
+      }
+    },
+    "ZIP圧縮": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ZIP compression"
+          }
+        }
+      }
+    },
+    "あなたのワークアウトデータは、このデバイスにのみ保存されます。クラウド同期はオフになっています。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your workout data is stored only on this device. Cloud sync is turned off."
+          }
+        }
+      }
+    },
+    "アプリの制限を適用できます": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You can apply app restrictions"
+          }
+        }
+      }
+    },
+    "アプリ情報": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App Info"
+          }
+        }
+      }
+    },
+    "アブローラー": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ab Roller"
+          }
+        }
+      }
+    },
+    "いつでもキャンセル可能": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancel anytime"
+          }
+        }
+      }
+    },
+    "インターバル終了のリマインダー": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Interval end reminder"
+          }
+        }
+      }
+    },
+    "エクササイズマスタ": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exercise Master"
+          }
+        }
+      }
+    },
+    "エクササイズ入力": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exercise Input"
+          }
+        }
+      }
+    },
+    "エクササイズ詳細": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exercise Details"
+          }
+        }
+      }
+    },
+    "エクササイズ選択": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select Exercise"
+          }
+        }
+      }
+    },
+    "エクスポート": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export"
+          }
+        }
+      }
+    },
+    "エクスポート中...": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exporting..."
+          }
+        }
+      }
+    },
+    "エクスポート可能なセッションがありません": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No sessions available to export"
+          }
+        }
+      }
+    },
+    "エクスポート可能なデータ:": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exportable data:"
+          }
+        }
+      }
+    },
+    "エクスポート形式": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export Format"
+          }
+        }
+      }
+    },
+    "エクスポート形式を選択": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select export format"
+          }
+        }
+      }
+    },
+    "エクスポート期間": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export Period"
+          }
+        }
+      }
+    },
+    "エクスポート設定": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export Settings"
+          }
+        }
+      }
+    },
+    "カスタム最大心拍数を使用": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use custom max heart rate"
+          }
+        }
+      }
+    },
+    "カスタム設定": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Custom Settings"
+          }
+        }
+      }
+    },
+    "カテゴリ": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Category"
+          }
+        }
+      }
+    },
+    "カテゴリー": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Category"
+          }
+        }
+      }
+    },
+    "キャンセル": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancel"
+          }
+        }
+      }
+    },
+    "クイックメモ（例: 肩に違和感）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quick note (e.g., shoulder discomfort)"
+          }
+        }
+      }
+    },
+    "このセッションのメモ": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notes for this session"
+          }
+        }
+      }
+    },
+    "このセッションをエクスポート": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export this session"
+          }
+        }
+      }
+    },
+    "このセッション中のメモはありません": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No notes during this session"
+          }
+        }
+      }
+    },
+    "このドメインを既定値に戻す": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reset this domain to default"
+          }
+        }
+      }
+    },
+    "このプリセットを実行": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Run this preset"
+          }
+        }
+      }
+    },
+    "この月の記録はありません": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No records for this month"
+          }
+        }
+      }
+    },
+    "この種目を選択した際の初期値として使用されます": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Used as the default value when this exercise is selected"
+          }
+        }
+      }
+    },
+    "サービス検出中...": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Discovering services..."
+          }
+        }
+      }
+    },
+    "サイクル %d": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cycle %d"
+          }
+        }
+      }
+    },
+    "サイクル %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cycle %lld"
+          }
+        }
+      }
+    },
+    "サイクル回数": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cycle count"
+          }
+        }
+      }
+    },
+    "サイクル詳細": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cycle Details"
+          }
+        }
+      }
+    },
+    "サイドレイズ": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lateral Raise"
+          }
+        }
+      }
+    },
+    "サウンド": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sound"
+          }
+        }
+      }
+    },
+    "サンプリングレート": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sampling rate"
+          }
+        }
+      }
+    },
+    "サンプル数: %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Samples: %lld"
+          }
+        }
+      }
+    },
+    "システム": {
+      "comment": "Language option: follow system setting",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "System"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "システム"
+          }
+        }
+      }
+    },
+    "ジャイロ": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gyroscope"
+          }
+        }
+      }
+    },
+    "ショルダープレス": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shoulder Press"
+          }
+        }
+      }
+    },
+    "スクリーンタイム制限": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Screen Time restriction"
+          }
+        }
+      }
+    },
+    "スクワット": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Squat"
+          }
+        }
+      }
+    },
+    "スケール:": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scale:"
+          }
+        }
+      }
+    },
+    "スタート": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start"
+          }
+        }
+      }
+    },
+    "スタートボタンを押して開始": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Press the Start button to begin"
+          }
+        }
+      }
+    },
+    "ステップ": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Step"
+          }
+        }
+      }
+    },
+    "ステップ %lld/%lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Step %lld/%lld"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "new",
+            "value": "ステップ %1$lld/%2$lld"
+          }
+        }
+      }
+    },
+    "ステップを追加": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add step"
+          }
+        }
+      }
+    },
+    "ステップ編集": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Edit Step"
+          }
+        }
+      }
+    },
+    "セッションが進行中です": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A session is in progress"
+          }
+        }
+      }
+    },
+    "セッションサマリー": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Session Summary"
+          }
+        }
+      }
+    },
+    "セッションを開始すると\nここに記録が表示されます": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When you start a session,\nrecords will appear here"
+          }
+        }
+      }
+    },
+    "セッション中の心拍数、フェーズ、種目情報を含む時系列データ": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Time-series data including heart rate, phases, and exercise info during the session"
+          }
+        }
+      }
+    },
+    "セッション中は他アプリを自動でシールド。Proで選択や休憩解除が可能": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatically shields other apps during a session. Selection and rest unlock available with Pro"
+          }
+        }
+      }
+    },
+    "セッション完了後にアプリの使い方ヒントを表示します": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shows app usage tips after a session is complete"
+          }
+        }
+      }
+    },
+    "セッション概要": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Session Overview"
+          }
+        }
+      }
+    },
+    "セッション統計": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Session Statistics"
+          }
+        }
+      }
+    },
+    "セッション進捗": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Session Progress"
+          }
+        }
+      }
+    },
+    "セッション開始時に他アプリをシールドします": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shields other apps when a session starts"
+          }
+        }
+      }
+    },
+    "セット": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "sets"
+          }
+        }
+      }
+    },
+    "セット %lld/%lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Set %lld/%lld"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "new",
+            "value": "セット %1$lld/%2$lld"
+          }
+        }
+      }
+    },
+    "セット・回数で記録": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Record by sets and reps"
+          }
+        }
+      }
+    },
+    "セット内訳": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Set breakdown"
+          }
+        }
+      }
+    },
+    "セット回数": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Set count"
+          }
+        }
+      }
+    },
+    "セット実行中": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Set in progress"
+          }
+        }
+      }
+    },
+    "センサー": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sensor"
+          }
+        }
+      }
+    },
+    "センサーデータ": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sensor Data"
+          }
+        }
+      }
+    },
+    "センサーログ": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sensor Log"
+          }
+        }
+      }
+    },
+    "その他": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Other"
+          }
+        }
+      }
+    },
+    "タイトル": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Title"
+          }
+        }
+      }
+    },
+    "タイマー": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Timer"
+          }
+        }
+      }
+    },
+    "タグの管理": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manage Tags"
+          }
+        }
+      }
+    },
+    "タグはまだありません": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No tags yet"
+          }
+        }
+      }
+    },
+    "タスク": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Task"
+          }
+        }
+      }
+    },
+    "タスク・時間で記録": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Record by task and time"
+          }
+        }
+      }
+    },
+    "タスクはまだありません": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No tasks yet"
+          }
+        }
+      }
+    },
+    "タスクを編集": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Edit task"
+          }
+        }
+      }
+    },
+    "タスクを追加": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add task"
+          }
+        }
+      }
+    },
+    "タスク名": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Task name"
+          }
+        }
+      }
+    },
+    "タスク名（例: 提案書レビュー）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Task name (e.g., proposal review)"
+          }
+        }
+      }
+    },
+    "タスク名（例: 数学 第3章）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Task name (e.g., Math Chapter 3)"
+          }
+        }
+      }
+    },
+    "タスク編集": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Edit Task"
+          }
+        }
+      }
+    },
+    "ダッシュボード": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dashboard"
+          }
+        }
+      }
+    },
+    "タップしてタスク名を入力": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap to enter task name"
+          }
+        }
+      }
+    },
+    "タップして勉強内容を入力": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap to enter study content"
+          }
+        }
+      }
+    },
+    "ダンベルフライ": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dumbbell Fly"
+          }
+        }
+      }
+    },
+    "データエクスポート": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Data Export"
+          }
+        }
+      }
+    },
+    "データはローカル保存": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Data stored locally"
+          }
+        }
+      }
+    },
+    "データ初期化": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reset Data"
+          }
+        }
+      }
+    },
+    "デッドリフト": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deadlift"
+          }
+        }
+      }
+    },
+    "デバイスを検索": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search for devices"
+          }
+        }
+      }
+    },
+    "デバイス選択": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select Device"
+          }
+        }
+      }
+    },
+    "デバッグ情報": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Debug Info"
+          }
+        }
+      }
+    },
+    "デフォルト: %.1f %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Default: %.1f %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "new",
+            "value": "デフォルト: %1$.1f %2$@"
+          }
+        }
+      }
+    },
+    "デフォルト値": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Default value"
+          }
+        }
+      }
+    },
+    "どのモードのプリセットを作成しますか？": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Which mode preset do you want to create?"
+          }
+        }
+      }
+    },
+    "ドメイン": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Domain"
+          }
+        }
+      }
+    },
+    "トライセプスエクステンション": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Triceps Extension"
+          }
+        }
+      }
+    },
+    "トレーニングを終了しますか？\n\n総時間: %@\n筋トレ: %@\n休憩: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "End your workout?\n\nTotal: %@\nWorkout: %@\nRest: %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "new",
+            "value": "トレーニングを終了しますか？\n\n総時間: %1$@\n筋トレ: %2$@\n休憩: %3$@"
+          }
+        }
+      }
+    },
+    "トレーニング動作": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Training motion"
+          }
+        }
+      }
+    },
+    "トレーニング終了": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "End Workout"
+          }
+        }
+      }
+    },
+    "トレッドミル": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Treadmill"
+          }
+        }
+      }
+    },
+    "ネットワーク接続を確認してください": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Please check your network connection"
+          }
+        }
+      }
+    },
+    "バージョン": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Version"
+          }
+        }
+      }
+    },
+    "バーベルカール": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Barbell Curl"
+          }
+        }
+      }
+    },
+    "バイク": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bike"
+          }
+        }
+      }
+    },
+    "ビルド": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Build"
+          }
+        }
+      }
+    },
+    "ヒント": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tips"
+          }
+        }
+      }
+    },
+    "ファイルサイズ: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "File size: %@"
+          }
+        }
+      }
+    },
+    "フェーズ別分析": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Phase analysis"
+          }
+        }
+      }
+    },
+    "フォームの注意点やポイントを記入...": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Note form tips and key points..."
+          }
+        }
+      }
+    },
+    "プッシュアップ": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Push-Up"
+          }
+        }
+      }
+    },
+    "プライバシー": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Privacy"
+          }
+        }
+      }
+    },
+    "プライバシーポリシー": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Privacy Policy"
+          }
+        }
+      }
+    },
+    "プランク": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plank"
+          }
+        }
+      }
+    },
+    "プリセット": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preset"
+          }
+        }
+      }
+    },
+    "プリセット＆エクスポート": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Presets & Export"
+          }
+        }
+      }
+    },
+    "プリセットがまだありません": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No presets yet"
+          }
+        }
+      }
+    },
+    "プリセットから開始": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start from preset"
+          }
+        }
+      }
+    },
+    "プリセットが見つかりません": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No presets found"
+          }
+        }
+      }
+    },
+    "プリセットを作成": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Create preset"
+          }
+        }
+      }
+    },
+    "プリセットを管理・編集": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manage and edit presets"
+          }
+        }
+      }
+    },
+    "プリセット名": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preset name"
+          }
+        }
+      }
+    },
+    "プリセット管理": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manage Presets"
+          }
+        }
+      }
+    },
+    "プリセット選択": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select Preset"
+          }
+        }
+      }
+    },
+    "プレビュー": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preview"
+          }
+        }
+      }
+    },
+    "プロジェクト": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Project"
+          }
+        }
+      }
+    },
+    "プロジェクト（例: ProjectA）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Project (e.g., ProjectA)"
+          }
+        }
+      }
+    },
+    "プロジェクト未設定": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Project not set"
+          }
+        }
+      }
+    },
+    "ベンチプレス": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bench Press"
+          }
+        }
+      }
+    },
+    "ボタン配置": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Button placement"
+          }
+        }
+      }
+    },
+    "ボタン配置のカスタマイズは Pro 版でご利用いただけます。タップしてアップグレード": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Button placement customization is available with Pro. Tap to upgrade"
+          }
+        }
+      }
+    },
+    "マスタタスクがまだありません": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No master tasks yet"
+          }
+        }
+      }
+    },
+    "まだメモはありません": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No notes yet"
+          }
+        }
+      }
+    },
+    "メイン切替ボタンの位置": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Main toggle button position"
+          }
+        }
+      }
+    },
+    "メモ": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notes"
+          }
+        }
+      }
+    },
+    "メモ（任意）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notes (optional)"
+          }
+        }
+      }
+    },
+    "メモを入力": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter a note"
+          }
+        }
+      }
+    },
+    "メモを残す": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Leave a note"
+          }
+        }
+      }
+    },
+    "モード": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mode"
+          }
+        }
+      }
+    },
+    "よく使うメニューをプリセット化してワンタップ開始。記録はCSV/JSONで書き出せます。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save frequent menus as presets for one-tap start. Export records as CSV/JSON."
+          }
+        }
+      }
+    },
+    "よく使う仕事タスクを登録して、休憩中に素早く選択": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Register frequently used work tasks for quick selection during rest"
+          }
+        }
+      }
+    },
+    "よく使う勉強タスクを登録して、休憩中に素早く選択": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Register frequently used study tasks for quick selection during rest"
+          }
+        }
+      }
+    },
+    "ラットプルダウン": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lat Pulldown"
+          }
+        }
+      }
+    },
+    "リアルタイムグラフを表示": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show real-time graph"
+          }
+        }
+      }
+    },
+    "リアルタイムセンサーグラフ": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Real-time sensor graph"
+          }
+        }
+      }
+    },
+    "リアルタイム心拍数": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Real-time Heart Rate"
+          }
+        }
+      }
+    },
+    "リスト": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "List"
+          }
+        }
+      }
+    },
+    "リセット": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reset"
+          }
+        }
+      }
+    },
+    "レッグプレス": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Leg Press"
+          }
+        }
+      }
+    },
+    "レベル": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "level"
+          }
+        }
+      }
+    },
+    "ワークアウトデータをエクスポート": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export workout data"
+          }
+        }
+      }
+    },
+    "ワークアウトプリセット": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Workout Presets"
+          }
+        }
+      }
+    },
+    "ワークアウト詳細": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Workout Details"
+          }
+        }
+      }
+    },
+    "一時停止": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pause"
+          }
+        }
+      }
+    },
+    "上昇中": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rising"
+          }
+        }
+      }
+    },
+    "下降中": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Falling"
+          }
+        }
+      }
+    },
+    "中断あり": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Interrupted"
+          }
+        }
+      }
+    },
+    "仕事": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Work"
+          }
+        }
+      }
+    },
+    "仕事タスクマスタ": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Work Task Master"
+          }
+        }
+      }
+    },
+    "仕事タスク入力": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Work Task Input"
+          }
+        }
+      }
+    },
+    "仕事モードのタスク名とプロジェクトを設定します。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Set task names and projects for Work mode."
+          }
+        }
+      }
+    },
+    "仕事記録": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Work Log"
+          }
+        }
+      }
+    },
+    "以前購入した場合はこちら": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Already purchased? Tap here"
+          }
+        }
+      }
+    },
+    "休憩": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rest"
+          }
+        }
+      }
+    },
+    "休憩から筋トレに戻るとき、回数・重量を確認するダイアログを表示します": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shows a dialog to confirm reps and weight when returning from rest to workout"
+          }
+        }
+      }
+    },
+    "休憩タイマー＆通知": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rest Timer & Notifications"
+          }
+        }
+      }
+    },
+    "休憩に移行": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Switch to Rest"
+          }
+        }
+      }
+    },
+    "休憩フェーズが始まると、設定した時間に通知が届きます。次のセットを始めるタイミングの目安にしてください。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When the rest phase begins, you receive a notification at the set time. Use it as a guide for when to start the next set."
+          }
+        }
+      }
+    },
+    "休憩フェーズに入ると指定秒数だけ他アプリが使えます。再ロックの %lld 秒前に通知で警告します。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When entering the rest phase, other apps become usable for the specified number of seconds. You are warned by a notification %lld seconds before re-locking."
+          }
+        }
+      }
+    },
+    "休憩中": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Resting"
+          }
+        }
+      }
+    },
+    "休憩中のクイック入力で選べるタグをドメイン別にカスタマイズ": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Customize the tags available in quick input during rest, by domain"
+          }
+        }
+      }
+    },
+    "休憩中の一時解除（Pro）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Temporary unlock during rest (Pro)"
+          }
+        }
+      }
+    },
+    "休憩切替ボタンを上部・中部・下部から選べます (Pro)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose the rest toggle button from top, middle, or bottom (Pro)"
+          }
+        }
+      }
+    },
+    "休憩時間:": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rest time:"
+          }
+        }
+      }
+    },
+    "休憩時間が設定値を超えると、バイブレーションと通知でお知らせします。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When rest time exceeds the set value, you are notified with vibration and a notification."
+          }
+        }
+      }
+    },
+    "休憩時間の目安": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rest time guidelines"
+          }
+        }
+      }
+    },
+    "休憩時間を自動計測。目安時間で予鈴・本鈴の通知が鳴り、+30秒のスヌーズも可能です。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rest time is measured automatically. Pre-alert and main-alert notifications fire at the target time, with +30-second snooze."
+          }
+        }
+      }
+    },
+    "休憩時間設定": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rest Time Settings"
+          }
+        }
+      }
+    },
+    "休憩時間超過!": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rest time exceeded!"
+          }
+        }
+      }
+    },
+    "休憩時間超過アラート": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rest time exceeded alert"
+          }
+        }
+      }
+    },
+    "休憩通知設定": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rest Notification Settings"
+          }
+        }
+      }
+    },
+    "休憩開始から%@後に%lld回振動します": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vibrates %2$lld times, %1$@ after rest starts"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "new",
+            "value": "休憩開始から%1$@後に%2$lld回振動します"
+          }
+        }
+      }
+    },
+    "位置": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Position"
+          }
+        }
+      }
+    },
+    "体幹": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Core"
+          }
+        }
+      }
+    },
+    "作業": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Work"
+          }
+        }
+      }
+    },
+    "作業中": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Working"
+          }
+        }
+      }
+    },
+    "使い方": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "How to use"
+          }
+        }
+      }
+    },
+    "例: kg, W, レベル": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "e.g., kg, W, level"
+          }
+        }
+      }
+    },
+    "例: フォームが崩れた / 調子が良い": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "e.g., form broke down / feeling good"
+          }
+        }
+      }
+    },
+    "例: ベンチプレス": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "e.g., Bench Press"
+          }
+        }
+      }
+    },
+    "例: 回, 秒, 分, セット": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "e.g., reps, sec, min, sets"
+          }
+        }
+      }
+    },
+    "保存": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save"
+          }
+        }
+      }
+    },
+    "停止": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stop"
+          }
+        }
+      }
+    },
+    "全て": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All"
+          }
+        }
+      }
+    },
+    "内容や進捗を記入...": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Note content and progress..."
+          }
+        }
+      }
+    },
+    "再スキャン": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rescan"
+          }
+        }
+      }
+    },
+    "再ロック前の警告": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Warning before re-locking"
+          }
+        }
+      }
+    },
+    "再接続": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reconnect"
+          }
+        }
+      }
+    },
+    "再試行": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retry"
+          }
+        }
+      }
+    },
+    "再開": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Resume"
+          }
+        }
+      }
+    },
+    "最初の%@後にここに表示されます": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This will appear here after the first %@"
+          }
+        }
+      }
+    },
+    "最大": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Max"
+          }
+        }
+      }
+    },
+    "最大 10 個まで保存できます。タイトルやステップは編集画面から変更可能です。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You can save up to 10. Titles and steps can be changed from the edit screen."
+          }
+        }
+      }
+    },
+    "最大:": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Max:"
+          }
+        }
+      }
+    },
+    "最大心拍数": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Max heart rate"
+          }
+        }
+      }
+    },
+    "最大心拍数は「220 - 年齢」で計算されます": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Max heart rate is calculated as \"220 − age\""
+          }
+        }
+      }
+    },
+    "最小": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Min"
+          }
+        }
+      }
+    },
+    "最小:": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Min:"
+          }
+        }
+      }
+    },
+    "最小: %lld / 最大: %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Min: %lld / Max: %lld"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "new",
+            "value": "最小: %1$lld / 最大: %2$lld"
+          }
+        }
+      }
+    },
+    "最小: %lld / 平均: %lld / 最大: %lld bpm": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Min: %lld / Avg: %lld / Max: %lld bpm"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "new",
+            "value": "最小: %1$lld / 平均: %2$lld / 最大: %3$lld bpm"
+          }
+        }
+      }
+    },
+    "最終更新: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Last updated: %@"
+          }
+        }
+      }
+    },
+    "最終更新: %lld秒前": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Last updated: %lld sec ago"
+          }
+        }
+      }
+    },
+    "最終記録: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Last record: %@"
+          }
+        }
+      }
+    },
+    "最近の入力": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recent inputs"
+          }
+        }
+      }
+    },
+    "分": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "min"
+          }
+        }
+      }
+    },
+    "切断": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Disconnect"
+          }
+        }
+      }
+    },
+    "切替": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Switch"
+          }
+        }
+      }
+    },
+    "初期 %lld%%": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Initial %lld%%"
+          }
+        }
+      }
+    },
+    "初期データに戻す": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restore initial data"
+          }
+        }
+      }
+    },
+    "初期進行度": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Initial progress"
+          }
+        }
+      }
+    },
+    "別のデバイス": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Another device"
+          }
+        }
+      }
+    },
+    "利用規約": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Terms of Use"
+          }
+        }
+      }
+    },
+    "制限を即時解除": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unlock restriction immediately"
+          }
+        }
+      }
+    },
+    "制限対象（Pro）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restriction targets (Pro)"
+          }
+        }
+      }
+    },
+    "制限対象をクリア（全シャットアウトに戻す）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear restriction targets (revert to full shutout)"
+          }
+        }
+      }
+    },
+    "前セットのタグ": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Previous set tags"
+          }
+        }
+      }
+    },
+    "前セットの疲労度（RPE）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Previous set fatigue (RPE)"
+          }
+        }
+      }
+    },
+    "前の%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Previous %@"
+          }
+        }
+      }
+    },
+    "前の%@はまだありません": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No previous %@ yet"
+          }
+        }
+      }
+    },
+    "前の%@実績": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Previous %@ record"
+          }
+        }
+      }
+    },
+    "前回のセッションを続けますか？": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Continue the previous session?"
+          }
+        }
+      }
+    },
+    "加速度": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Acceleration"
+          }
+        }
+      }
+    },
+    "加速度ログ停止": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stop acceleration log"
+          }
+        }
+      }
+    },
+    "加速度ログ開始": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start acceleration log"
+          }
+        }
+      }
+    },
+    "勉強": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Study"
+          }
+        }
+      }
+    },
+    "勉強・仕事モード": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Study & Work Modes"
+          }
+        }
+      }
+    },
+    "勉強・仕事モードでは、ステップは「タスク」として扱われます。重量・回数の代わりにタスク名・科目・プロジェクトを設定できます。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In Study/Work mode, steps are treated as \"tasks.\" Instead of weight and reps, you can set a task name, subject, and project."
+          }
+        }
+      }
+    },
+    "勉強タスクマスタ": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Study Task Master"
+          }
+        }
+      }
+    },
+    "勉強タスク入力": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Study Task Input"
+          }
+        }
+      }
+    },
+    "勉強モードのタスク名と科目を設定します。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Set task names and subjects for Study mode."
+          }
+        }
+      }
+    },
+    "勉強中": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Studying"
+          }
+        }
+      }
+    },
+    "勉強内容": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Study content"
+          }
+        }
+      }
+    },
+    "勉強記録": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Study Log"
+          }
+        }
+      }
+    },
+    "単位": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unit"
+          }
+        }
+      }
+    },
+    "単位設定": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unit Settings"
+          }
+        }
+      }
+    },
+    "右上の「+」からよく使うタスクを登録すると、休憩中の入力で素早く選択できます。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Register frequently used tasks from the \"+\" at the top right for quick selection during rest input."
+          }
+        }
+      }
+    },
+    "右手に痛み": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Right-hand pain"
+          }
+        }
+      }
+    },
+    "合計時間": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Total time"
+          }
+        }
+      }
+    },
+    "商品情報を取得できません": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cannot retrieve product information"
+          }
+        }
+      }
+    },
+    "回": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "reps"
+          }
+        }
+      }
+    },
+    "回復": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recovery"
+          }
+        }
+      }
+    },
+    "回数": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reps"
+          }
+        }
+      }
+    },
+    "回数:": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reps:"
+          }
+        }
+      }
+    },
+    "回数/時間設定": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reps/Time Settings"
+          }
+        }
+      }
+    },
+    "回数単位": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reps unit"
+          }
+        }
+      }
+    },
+    "回数単位:": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reps unit:"
+          }
+        }
+      }
+    },
+    "基本情報": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Basic Info"
+          }
+        }
+      }
+    },
+    "基本設定": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Basic Settings"
+          }
+        }
+      }
+    },
+    "安静時心拍数:": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Resting heart rate:"
+          }
+        }
+      }
+    },
+    "完了": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Done"
+          }
+        }
+      }
+    },
+    "完了後にヒントを表示": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show tips after completion"
+          }
+        }
+      }
+    },
+    "実測した最大心拍数がある場合は、より正確なゾーン表示ができます": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "If you have a measured max heart rate, zones can be displayed more accurately"
+          }
+        }
+      }
+    },
+    "実績を編集": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Edit record"
+          }
+        }
+      }
+    },
+    "実行できるプリセット": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Runnable presets"
+          }
+        }
+      }
+    },
+    "実行中": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Running"
+          }
+        }
+      }
+    },
+    "実行設定": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Run Settings"
+          }
+        }
+      }
+    },
+    "小休止": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Short break"
+          }
+        }
+      }
+    },
+    "小休止中": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Short break"
+          }
+        }
+      }
+    },
+    "履歴": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "History"
+          }
+        }
+      }
+    },
+    "履歴ダッシュボード": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "History Dashboard"
+          }
+        }
+      }
+    },
+    "履歴タブの「ダッシュボード」で、カレンダーとグラフから日々の活動を振り返れます。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In the History tab's Dashboard, review your daily activity with a calendar and charts."
+          }
+        }
+      }
+    },
+    "左手に痛み": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Left-hand pain"
+          }
+        }
+      }
+    },
+    "平均": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avg"
+          }
+        }
+      }
+    },
+    "平均:": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avg:"
+          }
+        }
+      }
+    },
+    "年齢": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Age"
+          }
+        }
+      }
+    },
+    "年齢・最大心拍数の設定": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Age and max heart rate settings"
+          }
+        }
+      }
+    },
+    "広告なしでお楽しみいただけます": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enjoy without ads"
+          }
+        }
+      }
+    },
+    "広告なしでトレーニングに集中": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Focus on training without ads"
+          }
+        }
+      }
+    },
+    "広告なしで快適なトレーニング体験を": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A comfortable training experience without ads"
+          }
+        }
+      }
+    },
+    "形式:": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Format:"
+          }
+        }
+      }
+    },
+    "待ち発生": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Had to wait"
+          }
+        }
+      }
+    },
+    "待機中": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Standby"
+          }
+        }
+      }
+    },
+    "復習必要": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Needs review"
+          }
+        }
+      }
+    },
+    "心拍ゾーン": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Heart rate zones"
+          }
+        }
+      }
+    },
+    "心拍ゾーン滞在時間": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Time in heart rate zones"
+          }
+        }
+      }
+    },
+    "心拍ゾーン設定": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Heart Rate Zone Settings"
+          }
+        }
+      }
+    },
+    "心拍勾配": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Heart rate slope"
+          }
+        }
+      }
+    },
+    "心拍数": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Heart rate"
+          }
+        }
+      }
+    },
+    "心拍数 (HealthKit)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Heart rate (HealthKit)"
+          }
+        }
+      }
+    },
+    "心拍数: %lld bpm": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Heart rate: %lld bpm"
+          }
+        }
+      }
+    },
+    "心拍数CSV": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Heart Rate CSV"
+          }
+        }
+      }
+    },
+    "心拍数JSON": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Heart Rate JSON"
+          }
+        }
+      }
+    },
+    "心拍数から判断": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Determine from heart rate"
+          }
+        }
+      }
+    },
+    "心拍数グラフ": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Heart rate graph"
+          }
+        }
+      }
+    },
+    "心拍数データ": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Heart rate data"
+          }
+        }
+      }
+    },
+    "心拍数データがありません": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No heart rate data"
+          }
+        }
+      }
+    },
+    "心拍数デバイス": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Heart rate device"
+          }
+        }
+      }
+    },
+    "心拍数の変化から運動/休憩状態を自動検出し、フェーズ切り替えを提案します。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatically detects workout/rest state from heart rate changes and suggests phase switches."
+          }
+        }
+      }
+    },
+    "心拍数モニター": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Heart rate monitor"
+          }
+        }
+      }
+    },
+    "心拍数ログ": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Heart rate log"
+          }
+        }
+      }
+    },
+    "心拍数統計": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Heart rate statistics"
+          }
+        }
+      }
+    },
+    "心拍数自動判別": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatic heart rate detection"
+          }
+        }
+      }
+    },
+    "心拍数詳細分析": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Detailed heart rate analysis"
+          }
+        }
+      }
+    },
+    "心拍計が見つかりません": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No heart rate monitor found"
+          }
+        }
+      }
+    },
+    "心拍計の電源がオンになっていることを確認してください": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Make sure the heart rate monitor is turned on"
+          }
+        }
+      }
+    },
+    "心拍計を検索": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search for heart rate monitor"
+          }
+        }
+      }
+    },
+    "心拍計を検索中...": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Searching for heart rate monitor..."
+          }
+        }
+      }
+    },
+    "戻る": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Back"
+          }
+        }
+      }
+    },
+    "指定しない場合は全カテゴリーが制限されます（完全シャットアウト）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "If not specified, all categories are restricted (full shutout)"
+          }
+        }
+      }
+    },
+    "振動回数": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vibration count"
+          }
+        }
+      }
+    },
+    "振動回数を増やすと、より強く注意を引くことができます。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Increasing the vibration count draws stronger attention."
+          }
+        }
+      }
+    },
+    "接続": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connect"
+          }
+        }
+      }
+    },
+    "接続中": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connecting"
+          }
+        }
+      }
+    },
+    "接続中...": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connecting..."
+          }
+        }
+      }
+    },
+    "接続中のデバイス": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connected device"
+          }
+        }
+      }
+    },
+    "接続完了: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connected: %@"
+          }
+        }
+      }
+    },
+    "接続済み": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connected"
+          }
+        }
+      }
+    },
+    "接続状態: %@": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connection status: %@"
+          }
+        }
+      }
+    },
+    "推定サイズ:": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Estimated size:"
+          }
+        }
+      }
+    },
+    "推定最大心拍数": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Estimated max heart rate"
+          }
+        }
+      }
+    },
+    "新しいタグ": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New tag"
+          }
+        }
+      }
+    },
+    "新しいタスクを追加": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add a new task"
+          }
+        }
+      }
+    },
+    "新しい種目を追加": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add a new exercise"
+          }
+        }
+      }
+    },
+    "新規プリセットを作成": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Create a new preset"
+          }
+        }
+      }
+    },
+    "新規種目追加": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add new exercise"
+          }
+        }
+      }
+    },
+    "既定値（任意）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Default value (optional)"
+          }
+        }
+      }
+    },
+    "日": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "day"
+          }
+        }
+      }
+    },
+    "日付・種目・タスクで検索": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search by date, exercise, or task"
+          }
+        }
+      }
+    },
+    "日別アクティビティ（分）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Daily activity (min)"
+          }
+        }
+      }
+    },
+    "日時": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Date & time"
+          }
+        }
+      }
+    },
+    "時刻: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Time: %@"
+          }
+        }
+      }
+    },
+    "時間 / 回数": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Time / Reps"
+          }
+        }
+      }
+    },
+    "月額 %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@/month"
+          }
+        }
+      }
+    },
+    "月額サブスクリプション": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Monthly subscription"
+          }
+        }
+      }
+    },
+    "月額サブスクリプションの詳細": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Monthly subscription details"
+          }
+        }
+      }
+    },
+    "有酸素": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cardio"
+          }
+        }
+      }
+    },
+    "期間:": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Period:"
+          }
+        }
+      }
+    },
+    "未接続": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not connected"
+          }
+        }
+      }
+    },
+    "未接続（保存済みデバイスあり）": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not connected (saved device available)"
+          }
+        }
+      }
+    },
+    "本日のログをエクスポート": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export today's log"
+          }
+        }
+      }
+    },
+    "検出されたデバイス": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Detected devices"
+          }
+        }
+      }
+    },
+    "次": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Next"
+          }
+        }
+      }
+    },
+    "次の%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Next %@"
+          }
+        }
+      }
+    },
+    "次の%@へ": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "To next %@"
+          }
+        }
+      }
+    },
+    "次の%@設定": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Next %@ settings"
+          }
+        }
+      }
+    },
+    "次のセットへ": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Next Set"
+          }
+        }
+      }
+    },
+    "次の種目まで": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Until next exercise"
+          }
+        }
+      }
+    },
+    "次回から表示しない": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Don't show again"
+          }
+        }
+      }
+    },
+    "無料プランでは 1 個まで設定・実行できます。Pro にすると以前のプリセットも復活し、最大 10 個まで管理できます。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The free plan lets you set and run up to 1. With Pro, previous presets are restored and you can manage up to 10."
+          }
+        }
+      }
+    },
+    "状態": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Status"
+          }
+        }
+      }
+    },
+    "状態: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Status: %@"
+          }
+        }
+      }
+    },
+    "現在のセッションを終了して、プリセットを開始しますか？": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "End the current session and start the preset?"
+          }
+        }
+      }
+    },
+    "現在のソース:": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Current source:"
+          }
+        }
+      }
+    },
+    "現在の心拍数": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Current heart rate"
+          }
+        }
+      }
+    },
+    "現在の心拍数: %lld bpm": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Current heart rate: %lld bpm"
+          }
+        }
+      }
+    },
+    "登録済みタグ": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Registered tags"
+          }
+        }
+      }
+    },
+    "登録済みタスク": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Registered tasks"
+          }
+        }
+      }
+    },
+    "目安 %lld秒": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Guide: %lld sec"
+          }
+        }
+      }
+    },
+    "目安: %lld秒": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Guide: %lld sec"
+          }
+        }
+      }
+    },
+    "目標を調整": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Adjust goal"
+          }
+        }
+      }
+    },
+    "直接入力:": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Direct input:"
+          }
+        }
+      }
+    },
+    "破棄する": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Discard"
+          }
+        }
+      }
+    },
+    "科目": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Subject"
+          }
+        }
+      }
+    },
+    "科目（例: 数学）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Subject (e.g., Math)"
+          }
+        }
+      }
+    },
+    "科目未設定": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Subject not set"
+          }
+        }
+      }
+    },
+    "秒": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "sec"
+          }
+        }
+      }
+    },
+    "種別": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Type"
+          }
+        }
+      }
+    },
+    "種目": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exercise"
+          }
+        }
+      }
+    },
+    "種目・時間・セット数を順に並べて自動進行 (無料: 1個・Pro: 最大10個)": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auto-advance through exercises, time, and sets in order (Free: 1, Pro: up to 10)"
+          }
+        }
+      }
+    },
+    "種目がありません": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No exercises"
+          }
+        }
+      }
+    },
+    "種目マスタ": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exercise Master"
+          }
+        }
+      }
+    },
+    "種目名": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exercise name"
+          }
+        }
+      }
+    },
+    "種目名を入力": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter exercise name"
+          }
+        }
+      }
+    },
+    "種目編集": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Edit Exercise"
+          }
+        }
+      }
+    },
+    "種目追加": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add Exercise"
+          }
+        }
+      }
+    },
+    "種目選択": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select Exercise"
+          }
+        }
+      }
+    },
+    "筋トレ": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Workout"
+          }
+        }
+      }
+    },
+    "筋トレタイマー": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Workout Timer"
+          }
+        }
+      }
+    },
+    "筋トレだけでなく、勉強や仕事の集中時間も同じ操作で記録できます。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Record not only workouts but also focused study and work time with the same controls."
+          }
+        }
+      }
+    },
+    "筋トレの種目を登録・編集": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Register and edit workout exercises"
+          }
+        }
+      }
+    },
+    "筋トレ中": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Working out"
+          }
+        }
+      }
+    },
+    "筋トレ中の他アプリ制限": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restrict other apps during workout"
+          }
+        }
+      }
+    },
+    "筋トレ中の制限を有効にする": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enable restriction during workout"
+          }
+        }
+      }
+    },
+    "筋トレ移行時に確認": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Confirm when switching to workout"
+          }
+        }
+      }
+    },
+    "筋トレ記録": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Workout Log"
+          }
+        }
+      }
+    },
+    "筋トレ記録 Pro": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Workout Recorder Pro"
+          }
+        }
+      }
+    },
+    "管理": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manage"
+          }
+        }
+      }
+    },
+    "簡単だった": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Was easy"
+          }
+        }
+      }
+    },
+    "精神 %lld/5": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mental %lld/5"
+          }
+        }
+      }
+    },
+    "終了して開始": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "End and start"
+          }
+        }
+      }
+    },
+    "終了する": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "End"
+          }
+        }
+      }
+    },
+    "終了まで": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Until end"
+          }
+        }
+      }
+    },
+    "終了日": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "End date"
+          }
+        }
+      }
+    },
+    "経過時間": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Elapsed time"
+          }
+        }
+      }
+    },
+    "続ける": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Continue"
+          }
+        }
+      }
+    },
+    "緊急時のため、電話・メッセージ・ヘルスケアを除外しておくことを推奨します。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "For emergencies, we recommend excluding Phone, Messages, and Health."
+          }
+        }
+      }
+    },
+    "総ボリューム": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Total volume"
+          }
+        }
+      }
+    },
+    "総時間": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Total time"
+          }
+        }
+      }
+    },
+    "肉体 %lld/5": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Physical %lld/5"
+          }
+        }
+      }
+    },
+    "肩": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shoulders"
+          }
+        }
+      }
+    },
+    "背中": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Back"
+          }
+        }
+      }
+    },
+    "胸": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chest"
+          }
+        }
+      }
+    },
+    "脂肪燃焼": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fat burn"
+          }
+        }
+      }
+    },
+    "脚": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Legs"
+          }
+        }
+      }
+    },
+    "腕": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Arms"
+          }
+        }
+      }
+    },
+    "自動フェーズ検出": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatic phase detection"
+          }
+        }
+      }
+    },
+    "自動進行": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auto-advance"
+          }
+        }
+      }
+    },
+    "自動進行 ON": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auto-advance ON"
+          }
+        }
+      }
+    },
+    "複数日データエクスポート": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Multi-day data export"
+          }
+        }
+      }
+    },
+    "複数日のデータをエクスポート": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export multi-day data"
+          }
+        }
+      }
+    },
+    "解除秒数": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unlock seconds"
+          }
+        }
+      }
+    },
+    "言語": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Language"
+          }
+        }
+      }
+    },
+    "記録サンプル数: %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recorded samples: %lld"
+          }
+        }
+      }
+    },
+    "記録するセンサー": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sensors to record"
+          }
+        }
+      }
+    },
+    "記録中": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recording"
+          }
+        }
+      }
+    },
+    "設定": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Settings"
+          }
+        }
+      }
+    },
+    "許可する": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allow"
+          }
+        }
+      }
+    },
+    "詰まった": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Got stuck"
+          }
+        }
+      }
+    },
+    "該当する履歴がありません": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No matching history"
+          }
+        }
+      }
+    },
+    "詳細入力": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Detailed input"
+          }
+        }
+      }
+    },
+    "認可": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Authorization"
+          }
+        }
+      }
+    },
+    "認可が必要です": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Authorization required"
+          }
+        }
+      }
+    },
+    "認可リクエスト中...": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Requesting authorization..."
+          }
+        }
+      }
+    },
+    "認可をリクエストする": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Request authorization"
+          }
+        }
+      }
+    },
+    "負荷": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Load"
+          }
+        }
+      }
+    },
+    "負荷・回数を指定するとセッション開始時に自動入力されます。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "If you specify load and reps, they are auto-filled when the session starts."
+          }
+        }
+      }
+    },
+    "負荷:": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Load:"
+          }
+        }
+      }
+    },
+    "負荷単位": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Load unit"
+          }
+        }
+      }
+    },
+    "負荷単位:": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Load unit:"
+          }
+        }
+      }
+    },
+    "負荷設定": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Load Settings"
+          }
+        }
+      }
+    },
+    "買い切りライセンス": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "One-time purchase license"
+          }
+        }
+      }
+    },
+    "購入について": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "About purchases"
+          }
+        }
+      }
+    },
+    "購入を復元": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restore purchases"
+          }
+        }
+      }
+    },
+    "購入状態": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Purchase status"
+          }
+        }
+      }
+    },
+    "軽すぎた": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Too light"
+          }
+        }
+      }
+    },
+    "追加": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add"
+          }
+        }
+      }
+    },
+    "通知 %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notification %lld"
+          }
+        }
+      }
+    },
+    "通知 %lld: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notification %lld: %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "new",
+            "value": "通知 %1$lld: %2$@"
+          }
+        }
+      }
+    },
+    "通知・ゾーン設定": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notification & Zone Settings"
+          }
+        }
+      }
+    },
+    "通知が許可されています": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notifications are allowed"
+          }
+        }
+      }
+    },
+    "通知タイミング": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notification timing"
+          }
+        }
+      }
+    },
+    "通知を許可してください": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Please allow notifications"
+          }
+        }
+      }
+    },
+    "通知設定": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notification Settings"
+          }
+        }
+      }
+    },
+    "通知許可": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notification permission"
+          }
+        }
+      }
+    },
+    "進行度": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Progress"
+          }
+        }
+      }
+    },
+    "進行度 %lld%%": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Progress %lld%%"
+          }
+        }
+      }
+    },
+    "運動に応じた適切な単位を設定してください": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Set an appropriate unit for the exercise"
+          }
+        }
+      }
+    },
+    "配置": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Placement"
+          }
+        }
+      }
+    },
+    "重すぎた": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Too heavy"
+          }
+        }
+      }
+    },
+    "重要な注意": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Important note"
+          }
+        }
+      }
+    },
+    "重量": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Weight"
+          }
+        }
+      }
+    },
+    "閉じる": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Close"
+          }
+        }
+      }
+    },
+    "開始": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start"
+          }
+        }
+      }
+    },
+    "開始日": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start date"
+          }
+        }
+      }
+    },
+    "閾値": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Threshold"
+          }
+        }
+      }
+    },
+    "限界": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "At my limit"
+          }
+        }
+      }
+    },
+    "除外するアプリ（制限しない）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Excluded apps (not restricted)"
+          }
+        }
+      }
+    },
+    "除外設定をクリア": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear exclusion settings"
+          }
+        }
+      }
+    },
+    "集中: %lld分": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Focus: %lld min"
+          }
+        }
+      }
+    },
+    "集中できた": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stayed focused"
+          }
+        }
+      }
+    },
+    "難しかった": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Was hard"
+          }
+        }
+      }
+    },
+    "順調": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Going well"
+          }
+        }
+      }
+    },
+    "肉体的": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Physical"
+          }
+        }
+      }
+    },
+    "精神的": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mental"
+          }
+        }
+      }
+    },
+    "%lld秒/%lld秒 ×%lldセット": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lds/%2$lds ×%3$ld sets"
+          }
+        }
+      }
+    },
+    "%lld種目 / 計 %lldセット": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$ld exercises / %2$ld sets total"
+          }
+        }
+      }
+    },
+    "%lldタスク / 計 %lldサイクル": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$ld tasks / %2$ld cycles total"
+          }
+        }
+      }
+    },
+    "ステップ %lld/%lld ・ セット %lld/%lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Step %1$ld/%2$ld · Set %3$ld/%4$ld"
+          }
+        }
+      }
+    },
+    "プリセット (%lld/%lld)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Presets (%1$ld/%2$ld)"
+          }
+        }
+      }
+    },
+    "新しいプリセット": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New Preset"
+          }
+        }
+      }
+    },
+    "新しい勉強プリセット": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New Study Preset"
+          }
+        }
+      }
+    },
+    "新しい仕事プリセット": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New Work Preset"
+          }
+        }
+      }
+    },
+    "ステップを 1 件以上追加してください": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add at least one step"
+          }
+        }
+      }
+    },
+    "Pro でロック解除すると実行できます": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unlock with Pro to run"
+          }
+        }
+      }
+    },
+    "除外アプリを選択する": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select apps to exclude"
+          }
+        }
+      }
+    },
+    "除外: %lldアプリ / %lldカテゴリー": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Excluded: %1$ld apps / %2$ld categories"
+          }
+        }
+      }
+    },
+    "全カテゴリー（既定）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All categories (default)"
+          }
+        }
+      }
+    },
+    "制限: %lldアプリ / %lldカテゴリー": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restricted: %1$ld apps / %2$ld categories"
+          }
+        }
+      }
+    },
+    "セッションが idle になった瞬間、またはアプリ復帰時に制限は自動解除されます。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restrictions are lifted automatically the moment the session becomes idle, or when you return to the app."
+          }
+        }
+      }
+    },
+    "トレーニング画面の「制限解除」ボタンでいつでも緊急解除できます。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You can lift restrictions anytime with the \"Unlock\" button on the workout screen."
+          }
+        }
+      }
+    },
+    "SOS（緊急通報）は iOS により制限中でも使用可能です。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SOS (emergency calls) remain available even while restricted, as handled by iOS."
+          }
+        }
+      }
+    },
+    "例: 数学 第3章": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "e.g., Math Chapter 3"
+          }
+        }
+      }
+    },
+    "例: 提案書レビュー": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "e.g., Proposal review"
+          }
+        }
+      }
+    },
+    "例: 数学 / 英語": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "e.g., Math / English"
+          }
+        }
+      }
+    },
+    "例: ProjectA": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "e.g., ProjectA"
+          }
+        }
+      }
+    },
+    "例: 第3章 演習問題": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "e.g., Chapter 3 exercises"
+          }
+        }
+      }
+    },
+    "全セットレコードを含む詳細データ": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Detailed data including all set records"
+          }
+        }
+      }
+    },
+    "セッション単位のサマリーデータ": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Summary data per session"
+          }
+        }
+      }
+    },
+    "構造化されたJSONフォーマット": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Structured JSON format"
+          }
+        }
+      }
+    },
+    "心拍数ログを含む完全なデータ": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Complete data including heart rate logs"
+          }
+        }
+      }
+    },
+    "%lld日ごと": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "every %lld days"
+          }
+        }
+      }
+    },
+    "%lld週間ごと": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "every %lld weeks"
+          }
+        }
+      }
+    },
+    "%lldヶ月ごと": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "every %lld months"
+          }
+        }
+      }
+    },
+    "%lld年ごと": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "every %lld years"
+          }
+        }
+      }
+    },
+    "%lld分前": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld min ago"
+          }
+        }
+      }
+    },
+    "%lld時間前": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld hours ago"
+          }
+        }
+      }
+    },
+    "%lld分": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld min"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

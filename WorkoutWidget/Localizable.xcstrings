@@ -1,0 +1,116 @@
+{
+  "sourceLanguage": "ja",
+  "strings": {
+    "%@ / %@": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$@ / %2$@"
+          }
+        }
+      }
+    },
+    "%lld": {},
+    "%lld bpm": {},
+    "%lldkg × %lld回": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$lldkg × %2$lld回"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lldkg × %lld reps"
+          }
+        }
+      }
+    },
+    "00:00": {},
+    "bpm": {},
+    "サイクル %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cycle %lld"
+          }
+        }
+      }
+    },
+    "セット %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Set %lld"
+          }
+        }
+      }
+    },
+    "トレーニングの進捗状況を表示します": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shows your workout progress"
+          }
+        }
+      }
+    },
+    "ワークアウト": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Workout"
+          }
+        }
+      }
+    },
+    "ワーク時間": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Work time"
+          }
+        }
+      }
+    },
+    "休憩時間": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rest time"
+          }
+        }
+      }
+    },
+    "残り": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remaining"
+          }
+        }
+      }
+    },
+    "超過": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Over"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

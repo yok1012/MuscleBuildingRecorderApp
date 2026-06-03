@@ -7,6 +7,7 @@ struct SettingsView: View {
     @StateObject private var proUserManager = ProUserManager.shared
     @StateObject private var presetManager = WorkoutPresetManager.shared
     @ObservedObject private var sessionManager = SessionManager.shared
+    @ObservedObject private var localizationManager = LocalizationManager.shared
     @Environment(\.managedObjectContext) var viewContext
     @State private var selectedHeartRateSource: HeartRateSourceType = .healthKit
     @State private var showingBLEDeviceSelector = false
@@ -35,6 +36,8 @@ struct SettingsView: View {
     @State private var showingTagPresetSettings = false
     @State private var showingTaskMasterStudy = false
     @State private var showingTaskMasterWork = false
+    /// 完了後ヒント画面の表示可否（false = 表示する）
+    @AppStorage("hideCompletionTips") private var hideCompletionTips = false
 
     @FetchRequest(
         sortDescriptors: [NSSortDescriptor(keyPath: \Session.startedAt, ascending: false)]
@@ -90,9 +93,10 @@ struct SettingsView: View {
                 #if DEBUG
                 sensorLogSection
                 #endif
-                exerciseMasterSection
                 privacySection
+                languageSection
                 appInfoSection
+                resetDataSection
             }
             .navigationTitle("設定")
             .sheet(isPresented: $showingMasterDataEditor) {
@@ -227,7 +231,7 @@ struct SettingsView: View {
             VStack(alignment: .leading) {
                 Text("Apple Watch (HealthKit)")
                     .font(.headline)
-                Text(heartRateManager.activeHeartRateSource)
+                Text(heartRateManager.activeHeartRateSource.localizedSeed)
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -307,7 +311,7 @@ struct SettingsView: View {
                 Button(action: { showingBLEDeviceSelector = true }) {
                     HStack {
                         Image(systemName: "magnifyingglass")
-                        Text(heartRateManager.bleService.connectedDeviceName == nil ? "デバイスを検索" : "別のデバイス")
+                        Text(heartRateManager.bleService.connectedDeviceName == nil ? LocalizedStringKey("デバイスを検索") : LocalizedStringKey("別のデバイス"))
                     }
                     .font(.caption)
                 }
@@ -321,15 +325,15 @@ struct SettingsView: View {
         switch heartRateManager.bleService.connectionState {
         case .disconnected:
             if heartRateManager.bleService.savedDeviceUUID != nil {
-                return "未接続（保存済みデバイスあり）"
+                return "未接続（保存済みデバイスあり）".localizedSeed
             }
-            return "未接続"
+            return "未接続".localizedSeed
         case .connecting:
-            return "接続中..."
+            return "接続中...".localizedSeed
         case .discovering:
-            return "サービス検出中..."
+            return "サービス検出中...".localizedSeed
         case .connected:
-            return "接続済み"
+            return "接続済み".localizedSeed
         }
     }
 
@@ -368,6 +372,18 @@ struct SettingsView: View {
                         .foregroundColor(.secondary)
                 }
             }
+            Toggle(isOn: Binding(
+                get: { !hideCompletionTips },
+                set: { hideCompletionTips = !$0 }
+            )) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("完了後にヒントを表示")
+                        .font(.headline)
+                    Text("セッション完了後にアプリの使い方ヒントを表示します")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
             Button(action: { showingTagPresetSettings = true }) {
                 HStack {
                     Image(systemName: "tag.fill")
@@ -377,6 +393,25 @@ struct SettingsView: View {
                         Text("タグの管理")
                             .font(.headline)
                         Text("休憩中のクイック入力で選べるタグをドメイン別にカスタマイズ")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .foregroundColor(.secondary)
+                }
+            }
+            .foregroundColor(.primary)
+
+            Button(action: { showingMasterDataEditor = true }) {
+                HStack {
+                    Image(systemName: "figure.strengthtraining.traditional")
+                        .foregroundColor(.red)
+                        .frame(width: 30)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("エクササイズマスタ")
+                            .font(.headline)
+                        Text("筋トレの種目を登録・編集")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -538,7 +573,7 @@ struct SettingsView: View {
                     .foregroundColor(WatchLink.shared.isWatchReachable ? .green : .gray)
                 Text("Apple Watch")
                 Spacer()
-                Text(WatchLink.shared.isWatchReachable ? "接続中" : "未接続")
+                Text(WatchLink.shared.isWatchReachable ? LocalizedStringKey("接続中") : LocalizedStringKey("未接続"))
                     .font(.caption)
                     .foregroundColor(WatchLink.shared.isWatchReachable ? .green : .gray)
             }
@@ -731,18 +766,8 @@ struct SettingsView: View {
         return formatter.string(fromByteCount: bytes)
     }
 
-    private var exerciseMasterSection: some View {
-        Section(header: Text("エクササイズマスタデータ")) {
-            Button(action: { showingMasterDataEditor = true }) {
-                HStack {
-                    Image(systemName: "list.bullet.rectangle")
-                    Text("種目編集")
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .foregroundColor(.secondary)
-                }
-            }
-
+    private var resetDataSection: some View {
+        Section(header: Text("データ初期化")) {
             Button(action: resetToDefaults) {
                 HStack {
                     Image(systemName: "arrow.clockwise")
@@ -769,6 +794,24 @@ struct SettingsView: View {
                         .foregroundColor(.red)
                 }
             }
+        }
+    }
+
+    // MARK: - Language Section
+    private var languageSection: some View {
+        Section(header: Text("言語")) {
+            Picker(selection: $localizationManager.language) {
+                ForEach(AppLanguage.allCases) { lang in
+                    Text(lang.displayName).tag(lang)
+                }
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "globe")
+                        .foregroundColor(.blue)
+                    Text("言語")
+                }
+            }
+            .pickerStyle(.menu)
         }
     }
 
@@ -872,9 +915,9 @@ struct SettingsView: View {
     private var presetSubtitle: String {
         let count = presetManager.allPresets.count
         if count == 0 {
-            return "種目・時間・セット数を順に並べて自動進行 (無料: 1個・Pro: 最大10個)"
+            return "種目・時間・セット数を順に並べて自動進行 (無料: 1個・Pro: 最大10個)".localizedSeed
         }
-        return "\(count) 件保存済み (無料: 1個・Pro: 最大10個)"
+        return "%lld 件保存済み (無料: 1個・Pro: 最大10個)".localizedFormat(count)
     }
 
     // MARK: - Pro Section
@@ -970,7 +1013,7 @@ struct ExerciseMasterEditorView: View {
         NavigationView {
             List {
                 ForEach(groupedExercises, id: \.category) { group in
-                    Section(header: Text(group.category)) {
+                    Section(header: Text(group.category.localizedSeed)) {
                         ForEach(group.exercises, id: \.self) { exercise in
                             ExerciseRow(exercise: exercise)
                                 .onTapGesture {
@@ -1024,16 +1067,16 @@ struct ExerciseRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(exercise.name ?? "")
+            Text((exercise.name ?? "").localizedSeed)
                 .font(.headline)
             HStack {
-                Text("デフォルト: \(exercise.defaultLoad, specifier: "%.1f") \(exercise.loadUnit ?? "")")
+                Text("デフォルト: \(exercise.defaultLoad, specifier: "%.1f") \((exercise.loadUnit ?? "").localizedSeed)")
                     .font(.caption)
                     .foregroundColor(.secondary)
                 Text("×")
                     .font(.caption)
                     .foregroundColor(.secondary)
-                Text("\(exercise.defaultReps, specifier: "%.0f") \(exercise.repsUnit ?? "")")
+                Text("\(exercise.defaultReps, specifier: "%.0f") \((exercise.repsUnit ?? "").localizedSeed)")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -1097,7 +1140,7 @@ struct ExerciseEditView: View {
                         TextField("", value: $defaultLoad, format: .number)
                             .textFieldStyle(.roundedBorder)
                             .keyboardType(.decimalPad)
-                        Text(loadUnit.isEmpty ? "単位" : loadUnit)
+                        Text(loadUnit.isEmpty ? "単位".localizedSeed : loadUnit)
                             .foregroundColor(loadUnit.isEmpty ? .gray : .primary)
                     }
                     HStack {
@@ -1106,7 +1149,7 @@ struct ExerciseEditView: View {
                         TextField("", value: $defaultReps, format: .number)
                             .textFieldStyle(.roundedBorder)
                             .keyboardType(.decimalPad)
-                        Text(repsUnit.isEmpty ? "単位" : repsUnit)
+                        Text(repsUnit.isEmpty ? "単位".localizedSeed : repsUnit)
                             .foregroundColor(repsUnit.isEmpty ? .gray : .primary)
                     }
                 }

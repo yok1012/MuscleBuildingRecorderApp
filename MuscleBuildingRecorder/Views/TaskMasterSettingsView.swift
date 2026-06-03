@@ -15,8 +15,8 @@ struct TaskMasterSettingsView: View {
 
     private var sheetTitle: String {
         switch domain {
-        case .study: return "勉強タスクマスタ"
-        case .work:  return "仕事タスクマスタ"
+        case .study: return "勉強タスクマスタ".localizedSeed
+        case .work:  return "仕事タスクマスタ".localizedSeed
         case .workout: return ""
         }
     }

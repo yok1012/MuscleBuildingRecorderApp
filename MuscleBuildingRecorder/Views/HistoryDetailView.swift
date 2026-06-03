@@ -205,7 +205,7 @@ struct HistoryDetailView: View {
                 }
 
                 HStack {
-                    Label(session.domainEnum.workPhaseLabel + "時間", systemImage: "flame.fill")
+                    Label("\(session.domainEnum.workPhaseLabel)時間", systemImage: "flame.fill")
                         .font(.caption)
                         .foregroundColor(.orange)
                     Spacer()
@@ -214,7 +214,7 @@ struct HistoryDetailView: View {
                 }
 
                 HStack {
-                    Label(session.domainEnum.restPhaseLabel + "時間", systemImage: "pause.fill")
+                    Label("\(session.domainEnum.restPhaseLabel)時間", systemImage: "pause.fill")
                         .font(.caption)
                         .foregroundColor(.blue)
                     Spacer()
@@ -263,7 +263,7 @@ struct HistoryDetailView: View {
 
     private var exerciseDetailsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(session.domainEnum == .workout ? "エクササイズ詳細" : "サイクル詳細")
+            Text(session.domainEnum == .workout ? LocalizedStringKey("エクササイズ詳細") : LocalizedStringKey("サイクル詳細"))
                 .font(.headline)
 
             ForEach(records, id: \.self) { record in
@@ -514,7 +514,7 @@ private struct ExerciseRecordCard: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 4) {
                         ForEach(payload.tags, id: \.self) { tag in
-                            Text(tag)
+                            Text(tag.localizedSeed)
                                 .font(.caption2)
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 2)
@@ -571,8 +571,8 @@ private struct NoteEntryCard: View {
 
     private var phaseDisplay: String {
         switch entry.phase.lowercased() {
-        case "work": return "筋トレ"
-        case "rest": return "休憩"
+        case "work": return "筋トレ".localizedSeed
+        case "rest": return "休憩".localizedSeed
         default: return entry.phase
         }
     }
@@ -690,13 +690,13 @@ private struct ExportOptionsSheet: View {
     private func descriptionForType(_ type: HistoryDetailView.ExportType) -> String {
         switch type {
         case .csvDetailed:
-            return "全セットレコードを含む詳細データ"
+            return "全セットレコードを含む詳細データ".localizedSeed
         case .csvSummary:
-            return "セッション単位のサマリーデータ"
+            return "セッション単位のサマリーデータ".localizedSeed
         case .jsonNormal:
-            return "構造化されたJSONフォーマット"
+            return "構造化されたJSONフォーマット".localizedSeed
         case .jsonWithHeartRate:
-            return "心拍数ログを含む完全なデータ"
+            return "心拍数ログを含む完全なデータ".localizedSeed
         }
     }
 }

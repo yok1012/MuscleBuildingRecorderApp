@@ -17,8 +17,8 @@ struct TaskMasterSelectionSheet: View {
 
     private var parentLabel: String {
         switch domain {
-        case .study: return "科目"
-        case .work:  return "プロジェクト"
+        case .study: return "科目".localizedSeed
+        case .work:  return "プロジェクト".localizedSeed
         case .workout: return ""
         }
     }
@@ -32,7 +32,7 @@ struct TaskMasterSelectionSheet: View {
     }
 
     private var sheetTitle: String {
-        domain.workPhaseLabel + "タスクを選択"
+        "%@タスクを選択".localizedFormat(domain.workPhaseLabel)
     }
 
     var body: some View {
@@ -182,30 +182,30 @@ struct TaskMasterEditorView: View {
 
     private var parentLabel: String {
         switch domain {
-        case .study: return "科目"
-        case .work:  return "プロジェクト"
+        case .study: return "科目".localizedSeed
+        case .work:  return "プロジェクト".localizedSeed
         case .workout: return ""
         }
     }
 
     private var parentPlaceholder: String {
         switch domain {
-        case .study: return "例: 数学 / 英語"
-        case .work:  return "例: ProjectA"
+        case .study: return "例: 数学 / 英語".localizedSeed
+        case .work:  return "例: ProjectA".localizedSeed
         case .workout: return ""
         }
     }
 
     private var taskPlaceholder: String {
         switch domain {
-        case .study: return "例: 第3章 演習問題"
-        case .work:  return "例: 提案書レビュー"
+        case .study: return "例: 第3章 演習問題".localizedSeed
+        case .work:  return "例: 提案書レビュー".localizedSeed
         case .workout: return ""
         }
     }
 
     private var navTitle: String {
-        editing == nil ? "タスクを追加" : "タスクを編集"
+        editing == nil ? "タスクを追加".localizedSeed : "タスクを編集".localizedSeed
     }
 
     private var isValid: Bool {

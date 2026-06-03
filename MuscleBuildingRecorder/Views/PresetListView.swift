@@ -117,9 +117,9 @@ struct PresetListView: View {
 
     private var headerForAvailable: String {
         if proManager.isPro {
-            return "プリセット (\(manager.allPresets.count)/\(WorkoutPresetManager.maxPresetCount))"
+            return "プリセット (%lld/%lld)".localizedFormat(manager.allPresets.count, WorkoutPresetManager.maxPresetCount)
         }
-        return "プリセット"
+        return "プリセット".localizedSeed
     }
 
     @ViewBuilder
@@ -224,10 +224,10 @@ struct PresetListView: View {
         let firstStep: WorkoutPresetStep
         switch domain {
         case .workout:
-            titlePrefix = "新しいプリセット"
+            titlePrefix = "新しいプリセット".localizedSeed
             firstStep = WorkoutPresetStep()
         case .study:
-            titlePrefix = "新しい勉強プリセット"
+            titlePrefix = "新しい勉強プリセット".localizedSeed
             // study はカテゴリ/種目を空にしておく（PresetStepEditorView で TextField から入力）
             firstStep = WorkoutPresetStep(
                 category: "",
@@ -237,7 +237,7 @@ struct PresetListView: View {
                 setCount: 4
             )
         case .work:
-            titlePrefix = "新しい仕事プリセット"
+            titlePrefix = "新しい仕事プリセット".localizedSeed
             firstStep = WorkoutPresetStep(
                 category: "",
                 exerciseName: "",

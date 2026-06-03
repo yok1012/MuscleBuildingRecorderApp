@@ -14,7 +14,8 @@ enum ExerciseCategory: String, CaseIterable, Identifiable {
     var id: String { self.rawValue }
 
     var displayName: String {
-        return self.rawValue
+        // rawValue は保存・照合用に日本語のまま。表示は現在の言語へ変換する。
+        return Bundle.main.localizedString(forKey: rawValue, value: rawValue, table: nil)
     }
 
     var icon: String {

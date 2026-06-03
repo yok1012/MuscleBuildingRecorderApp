@@ -15,6 +15,9 @@ struct MainTimerView: View {
     @ObservedObject private var presetRunner = PresetRunner.shared
     @State private var showingInputSheet = false
     @State private var showingSummary = false
+    /// 完了サマリの後に表示するヒント画面
+    @State private var showingCompletionTips = false
+    @AppStorage("hideCompletionTips") private var hideCompletionTips = false
     @State private var showingExerciseSelection = false
     @State private var watchCheckResult: WatchCheckResult = .notChecked
     @State private var isShowingAd = false
@@ -176,10 +179,18 @@ struct MainTimerView: View {
                     .environmentObject(sessionManager)
             }
         }
-        .fullScreenCover(isPresented: $showingSummary) {
+        .fullScreenCover(isPresented: $showingSummary, onDismiss: {
+            // 完了サマリを閉じたら、抑止されていない限りヒント画面を表示。
+            // 連続 fullScreenCover は同期表示が不安定なため1ループ遅延させる。
+            guard !hideCompletionTips else { return }
+            DispatchQueue.main.async { showingCompletionTips = true }
+        }) {
             SessionSummaryView()
                 .environmentObject(sessionManager)
                 .environmentObject(proUserManager)
+        }
+        .fullScreenCover(isPresented: $showingCompletionTips) {
+            CompletionTipsView()
         }
         .alert("トレーニング終了", isPresented: $showingFinishConfirmation) {
             Button("キャンセル", role: .cancel) { }
@@ -187,7 +198,7 @@ struct MainTimerView: View {
         } message: {
             Text("トレーニングを終了しますか？\n\n総時間: \(formatTime(sessionManager.elapsedTime))\n筋トレ: \(formatTime(sessionManager.totalWorkTime))\n休憩: \(formatTime(sessionManager.totalRestTime))")
         }
-        .alert(sessionManager.activeDomain.workPhaseLabel + "を開始しますか?", isPresented: $showingTransitionAlert) {
+        .alert("%@を開始しますか?".localizedFormat(sessionManager.activeDomain.workPhaseLabel), isPresented: $showingTransitionAlert) {
             Button("キャンセル", role: .cancel) {
                 sessionManager.cancelTransitionToWork()
             }
@@ -494,7 +505,7 @@ struct MainTimerView: View {
         switch sessionManager.activeDomain {
         case .workout:
             HStack(spacing: 4) {
-                Text(record.name ?? "-")
+                Text((record.name ?? "-").localizedSeed)
                     .font(.caption).foregroundColor(.white)
                 Text("\(Int(record.reps))×\(String(format: "%.1f", record.load))")
                     .font(.caption).fontWeight(.bold).foregroundColor(.yellow)
@@ -553,7 +564,7 @@ struct MainTimerView: View {
                 Image(systemName: icon)
                     .font(.caption2)
                     .foregroundColor(accent)
-                Text(label)
+                Text(LocalizedStringKey(label))
                     .font(.caption2)
                     .foregroundColor(.white.opacity(0.85))
             }
@@ -592,7 +603,7 @@ struct MainTimerView: View {
     }
 
     @ViewBuilder
-    private func sectionHeader(icon: String, text: String) -> some View {
+    private func sectionHeader(icon: String, text: LocalizedStringKey) -> some View {
         HStack(spacing: 6) {
             Image(systemName: icon).font(.caption)
             Text(text).font(.caption)
@@ -612,10 +623,10 @@ struct MainTimerView: View {
                     .foregroundColor(.orange)
                     .frame(width: 28)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(nextCategory.isEmpty ? sessionManager.selectedCategory : nextCategory)
+                    Text((nextCategory.isEmpty ? sessionManager.selectedCategory : nextCategory).localizedSeed)
                         .font(.caption2)
                         .foregroundColor(.white.opacity(0.7))
-                    Text(nextExercise.isEmpty ? sessionManager.selectedExercise : nextExercise)
+                    Text((nextExercise.isEmpty ? sessionManager.selectedExercise : nextExercise).localizedSeed)
                         .font(.subheadline)
                         .fontWeight(.semibold)
                         .foregroundColor(.white)
@@ -674,7 +685,7 @@ struct MainTimerView: View {
     ) -> some View {
         VStack(spacing: 6) {
             HStack(spacing: 4) {
-                Text(label)
+                Text(LocalizedStringKey(label))
                     .font(.caption2)
                     .foregroundColor(.white.opacity(0.75))
                 Spacer()
@@ -781,11 +792,11 @@ struct MainTimerView: View {
                     .foregroundColor(iconColor)
                     .frame(width: 28)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(secondary.isEmpty ? "\(secondaryLabel) 未設定" : "\(secondaryLabel): \(secondary)")
+                    Text(secondary.isEmpty ? LocalizedStringKey("\(secondaryLabel.localizedSeed) 未設定") : LocalizedStringKey("\(secondaryLabel.localizedSeed): \(secondary)"))
                         .font(.caption2)
                         .foregroundColor(.white.opacity(0.7))
                         .lineLimit(1)
-                    Text(primary.isEmpty ? primaryPlaceholder : primary)
+                    Text(primary.isEmpty ? primaryPlaceholder.localizedSeed : primary)
                         .font(.subheadline)
                         .fontWeight(.semibold)
                         .foregroundColor(.white)
@@ -876,7 +887,7 @@ struct MainTimerView: View {
             HStack(spacing: 6) {
                 ForEach(tags, id: \.self) { tag in
                     Button { toggleTag(tag) } label: {
-                        Text(tag)
+                        Text(tag.localizedSeed)
                             .font(.caption)
                             .padding(.horizontal, 10)
                             .padding(.vertical, 6)
@@ -1172,11 +1183,11 @@ struct MainTimerView: View {
     private var exerciseSectionSubtitle: String {
         switch sessionManager.activeDomain {
         case .workout:
-            return sessionManager.selectedCategory
+            return sessionManager.selectedCategory.localizedSeed
         case .study:
-            return sessionManager.currentSubject.isEmpty ? "科目未設定" : sessionManager.currentSubject
+            return sessionManager.currentSubject.isEmpty ? "科目未設定".localizedSeed : sessionManager.currentSubject
         case .work:
-            return sessionManager.currentProject.isEmpty ? "プロジェクト未設定" : sessionManager.currentProject
+            return sessionManager.currentProject.isEmpty ? "プロジェクト未設定".localizedSeed : sessionManager.currentProject
         }
     }
 
@@ -1184,18 +1195,18 @@ struct MainTimerView: View {
     private var exerciseSectionTitle: String {
         switch sessionManager.activeDomain {
         case .workout:
-            return sessionManager.selectedExercise
+            return sessionManager.selectedExercise.localizedSeed
         case .study, .work:
-            return sessionManager.currentTaskName.isEmpty ? "タップしてタスク名を入力" : sessionManager.currentTaskName
+            return sessionManager.currentTaskName.isEmpty ? "タップしてタスク名を入力".localizedSeed : sessionManager.currentTaskName
         }
     }
 
     /// idle 時のヘッドライン（ドメインによりタイトルを変更）
     private var idleHeadline: String {
         switch sessionManager.activeDomain {
-        case .workout: return "筋トレ記録"
-        case .study:   return "勉強記録"
-        case .work:    return "仕事記録"
+        case .workout: return "筋トレ記録".localizedSeed
+        case .study:   return "勉強記録".localizedSeed
+        case .work:    return "仕事記録".localizedSeed
         }
     }
 
@@ -1210,14 +1221,14 @@ struct MainTimerView: View {
 
     private var phaseStatusText: String {
         switch sessionManager.currentPhase {
-        case .idle: return "待機中"
+        case .idle: return "待機中".localizedSeed
         case .work:
-            // workout: セット実行中、study: 集中中、work: 作業中
+            // workout: セット実行中、study/work: ドメイン別の進行中ラベル
             return sessionManager.activeDomain == .workout
-                ? "セット実行中"
-                : sessionManager.activeDomain.workPhaseLabel + "中"
+                ? "セット実行中".localizedSeed
+                : sessionManager.activeDomain.workPhaseActiveLabel
         case .rest:
-            return sessionManager.activeDomain.restPhaseLabel + "中"
+            return sessionManager.activeDomain.restPhaseActiveLabel
         }
     }
 
@@ -1305,17 +1316,17 @@ struct MainTimerView: View {
         switch sessionManager.activeDomain {
         case .workout:
             HStack(spacing: 10) {
-                Text(record.name ?? "-")
+                Text((record.name ?? "-").localizedSeed)
                     .font(.subheadline)
                     .foregroundColor(.white)
-                Text("\(Int(record.reps))\(sessionManager.repsUnit)")
+                Text("\(Int(record.reps))\(sessionManager.repsUnit.localizedSeed)")
                     .font(.title3)
                     .fontWeight(.bold)
                     .foregroundColor(.yellow)
                 Text("×")
                     .font(.caption)
                     .foregroundColor(.white.opacity(0.6))
-                Text("\(String(format: "%.1f", record.load))\(sessionManager.loadUnit)")
+                Text("\(String(format: "%.1f", record.load))\(sessionManager.loadUnit.localizedSeed)")
                     .font(.title3)
                     .fontWeight(.bold)
                     .foregroundColor(.yellow)
@@ -1325,7 +1336,7 @@ struct MainTimerView: View {
                 Text(sessionManager.currentSubject.isEmpty ? "-" : sessionManager.currentSubject)
                     .font(.caption)
                     .foregroundColor(.white.opacity(0.85))
-                Text(record.taskName ?? "(勉強内容未入力)")
+                Text((record.taskName ?? "(勉強内容未入力)").localizedSeed)
                     .font(.subheadline)
                     .fontWeight(.semibold)
                     .foregroundColor(.yellow)
@@ -1339,7 +1350,7 @@ struct MainTimerView: View {
                 Text(sessionManager.currentProject.isEmpty ? "-" : sessionManager.currentProject)
                     .font(.caption)
                     .foregroundColor(.white.opacity(0.85))
-                Text(record.taskName ?? "(タスク未入力)")
+                Text((record.taskName ?? "(タスク未入力)").localizedSeed)
                     .font(.subheadline)
                     .fontWeight(.semibold)
                     .foregroundColor(.yellow)
@@ -1395,7 +1406,7 @@ struct MainTimerView: View {
                         }
                         Picker("種目", selection: $prevExercise) {
                             ForEach(prevAvailableExercises, id: \.self) { exercise in
-                                Text(exercise).tag(exercise)
+                                Text(exercise.localizedSeed).tag(exercise)
                             }
                         }
                         formCounterRow(
@@ -1640,7 +1651,7 @@ struct MainTimerView: View {
                 Circle()
                     .fill(heartRateManager.isConnected ? Color.green : Color.red)
                     .frame(width: 8, height: 8)
-                Text(heartRateManager.isConnected ? "接続中" : "未接続")
+                Text(heartRateManager.isConnected ? LocalizedStringKey("接続中") : LocalizedStringKey("未接続"))
                     .font(.system(size: 10))
                     .foregroundColor(.white.opacity(0.5))
             }
@@ -1754,7 +1765,7 @@ struct MainTimerView: View {
                         Divider().frame(height: 28)
 
                         VStack(alignment: .leading, spacing: 1) {
-                            Text(isLast ? "終了まで" : "次の種目まで")
+                            Text(isLast ? LocalizedStringKey("終了まで") : LocalizedStringKey("次の種目まで"))
                                 .font(.caption2)
                                 .foregroundColor(.secondary)
                             Text(formatCountdown(seconds: stepRemaining))
@@ -1769,7 +1780,7 @@ struct MainTimerView: View {
                                 Text("次")
                                     .font(.caption2)
                                     .foregroundColor(.secondary)
-                                Text(next.exerciseName)
+                                Text(next.exerciseName.localizedSeed)
                                     .font(.caption.weight(.medium))
                                     .lineLimit(1)
                                     .truncationMode(.tail)
@@ -1890,7 +1901,7 @@ struct MainTimerView: View {
                     HStack(spacing: 8) {
                         Image(systemName: workPhaseIcon)
                             .font(.title2)
-                        Text(sessionManager.activeDomain.workPhaseLabel + "中")
+                        Text(sessionManager.activeDomain.workPhaseActiveLabel)
                             .font(.headline)
                             .fontWeight(.bold)
                     }
@@ -1934,7 +1945,7 @@ struct MainTimerView: View {
                         Image(systemName: sessionManager.isRestTimeExceeded ? "exclamationmark.triangle.fill" : "cup.and.saucer.fill")
                             .font(.title2)
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(sessionManager.isRestTimeExceeded ? "休憩時間超過!" : "休憩中")
+                            Text(sessionManager.isRestTimeExceeded ? LocalizedStringKey("休憩時間超過!") : LocalizedStringKey("休憩中"))
                                 .font(.headline)
                                 .fontWeight(.bold)
                             if sessionManager.restTimeAlertEnabled {
@@ -2278,7 +2289,7 @@ struct MainTimerView: View {
                 .keyboardType(.numberPad)
                 .multilineTextAlignment(.trailing)
                 .frame(maxWidth: 80)
-            Text(sessionManager.repsUnit)
+            Text(sessionManager.repsUnit.localizedSeed)
                 .foregroundColor(.secondary)
         }
         HStack {
@@ -2288,7 +2299,7 @@ struct MainTimerView: View {
                 .keyboardType(.decimalPad)
                 .multilineTextAlignment(.trailing)
                 .frame(maxWidth: 80)
-            Text(sessionManager.loadUnit)
+            Text(sessionManager.loadUnit.localizedSeed)
                 .foregroundColor(.secondary)
         }
     }
@@ -2871,7 +2882,7 @@ struct ProgressDashboardPage<FormContent: View>: View {
                         .font(.caption2)
                         .foregroundColor(.white.opacity(0.7))
                         .frame(width: 60, alignment: .leading)
-                    Text(record.name ?? "-")
+                    Text((record.name ?? "-").localizedSeed)
                         .font(.caption)
                         .foregroundColor(.white)
                         .lineLimit(1)
@@ -2965,9 +2976,9 @@ struct ExerciseSelectionSheet: View {
                         }) {
                             HStack {
                                 VStack(alignment: .leading, spacing: 4) {
-                                    Text(exercise)
+                                    Text(exercise.localizedSeed)
                                         .font(.headline)
-                                    Text("\(selectedCategory.isEmpty ? sessionManager.selectedCategory : selectedCategory)")
+                                    Text((selectedCategory.isEmpty ? sessionManager.selectedCategory : selectedCategory).localizedSeed)
                                         .font(.caption)
                                         .foregroundColor(.secondary)
                                 }
@@ -3417,10 +3428,10 @@ struct WorkoutNoteSheet: View {
                         .frame(width: 28)
 
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(sessionManager.selectedCategory)
+                        Text(sessionManager.selectedCategory.localizedSeed)
                             .font(.caption2)
                             .foregroundColor(.secondary)
-                        Text(sessionManager.selectedExercise)
+                        Text(sessionManager.selectedExercise.localizedSeed)
                             .font(.subheadline)
                             .fontWeight(.semibold)
                             .foregroundColor(.primary)
@@ -3633,9 +3644,9 @@ struct WorkoutNoteSheet: View {
     // MARK: - Helpers
     private var phaseLabel: String {
         switch sessionManager.currentPhase {
-        case .idle: return "待機中"
-        case .work: return "筋トレ中"
-        case .rest: return "休憩中"
+        case .idle: return "待機中".localizedSeed
+        case .work: return "筋トレ中".localizedSeed
+        case .rest: return "休憩中".localizedSeed
         }
     }
 

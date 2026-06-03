@@ -23,8 +23,8 @@ struct TaskInputSheet: View {
     /// 二次フィールドのラベル（科目 or プロジェクト）
     private var secondaryLabel: String {
         switch domain {
-        case .study: return "科目"
-        case .work:  return "プロジェクト"
+        case .study: return "科目".localizedSeed
+        case .work:  return "プロジェクト".localizedSeed
         case .workout: return ""
         }
     }
@@ -49,24 +49,24 @@ struct TaskInputSheet: View {
 
     private var sheetTitle: String {
         switch domain {
-        case .study: return "勉強タスク入力"
-        case .work:  return "仕事タスク入力"
+        case .study: return "勉強タスク入力".localizedSeed
+        case .work:  return "仕事タスク入力".localizedSeed
         case .workout: return ""
         }
     }
 
     private var taskPlaceholder: String {
         switch domain {
-        case .study: return "例: 数学 第3章"
-        case .work:  return "例: 提案書レビュー"
+        case .study: return "例: 数学 第3章".localizedSeed
+        case .work:  return "例: 提案書レビュー".localizedSeed
         case .workout: return ""
         }
     }
 
     private var secondaryPlaceholder: String {
         switch domain {
-        case .study: return "例: 数学 / 英語"
-        case .work:  return "例: ProjectA"
+        case .study: return "例: 数学 / 英語".localizedSeed
+        case .work:  return "例: ProjectA".localizedSeed
         case .workout: return ""
         }
     }
@@ -105,7 +105,7 @@ struct TaskInputSheet: View {
                     HStack {
                         Image(systemName: domain.iconName)
                             .foregroundColor(domainAccentColor)
-                        Text(domain.displayName + "モード")
+                        Text("\(domain.displayName)モード")
                             .font(.subheadline)
                             .fontWeight(.semibold)
                         Spacer()

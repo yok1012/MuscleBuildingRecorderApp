@@ -12,30 +12,50 @@ struct HistoryView: View {
     @State private var searchText = ""
     /// nil = 全て表示、それ以外は単一ドメインに絞り込み
     @State private var domainFilter: ActivityDomain? = nil
+    /// 表示モード: リスト / ダッシュボード
+    @State private var mode: HistoryMode = .list
+
+    private enum HistoryMode: String, CaseIterable {
+        case list, dashboard
+        var label: String { self == .list ? "リスト".localizedSeed : "ダッシュボード".localizedSeed }
+    }
 
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
-                domainFilterBar
-                    .padding(.horizontal)
-                    .padding(.vertical, 8)
-
-                List {
-                    if filteredSessions.isEmpty {
-                        EmptyHistoryView()
-                    } else {
-                        ForEach(filteredSessions) { session in
-                            SessionHistoryRow(session: session)
-                                .onTapGesture {
-                                    selectedSession = session
-                                }
-                        }
-                        .onDelete(perform: deleteSessions)
+                Picker("", selection: $mode) {
+                    ForEach(HistoryMode.allCases, id: \.self) { m in
+                        Text(m.label).tag(m)
                     }
+                }
+                .pickerStyle(.segmented)
+                .padding(.horizontal)
+                .padding(.vertical, 8)
+
+                if mode == .list {
+                    domainFilterBar
+                        .padding(.horizontal)
+                        .padding(.vertical, 8)
+
+                    List {
+                        if filteredSessions.isEmpty {
+                            EmptyHistoryView()
+                        } else {
+                            ForEach(filteredSessions) { session in
+                                SessionHistoryRow(session: session)
+                                    .onTapGesture {
+                                        selectedSession = session
+                                    }
+                            }
+                            .onDelete(perform: deleteSessions)
+                        }
+                    }
+                    .searchable(text: $searchText, prompt: "日付・種目・タスクで検索")
+                } else {
+                    HistoryDashboardView(sessions: Array(sessions))
                 }
             }
             .navigationTitle("履歴")
-            .searchable(text: $searchText, prompt: "日付・種目・タスクで検索")
             .sheet(item: $selectedSession) { session in
                 HistoryDetailView(session: session)
             }
@@ -44,7 +64,7 @@ struct HistoryView: View {
 
     private var domainFilterBar: some View {
         HStack(spacing: 8) {
-            filterChip(label: "全て", icon: "list.bullet", isSelected: domainFilter == nil) {
+            filterChip(label: "全て".localizedSeed, icon: "list.bullet", isSelected: domainFilter == nil) {
                 domainFilter = nil
             }
             ForEach(ActivityDomain.allCases, id: \.self) { domain in
@@ -212,7 +232,7 @@ struct SessionHistoryRow: View {
                     .foregroundColor(.secondary)
             }
 
-            Text(primaryLabel.isEmpty ? "(タイトルなし)" : primaryLabel)
+            Text(primaryLabel.isEmpty ? "(タイトルなし)".localizedSeed : primaryLabel)
                 .font(.subheadline)
                 .foregroundColor(.secondary)
                 .lineLimit(1)
